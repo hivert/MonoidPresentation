@@ -26,9 +26,9 @@ Unset Printing Implicit Defensive.
 
 Section Defs.
 
-Variable (I : eqType).
+Variable (Alph : eqType).
 
-Definition word := seq I.
+Definition word := seq Alph.
 Definition relat := seq (word * word).
 
 Implicit Types (R : relat) (u v w x y : word) (p : word * word).
@@ -218,6 +218,36 @@ End TietzeAddRule.
 End Defs.
 
 
+Definition catmorphism A B (f : seq A -> seq B) : Prop :=
+  forall a b : seq A, f (a ++ b) = f a ++ f b.
+
+HB.mixin Record isCatMorphism A B (f : seq A -> seq B) := {
+  catmorphism_subproof : catmorphism f
+}.
+HB.structure Definition CatMorphism A B :=
+  {f of isCatMorphism A B f}.
+Notation "{ 'catmorphism' U -> V }" := (CatMorphism.type U%type V%type)
+    : type_scope.
+
+Lemma idfun_is_catmorphism A : catmorphism (@idfun (seq A)).
+Proof. by []. Qed.
+HB.instance Definition _ A :=
+  isCatMorphism.Build A A (@idfun (seq A)) (@idfun_is_catmorphism A).
+
+
+Section RelMorphisms.
+
+Variables (A : eqType) (RA : seq A -> seq A -> Prop).
+Variables (B : eqType) (RB : seq B -> seq B -> Prop).
+Definition relmorphism (f : seq A -> seq B) : Prop :=
+  forall a b : seq A, RA a b -> RB (f a) (f b).
+
+End RelMorphisms.
+
+
+
+
+
 Eval vm_compute in rewrites [:: ([:: 2; 2], [:: 1]); ([:: 1], [:: 0])]
                      [:: 1; 2; 1; 2; 2; 1; 2; 2].
 
@@ -226,4 +256,26 @@ Eval vm_compute in rewrites [:: ([:: 2; 2], [:: 1]);
                              ([:: 2; 1; 2], [::])]
                      [:: 1; 2; 1; 2; 2; 1; 2; 2].
 
+Definition rew_page_3_1 :=
+  [::
+   ([:: 2; 1; 1], [::1; 1; 2; 1]);
+   ([:: 1; 2], [:: 3]);
+   ([:: 2; 1], [:: 4]);
+   ([:: 1; 3], [:: 5]);
+   ([:: 1; 4], [:: 3; 1]);
+   ([:: 2; 3], [:: 4; 2]);
+   ([:: 2; 5], [:: 5; 3])].
 
+Definition present_page_3_1 :=
+  rew_page_3_1 ++ [seq (p.2, p.1) | p <- rew_page_3_1].
+
+Lemma step_3_1 : rewrites_to present_page_3_1 [:: 2; 5] [:: 5; 3].
+Proof.
+by exists [::
+        [:: 2; 1; 3];
+        [:: 2; 1; 1; 2];
+        [:: 1; 1; 2; 1; 2];
+        [:: 1; 3; 1; 2];
+        [:: 5; 1; 2];
+        [:: 5; 3]].
+Qed.
