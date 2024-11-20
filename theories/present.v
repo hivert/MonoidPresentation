@@ -72,28 +72,20 @@ exists (pre, p1, suf) => /=; first by rewrite -cat3_equiv_cut3.
 by apply/mapP => /=; exists (p1, p2); rewrite //= mem_filter /= eqxx.
 Qed.
 
-Inductive rewrite_path x y : Prop :=
+Inductive rewrites_to x y : Prop :=
   Rew : forall l, path (fun u v => v \in rewrites u) x l ->
-                  y = last x l -> rewrite_path x y.
+                  y = last x l -> rewrites_to x y.
 
 Arguments Rew {x y} (l).
 
-Lemma rewrite_path_trans : transitivep rewrite_path.
+Lemma rewrites_to_refl : reflexivep rewrites_to.
+Proof. by move=> x; exists [::]. Qed.
+Lemma rewrites_to_trans : transitivep rewrites_to.
 Proof.
 move=> x y z [pathxy Hxy Hy] [pathyz Hyz Hz].
 apply: (Rew (pathxy ++ pathyz)).
 - by rewrite cat_path Hxy -Hy Hyz.
 - by rewrite last_cat -Hy.
-Qed.
-
-Definition congr x y : Prop := x = y \/ rewrite_path x y.
-
-Lemma congr_refl : reflexivep congr.
-Proof. by move=> x; left. Qed.
-Lemma congr_trans : transitivep congr.
-Proof.
-move=> x y z [-> // | rxy [<- | ryz]]; first by right.
-by right; exact: (rewrite_path_trans rxy ryz).
 Qed.
 
 Lemma rewrites_stable u v1 v2 w :
@@ -102,6 +94,17 @@ Proof.
 move=> /rewritesP[pre suf [r1 r2] rinR ->{v1} ->{v2} /=].
 by apply/rewritesP; exists (u ++ pre) (suf ++ w) (r1, r2); rewrite //= !catA.
 Qed.
+
+Lemma rewrites_to_stable : stablep rewrites_to.
+Proof.
+move=> u v1 v2 w [p path_p ->{v2}].
+pose F b := u ++ b ++ w; rewrite -/(F v1).
+exists [seq F b | b <- p]; last by rewrite last_map.
+by move: path_p; apply: homo_path => x y; apply: rewrites_stable.
+Qed.
+
+
+Section Symmetry.
 
 Hypothesis Rsym : forall u v, (u, v) \in R -> (v, u) \in R.
 
@@ -117,7 +120,7 @@ Lemma rewrite_sym x y :
   (x \in rewrites y) = (y \in rewrites x).
 Proof. by apply/idP/idP; exact: rewrite_sym_impl. Qed.
 
-Lemma rewrite_path_sym : symmetricp rewrite_path.
+Lemma rewrites_to_sym : symmetricp rewrites_to.
 Proof.
 move=> x y [pathxy]; rewrite -rev_path => Hxy Hy.
 move: Hxy; rewrite -Hy.
@@ -128,40 +131,24 @@ set rel := (X in path X _ _) in Hpath.
 rewrite (eq_path (e' := rel)) /=; first exact: Hpath.
 by rewrite /rel => u v; exact: rewrite_sym.
 Qed.
-Lemma rewrite_path_symE x y : rewrite_path x y <-> rewrite_path y x.
-Proof. split; exact: rewrite_path_sym. Qed.
-Lemma congr_sym : symmetricp congr.
+Lemma rewrites_to_symE x y : rewrites_to x y <-> rewrites_to y x.
+Proof. split; exact: rewrites_to_sym. Qed.
+
+Lemma rewrites_toP : congruencep rewrites_to.
 Proof.
-rewrite /congr => x y.
-have -> : x = y <-> y = x by split => ->.
-by rewrite rewrite_path_symE.
+split; last exact rewrites_to_stable.
+split; [exact: rewrites_to_refl | exact: rewrites_to_sym | exact: rewrites_to_trans].
 Qed.
 
-Lemma rewrite_path_stable : stablep rewrite_path.
-Proof.
-move=> u v1 v2 w [p path_p ->{v2}].
-pose F b := u ++ b ++ w; rewrite -/(F v1).
-exists [seq F b | b <- p]; last by rewrite last_map.
-by move: path_p; apply: homo_path => x y; apply: rewrites_stable.
-Qed.
+End Symmetry.
 
-Lemma congr_stable : stablep congr.
-Proof.
-move=> a b1 b2 c [-> | rp]; first exact: congr_refl.
-by right; apply: (rewrite_path_stable _ _ rp).
-Qed.
-Lemma congrP : congruencep congr.
-Proof.
-split; last exact congr_stable.
-split; [exact: congr_refl | exact: congr_sym | exact: congr_trans].
-Qed.
 
-Lemma congr_min CR :
+Lemma rewrites_to_min CR :
   (forall p, p \in R -> CR p.1 p.2) ->
   reflexivep CR -> transitivep CR -> stablep CR ->
-  forall u v, congr u v -> CR u v.
+  forall u v, rewrites_to u v -> CR u v.
 Proof.
-move=> incl CR_refl CR_trans CR_stable u v [-> // | [p path_p ->{v}]].
+move=> incl CR_refl CR_trans CR_stable u v [p path_p ->{v}].
 elim: p u path_p => [//=| p0 p IHp] u /= /andP[p0_u] {}/IHp; apply CR_trans.
 move/rewritesP : p0_u => [pre suf [p1 p2] inR ->{u} ->{p0}] /=.
 by apply: CR_stable; apply: (incl _ inR).
@@ -181,15 +168,10 @@ move=> /rewritesP[pre suf [r1 r2] rinR /= ->{v} ->{u}].
 apply/rewritesP; exists pre suf (r1, r2) => //=.
 exact: subRule.
 Qed.
-Lemma sub_rewrite_path u v : rewrite_path R1 u v -> rewrite_path R2 u v.
+Lemma sub_rewrites_to u v : rewrites_to R1 u v -> rewrites_to R2 u v.
 Proof.
 move=> [p p_path ->{v}]; exists p => //.
 by move: p_path; apply (sub_path sub_rewrites).
-Qed.
-Lemma sub_congr u v : congr R1 u v -> congr R2 u v.
-Proof.
-move=> [->|rpuv]; first by left.
-by right; apply: (sub_rewrite_path rpuv).
 Qed.
 
 End SubRule.
@@ -202,10 +184,8 @@ Hypothesis eqRule : R1 =i R2.
 
 Lemma eq_rewrites u : (rewrites R1 u) =i (rewrites R2 u).
 Proof. by move=> v; apply/idP/idP; apply: sub_rewrites => p /[!eqRule]. Qed.
-Lemma eq_rewrite_path u v : rewrite_path R1 u v <-> rewrite_path R2 u v.
-Proof. by split; apply: sub_rewrite_path => p /[!eqRule]. Qed.
-Lemma eq_congr u v : congr R1 u v <-> congr R2 u v.
-Proof. by split; apply: sub_congr => p /[!eqRule]. Qed.
+Lemma eq_rewrites_to u v : rewrites_to R1 u v <-> rewrites_to R2 u v.
+Proof. by split; apply: sub_rewrites_to => p /[!eqRule]. Qed.
 
 End EqRule.
 
@@ -213,24 +193,24 @@ End EqRule.
 Section TietzeAddRule.
 
 Variables (R : relat) (u v : word).
-Hypothesis (cuv : congr R u v).
+Hypothesis (cuv : rewrites_to R u v).
 
 Let R' := (u, v) :: R.
 
-Lemma rewrite_path_add_rule x y :
-  rewrite_path R x y <-> rewrite_path R' x y.
+Lemma rewrites_to_add_rule x y :
+  rewrites_to R x y <-> rewrites_to R' x y.
 Proof.
 rewrite /R'; split.
-  by apply: sub_rewrite_path => p p_inR; rewrite inE p_inR orbT.
+  by apply: sub_rewrites_to => p p_inR; rewrite inE p_inR orbT.
 move=> [p /[swap] ->{y}]; elim: p x => [|p0 p IHp] x /=.
   by move=> _; exists [::].
 move=> /andP[p0_rew {}/IHp p0_p].
+suff {p0_p} x_p0 : rewrites_to R x p0 by apply: (rewrites_to_trans x_p0 p0_p).
 move: p0_rew => /rewritesP[pre suf [r1 r2]].
 rewrite inE => /=/orP[/eqP[->{r1}->{r2}] ->{x} eqp0 | rinR eqx eqp0 ]; first last.
-  move: p0_p => [pth pthP ->{p}]; exists (p0 :: pth) => //=.
-  by rewrite {}pthP andbT; apply/rewritesP; exists pre suf (r1, r2).
-have [-> | u_v]:= congr_stable pre suf cuv; first by rewrite -eqp0.
-by move: p0_p; rewrite eqp0; apply: rewrite_path_trans.
+  exists [:: p0]; rewrite //= andbT.
+  by apply/rewritesP; exists pre suf (r1, r2).
+by rewrite {p0}eqp0; apply: (rewrites_to_stable pre suf cuv).
 Qed.
 
 End TietzeAddRule.
