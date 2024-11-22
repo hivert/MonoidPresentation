@@ -348,7 +348,7 @@ Proof. by split=> [|x y] /=; rewrite !SubK. Qed.
 HB.instance Definition _ := isSubMonoid.Build R S U valM.
 HB.end.
 
-                                                           
+
 #[short(type="subComMonoidType")]
 HB.structure Definition SubComMonoid (R : monoidType) S :=
   {U of SubMonoid R S U & ComMonoid U}.
