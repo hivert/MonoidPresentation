@@ -573,14 +573,15 @@ Definition isopres_rcons_rule := isopres_eq equiv_rcons_rule.
 End Tietze1.
 
 
-Definition correctpres (ngen : nat) (R : relat nat) :=
-  all (fun p => all (gtn ngen) p.1 && all (gtn ngen) p.2) R.
+Definition correctpres (R : relat nat) (P : pred nat) :=
+  all (fun p => all P p.1 && all P p.2) R.
 
 Section Tietze2.
 
-Context (R : relat nat) (gen : nat) (w : word nat).
-Hypothesis Rcorr : correctpres gen R.
-Hypothesis wcorr : all (gtn gen) w.
+Context (R : relat nat) (P : pred nat) (gen : nat) (w : word nat).
+Hypothesis Rcorr : correctpres R P.
+Hypothesis wcorr : all P w.
+Hypothesis gen_nP : ~~ P gen.
 
 Implicit Types (u v x y : word nat).
 
@@ -602,15 +603,15 @@ HB.instance Definition _ :=
 
 Lemma T2inv_gen : T2inv [:: gen] = w.
 Proof. by rewrite /T2inv big_seq1 eqxx. Qed.
-Lemma T2inv_all_gtn u : all (gtn gen) u -> T2inv u = u.
+Lemma allP_T2inv u : all P u -> T2inv u = u.
 Proof.
 rewrite /T2inv; elim: u => [| u0 u IHu] /=; first by rewrite big_nil.
-rewrite big_cons => /andP[lt_u0_gen {}/IHu ->].
-move: lt_u0_gen; rewrite ltn_neqAle => /andP[-> _].
+rewrite big_cons => /andP[Pgen {}/IHu ->].
+case: eqP gen_nP => [<- /[!Pgen] // | _ _] /=.
 by rewrite -mul_catE cat1s.
 Qed.
 Lemma T2inv_w : T2inv w = w.
-Proof. exact: T2inv_all_gtn. Qed.
+Proof. exact: allP_T2inv. Qed.
 
 Lemma T2inv_rewrites_to u : rewrites_to Tietze2 u (T2inv u).
 Proof.
@@ -630,17 +631,16 @@ rewrite mem_rcons inE => /orP[/eqP [->{r1}->{r2}] | rinR] /=.
   rewrite -cat1s !mul_catE !mmorphM /= -!mul_catE; apply: rewrites_to_stable.
   by rewrite T2inv_gen T2inv_w; apply: rewrites_to_refl.
 rewrite !mul_catE !mmorphM /= -!mul_catE.
-move/allP: Rcorr => /=/(_ _ rinR) /= /andP[/T2inv_all_gtn-> /T2inv_all_gtn->].
+move/allP: Rcorr => /=/(_ _ rinR) /= /andP[/allP_T2inv-> /allP_T2inv->].
 by apply: rewrites_to1; apply/rewritesP; exists (T2inv pre) (T2inv suf) (r1, r2).
 Qed.
 HB.instance Definition _  :=
   isPresMorphism.Build nat nat Tietze2 R T2inv rewmorphism_T2inv.
 
-(*
-Lemma T2morK u : T2inv (T2mor u) = u.
-Proof.
-    caninv : forall b : word B, mor (inv b) = b %[mod S]
- *)
+Lemma T2morK u : all P u -> T2inv (T2mor u) = u %[mod R].
+Proof. by move/allP_T2inv => ->; apply: equiv_refl. Qed.
+Lemma T2invK v : T2mor (T2inv v) = v %[mod Tietze2].
+Proof. exact: (equiv_trans (equiv_refl _ _) (equiv_sym (T2invE v))). Qed.
 
 End Tietze2.
 
