@@ -425,7 +425,7 @@ HB.end.
 
 Section IdMor.
 Variables (A : choiceType) (R R' : relat A).
-Hypothesis eqR : forall u v, rewrites_to R u v  -> rewrites_to R' u v.
+Hypothesis eqR : forall u v, rewrites_to R u v -> rewrites_to R' u v.
 
 Definition idRR' : {freemon A} -> {freemon A} := idfun.
 HB.instance Definition _  := MonMorphism.on idRR'.
@@ -645,6 +645,118 @@ Proof. exact: (equiv_trans (equiv_refl _ _) (equiv_sym (T2invE v))). Qed.
 End Tietze2.
 
 
+Import Order.TTheory.
+Import Order.LexiSyntax.
+
+Fact sizelexidisplay : unit. Proof. by []. Qed.
+
+Section SizeLex.
+Variable (d : unit) (T : orderType d).
+Implicit Types (u v w x y : seq T).
+
+Definition sizelex u v :=
+  (size u < size v) || (size u == size v) && (u <= v :> seqlexi _)%O.
+
+Lemma sizelex_le u v : sizelex u v -> size u <= size v.
+Proof. by move=> /orP[/ltnW | /andP[/eqP -> _]]. Qed.
+
+Fact sizelex_refl : reflexive sizelex.
+Proof. by move=> u; rewrite /sizelex eqxx lexx /= orbT. Qed.
+Fact sizelex_anti : antisymmetric sizelex.
+Proof.
+move=> u v /andP[/orP[ltsz | /andP[/eqP eqsz leuv]]].
+  move/orP => []; first by rewrite (leq_gtF (ltnW ltsz)).
+  by rewrite (gtn_eqF ltsz).
+move=> /orP[| /andP[_ levu]]; first by rewrite eqsz ltnn.
+by apply/eqP; rewrite (eq_le (u : seqlexi _)) leuv levu.
+Qed.
+Fact sizelex_trans : transitive sizelex.
+Proof.
+move=> v u w /orP[ltsz /sizelex_le | /andP[/eqP eqszuv leuv]].
+  by move=> /(leq_trans ltsz) {}ltsz; apply/orP; left.
+move=> /orP[ltsz | /andP[/eqP eqszvw levw]].
+  by apply/orP; left; rewrite eqszuv.
+apply/orP; right; rewrite eqszuv eqszvw eqxx /=.
+exact: (le_trans leuv levw).
+Qed.
+HB.instance Definition _  := Order.Le_isPOrder.Build sizelexidisplay
+                               (seq T) sizelex_refl sizelex_anti sizelex_trans.
+Fact sizelex_total : total sizelex.
+Proof.
+rewrite /sizelex => u v; case: (ltngtP (size u) (size v)) => cmpsz //=.
+by case: (leP (u : seqlexi _) v) => //= /ltW.
+Qed.
+HB.instance Definition _  := Order.POrder_isTotal.Build sizelexidisplay
+                               (seq T) sizelex_total.
+Fact nil_bot u : ([::] <= u)%O.
+Proof.
+rewrite /Order.le /= /sizelex /= eq_sym.
+by case: (boolP (size u == 0)) => [/nilP -> |]; last rewrite -lt0n => ->.
+Qed.
+HB.instance Definition _  := Order.hasBottom.Build sizelexidisplay
+                               (seq T) nil_bot.
+
+Lemma le_sizelexiE u v :
+  (u <= v)%O =
+    (size u < size v) || (size u == size v) && (u <=^l v :> seqlexi _)%O.
+Proof. by []. Qed.
+
+Lemma lt_sizelexiE u v :
+  (u < v)%O =
+    (size u < size v) || (size u == size v) && (u <^l v :> seqlexi _)%O.
+Proof.
+rewrite !lt_neqAle; case: eqP => [-> | _] //=.
+by rewrite andbF orbF ltnn.
+Qed.
+
+Lemma size_le_sizelexi u v : (u <= v)%O -> size u <= size v.
+Proof. by rewrite le_sizelexiE => /orP[/ltnW|/andP[/eqP-> _]]. Qed.
+
+End SizeLex.
+
+
+Section SizeLexNat.
+Implicit Types (u v w x y : seq nat).
+
+Lemma sizelex_wf : well_founded  (@Order.lt _ (seq nat)).
+Proof.
+pose ltb b u v := is_true ((size v <= b) && (u < v)%O).
+suff bwf b : well_founded (ltb b).
+  move=> u; have [n] := ubnPleq (size u).
+  elim/(well_founded_induction (bwf n)): u => u IHu szu.
+  apply: Acc_intro => y ltyu; apply: IHu; first by rewrite /ltb szu ltyu.
+  exact: (leq_trans (size_le_sizelexi (ltW ltyu)) szu).
+elim: b => [| b IHb].
+  move=> u; apply: Acc_intro => y /andP[/[!leqn0]/nilP ->].
+  by rewrite ltNge nil_bot.
+have rec u : size u <= b -> Acc (ltb b.+1) u.
+  elim/(well_founded_induction IHb) : u => u IHu szu.
+  apply: Acc_intro => v /andP[_ ltvu]; apply IHu; first by rewrite /ltb szu ltvu.
+  exact: (leq_trans (size_le_sizelexi (ltW ltvu)) szu).
+suff rec' u : size u <= b.+1 -> Acc (ltb b.+1) u.
+  move=> u; apply: Acc_intro => y /andP[szu /ltW/size_le_sizelexi].
+  move/leq_trans/(_  szu); exact: rec'.
+rewrite leq_eqVlt => /orP[/eqP szu|]; last exact: rec.
+case: u szu => [//| u0 u] /= [szu].
+have [m] := ubnP u0; elim: m u0 u szu => [| m IHm] u0 u; first by rewrite ltn0.
+rewrite ltnS leq_eqVlt => szu /orP[/eqP->{u0}|]; last exact: IHm.
+elim/(well_founded_induction IHb) : u szu => u recm szu.
+apply: Acc_intro => y /andP[_].
+rewrite lt_sizelexiE /= ltnS => /orP[|]; first by rewrite szu; apply: rec.
+case: y => [//| a v] /= /andP[/eqP[/[!szu] szv]].
+rewrite Order.SeqLexiOrder.ltxi_cons.
+rewrite le_eqVlt => /andP[/orP[/eqP->{a} | ltam _]]; last exact: IHm.
+rewrite lexx /= => lexvu; apply: recm => //.
+by rewrite /ltb szu leqnn /= lt_sizelexiE orbC szu szv eqxx lexvu.
+Qed.
+
+End SizeLexNat.
+
+
+
+Goal ([:: 1; 2; 2] < [:: 2; 2; 1])%O. by []. Qed.
+Goal ~~ ([:: 2; 2] < [:: 1])%O. by []. Qed.
+Goal ~~ ([:: 1; 2; 2] < [:: 2; 2])%O. by []. Qed.
 
 Eval vm_compute in rewrites [:: ([:: 2; 2], [:: 1]); ([:: 1], [:: 0])]
                      [:: 1; 2; 1; 2; 2; 1; 2; 2].
@@ -664,10 +776,11 @@ Definition present_page_3_1 :=
    ([:: 2; 3], [:: 4; 2]);
    ([:: 2; 5], [:: 5; 3])].
 
-Goal not (correctpres 4 present_page_3_1). by []. Qed.
-Goal not (correctpres 5 present_page_3_1). by []. Qed.
-Goal correctpres 6 present_page_3_1. by []. Qed.
-Goal correctpres 7 present_page_3_1. by []. Qed.
+Goal not (correctpres present_page_3_1 (geq 3)). by []. Qed.
+Goal not (correctpres present_page_3_1 (geq 4)). by []. Qed.
+Goal correctpres present_page_3_1 (geq 5). by []. Qed.
+Goal correctpres present_page_3_1 (geq 6). by []. Qed.
+
 
 Lemma step_3_1 : [:: 2; 5] = [:: 5; 3] %[mod present_page_3_1].
 Proof.
