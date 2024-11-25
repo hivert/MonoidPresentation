@@ -42,15 +42,6 @@ Lemma swap_inj : injective swap. Proof. exact: (can_inj swapK). Qed.
 End Swap.
 
 
-Section Nil.
-Variable T T' : eqType.
-Lemma cat_nil (u v : seq T) : (u ++ v == [::]) = (u == [::]) && (v == [::]).
-Proof. by case: u. Qed.
-Lemma map_nil (u : seq T) (f : T -> T') : (map f u == [::]) = (u == [::]).
-Proof. by case: u. Qed.
-End Nil.
-
-
 Section Defs.
 
 Variable (Alph : choiceType).
@@ -108,26 +99,21 @@ Lemma cons_rewrites_spec R a u v :
 Proof. by move=> [pre suf r /= ->{u}->{v} rinR]; exists (a :: pre) suf r. Qed.
 
 
-Fixpoint rewrites1_front R w :=
+Fixpoint rewrites1_front R u :=
   if R is (r1, r2) :: R' then
-    if prefix r1 w then Some (r2 ++ drop (size r1) w)
-    else rewrites1_front R' w
+    if prefix r1 u then Some (r2 ++ drop (size r1) u)
+    else rewrites1_front R' u
   else None.
 
-Fixpoint rewrites_front R w :=
+Fixpoint rewrites_front R u :=
   if R is (r1, r2) :: R' then
-    if prefix r1 w then (r2 ++ drop (size r1) w) :: rewrites_front R' w
-    else rewrites_front R' w
+    if prefix r1 u then (r2 ++ drop (size r1) u) :: rewrites_front R' u
+    else rewrites_front R' u
   else [::].
 
-Lemma rewrites1_frontP R u v :
-  rewrites1_front R u = Some v -> rewrites_front_spec R u v.
-Proof.
-elim: R => [// | [r1 r2] R IHR] /=.
-case: prefixP => [[suf ->{IHR u}] [<-{v}] |_ /IHR/rewrite_front_spec_cons//].
-exists (drop (size r1) (r1 ++ suf)) (r1, r2) => //=; last by rewrite inE eqxx.
-by rewrite drop_size_cat.
-Qed.
+Lemma rewrite1_frontE R u :
+  rewrites1_front R u = head None [seq Some v | v <- rewrites_front R u].
+Proof. by elim: R => [// | [r1 r2] R IHR] /=; case: prefix. Qed.
 Lemma rewrites_frontP R u v :
   reflect (rewrites_front_spec R u v) (v \in rewrites_front R u).
 Proof.
@@ -147,9 +133,13 @@ by case: prefixP => _ //; rewrite inE orbC => ->.
 Qed.
 Lemma rewrites_front0P R u :
   (rewrites_front R u == [::]) = (rewrites1_front R u == None).
+Proof. by rewrite rewrite1_frontE; case: rewrites_front. Qed.
+Lemma rewrites1_frontP R u v :
+  rewrites1_front R u = Some v -> rewrites_front_spec R u v.
 Proof.
-elim: R => [// | [r1 r2] R IHR] /=.
-by case: prefixP => [|_]; last exact: IHR.
+rewrite rewrite1_frontE.
+case Hrew : (rewrites_front R u) => [//| w s] /= [<-{v}].
+by have /rewrites_frontP : w \in rewrites_front R u by rewrite Hrew inE eqxx.
 Qed.
 
 
@@ -163,21 +153,17 @@ Fixpoint rewrites1 u :=
     else option_map (cons a) (rewrites1 u')
   else rewrites1_front R [::].
 
-Lemma rewrites1P u v : rewrites1 u = Some v -> rewrites_spec R u v.
-Proof.
-elim: u v => [| a u IHu] v /=.
-  by move/rewrites1_frontP/(rewrites_front_specP [::]).
-case Hfront: (rewrites1_front R (a :: u)) => [w|].
-  by move=> [<-{v}]; move: Hfront => /rewrites1_frontP/(rewrites_front_specP [::]).
-case Hrec: (rewrites1 u) => [w|]//= [<-{v}].
-exact: (cons_rewrites_spec _ (IHu _ Hrec)).
-Qed.
-
 Fixpoint rewrites u :=
   if u is a :: u'
   then (rewrites_front R u) ++ [seq a :: v | v <- rewrites u']
   else rewrites_front R [::].
 
+Lemma rewrite1E u :
+  rewrites1 u = head None [seq Some v | v <- rewrites u].
+Proof.
+elim: u => /= [| a u ->]; rewrite rewrite1_frontE //.
+by case: rewrites_front => //=; case: rewrites.
+Qed.
 Lemma rewritesP u v : reflect (rewrites_spec R u v) (v \in rewrites u).
 Proof.
 apply (iffP idP); elim: u v => [| a u IHu] v /=.
@@ -193,13 +179,13 @@ apply (iffP idP); elim: u v => [| a u IHu] v /=.
   right; rewrite mem_map; last by move=> ? ? [].
   by apply: IHu; rewrite {}equ; exists pre suf (r1, r2).
 Qed.
-
 Lemma rewrites0P u : (rewrites u == [::]) = (rewrites1 u == None).
+Proof. by rewrite rewrite1E; case: rewrites. Qed.
+Lemma rewrites1P u v : rewrites1 u = Some v -> rewrites_spec R u v.
 Proof.
-elim: u => [|a u IHu] /=; first exact: rewrites_front0P.
-rewrite cat_nil map_nil rewrites_front0P {}IHu.
-apply/andP/eqP => [[/eqP-> /eqP->] // |].
-by case: (rewrites1_front R (a :: u)) => //; case: (rewrites1 u).
+rewrite rewrite1E.
+case Hrew : (rewrites u) => [//| w s] /= [<-{v}].
+by have /rewritesP : w \in rewrites u by rewrite Hrew inE eqxx.
 Qed.
 
 
