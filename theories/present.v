@@ -16,7 +16,7 @@
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect.
 
-Require Import monoids vectNK.
+Require Import monoids.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -40,6 +40,15 @@ Definition swap (p : T * T) := (p.2, p.1).
 Lemma swapK : involutive swap. Proof. by move => [i j]. Qed.
 Lemma swap_inj : injective swap. Proof. exact: (can_inj swapK). Qed.
 End Swap.
+
+
+Section Nil.
+Variable T T' : eqType.
+Lemma cat_nil (u v : seq T) : (u ++ v == [::]) = (u == [::]) && (v == [::]).
+Proof. by case: u. Qed.
+Lemma map_nil (u : seq T) (f : T -> T') : (map f u == [::]) = (u == [::]).
+Proof. by case: u. Qed.
+End Nil.
 
 
 Section Defs.
@@ -75,29 +84,124 @@ Qed.
 End RelationsTerminology.
 
 
+Inductive rewrites_front_spec R u v : Prop :=
+  RewritesFront : forall (suf : word) (rule : word * word),
+      u = rule.1 ++ suf -> v = rule.2 ++ suf -> rule \in R
+               -> rewrites_front_spec R u v.
+
+Inductive rewrites_spec R u v : Prop :=
+  Rewrites : forall (pre suf : word) (rule : word * word),
+      u = pre ++ rule.1 ++ suf -> v = pre ++ rule.2 ++ suf -> rule \in R
+               -> rewrites_spec R u v.
+
+Lemma rewrite_front_spec_cons R u v r1 r2:
+  rewrites_front_spec R u v -> rewrites_front_spec ((r1, r2) :: R) u v.
+Proof.
+move=> [suf [s1 s2] /= ->{u}->{v} sinR].
+by exists suf (s1, s2) => //=; rewrite inE sinR orbT.
+Qed.
+Lemma rewrites_front_specP R u v pre :
+  rewrites_front_spec R u v -> rewrites_spec R (pre ++ u) (pre ++ v).
+Proof. by move=> [suf r ->{u}->{v} rinR]; exists pre suf r. Qed.
+Lemma cons_rewrites_spec R a u v :
+  rewrites_spec R u v -> rewrites_spec R (a :: u) (a :: v).
+Proof. by move=> [pre suf r /= ->{u}->{v} rinR]; exists (a :: pre) suf r. Qed.
+
+
+Fixpoint rewrites1_front R w :=
+  if R is (r1, r2) :: R' then
+    if prefix r1 w then Some (r2 ++ drop (size r1) w)
+    else rewrites1_front R' w
+  else None.
+
+Fixpoint rewrites_front R w :=
+  if R is (r1, r2) :: R' then
+    if prefix r1 w then (r2 ++ drop (size r1) w) :: rewrites_front R' w
+    else rewrites_front R' w
+  else [::].
+
+Lemma rewrites1_frontP R u v :
+  rewrites1_front R u = Some v -> rewrites_front_spec R u v.
+Proof.
+elim: R => [// | [r1 r2] R IHR] /=.
+case: prefixP => [[suf ->{IHR u}] [<-{v}] |_ /IHR/rewrite_front_spec_cons//].
+exists (drop (size r1) (r1 ++ suf)) (r1, r2) => //=; last by rewrite inE eqxx.
+by rewrite drop_size_cat.
+Qed.
+Lemma rewrites_frontP R u v :
+  reflect (rewrites_front_spec R u v) (v \in rewrites_front R u).
+Proof.
+apply (iffP idP); elim: R => [|[r1 r2] R IHR] //=.
+- case: prefixP => [| _ {}/IHR[suf [s1 s2]/= ->{u}->{v} sinR]]; first last.
+    by exists suf (s1, s2) => //=; rewrite inE sinR orbT.
+  move=> [suf equ]; subst u => /=.
+  rewrite inE => /orP[/eqP->{v IHR} | {}/IHR].
+    by exists suf (r1, r2); rewrite ?drop_size_cat // inE eqxx.
+  exact: rewrite_front_spec_cons.
+- by move=> [].
+move=> [suf [s1 s2]/= equ eqv]; subst u v.
+rewrite inE => /orP[/eqP[<-{r1}<-{r2}] | sinR].
+  by rewrite prefix_prefix inE drop_size_cat // eqxx.
+have {}/IHR : rewrites_front_spec R (s1 ++ suf) (s2 ++ suf) by exists suf (s1, s2).
+by case: prefixP => _ //; rewrite inE orbC => ->.
+Qed.
+Lemma rewrites_front0P R u :
+  (rewrites_front R u == [::]) = (rewrites1_front R u == None).
+Proof.
+elim: R => [// | [r1 r2] R IHR] /=.
+by case: prefixP => [|_]; last exact: IHR.
+Qed.
+
+
 Section DefRewrites.
 
 Variable (R : relat).
 
-(** TODO : a very inefficient way to compute all the way to rewrite a word *)
-Definition rewrites w :=
-  flatten [seq [seq (triple.1.1) ++ p.2 ++ (triple.2) | p <- R & p.1 == triple.1.2]
-          | triple <- cut3 w ].
-Inductive rewrites_spec u v : Prop :=
-  Rewrites : forall (pre suf : word) (rule : word * word),
-      u = pre ++ rule.1 ++ suf -> v = pre ++ rule.2 ++ suf -> rule \in R
-               -> rewrites_spec u v.
+Fixpoint rewrites1 u :=
+  if u is a :: u' then
+    if rewrites1_front R u is Some u as res then res
+    else option_map (cons a) (rewrites1 u')
+  else rewrites1_front R [::].
 
-Lemma rewritesP u v : reflect (rewrites_spec u v) (v \in rewrites u).
+Lemma rewrites1P u v : rewrites1 u = Some v -> rewrites_spec R u v.
 Proof.
-apply (iffP flatten_mapP) => /=[[[[pre p1 suf]]]|].
-  rewrite -cat3_equiv_cut3 => /eqP->{u} /mapP/=[[r1 r2]] /=.
-  rewrite mem_filter => /andP/=[/eqP <-{p1} rinR ->{v}].
-  exact: (Rewrites erefl erefl rinR).
-move=> [pre suf [p1 p2] ->{u} ->{v} inR] /=.
-exists (pre, p1, suf) => /=; first by rewrite -cat3_equiv_cut3.
-by apply/mapP => /=; exists (p1, p2); rewrite //= mem_filter /= eqxx.
+elim: u v => [| a u IHu] v /=.
+  by move/rewrites1_frontP/(rewrites_front_specP [::]).
+case Hfront: (rewrites1_front R (a :: u)) => [w|].
+  by move=> [<-{v}]; move: Hfront => /rewrites1_frontP/(rewrites_front_specP [::]).
+case Hrec: (rewrites1 u) => [w|]//= [<-{v}].
+exact: (cons_rewrites_spec _ (IHu _ Hrec)).
 Qed.
+
+Fixpoint rewrites u :=
+  if u is a :: u'
+  then (rewrites_front R u) ++ [seq a :: v | v <- rewrites u']
+  else rewrites_front R [::].
+
+Lemma rewritesP u v : reflect (rewrites_spec R u v) (v \in rewrites u).
+Proof.
+apply (iffP idP); elim: u v => [| a u IHu] v /=.
+- by move=> /rewrites_frontP/(rewrites_front_specP [::]).
+- rewrite mem_cat => /orP[/rewrites_frontP/(rewrites_front_specP [::]) //|].
+  move=> /mapP[/= w {}/IHu /[swap]->{v}].
+  exact: cons_rewrites_spec.
+- move=> [] [|//] /[swap] [[/= [|//] b]] /= [|//] _ -> rinR /[!cats0].
+  by apply/rewrites_frontP; exists [::] ([::], b); rewrite // cats0.
+- rewrite mem_cat => -[pre suf [r1 r2] /= /[dup] equ-> ->{v} rinR].
+  case: pre equ => [/=| b pre /= [<-{b}]] equ; apply/orP.
+    by left; apply/rewrites_frontP; exists suf (r1, r2).
+  right; rewrite mem_map; last by move=> ? ? [].
+  by apply: IHu; rewrite {}equ; exists pre suf (r1, r2).
+Qed.
+
+Lemma rewrites0P u : (rewrites u == [::]) = (rewrites1 u == None).
+Proof.
+elim: u => [|a u IHu] /=; first exact: rewrites_front0P.
+rewrite cat_nil map_nil rewrites_front0P {}IHu.
+apply/andP/eqP => [[/eqP-> /eqP->] // |].
+by case: (rewrites1_front R (a :: u)) => //; case: (rewrites1 u).
+Qed.
+
 
 Inductive rewrites_to x y : Prop :=
   RewritesTo : forall l, path (fun u v => v \in rewrites u) x l ->
