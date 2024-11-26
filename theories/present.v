@@ -189,14 +189,13 @@ by have /rewritesP : w \in rewrites u by rewrite Hrew inE eqxx.
 Qed.
 
 
-Inductive rewrites_to x y : Prop :=
-  RewritesTo : forall l, path (fun u v => v \in rewrites u) x l ->
-                  y = last x l -> rewrites_to x y.
+Inductive rewrites_to u v : Prop :=
+  RewritesTo : forall pth, path (fun u v => v \in rewrites u) u pth ->
+                  v = last u pth -> rewrites_to u v.
+Arguments RewritesTo {u v} (pth).
 
-Arguments RewritesTo {x y} (l).
-
-Lemma rewrites_to1 x y : y \in rewrites x -> rewrites_to x y.
-Proof. by move=> rew; exists [:: y]; rewrite //= andbT. Qed.
+Lemma rewrites_to1 u v : v \in rewrites u -> rewrites_to u v.
+Proof. by move=> rew; exists [:: v]; rewrite //= andbT. Qed.
 
 Lemma rewrites_to_refl : reflexivep rewrites_to.
 Proof. by move=> x; exists [::]. Qed.
@@ -735,6 +734,142 @@ Proof. exact: (equiv_trans (equiv_refl _ _) (equiv_sym (T2invE v))). Qed.
 End Tietze2.
 
 
+Section RewritingTheory.
+
+Variable T : choiceType.
+Implicit Types (R : relat T) (u v w x y : word T).
+
+Variable C : rel (word T).
+Hypothesis Cstable : forall u v1 v2 w,
+    C v1 v2 -> C (u ++ v1 ++ w) (u ++ v2 ++ w).
+
+Definition decreasing R := all (fun r => C r.2 r.1) R.
+Definition terminating R :=
+  forall w, exists n, forall p,
+    path (fun u v => v \in rewrites R u) w p -> size p <= n.
+Definition locconfluent R := forall u v1 v2,
+  v1 \in rewrites R u -> v2 \in rewrites R u ->
+  exists w, rewrites_to R v1 w /\ rewrites_to R v2 w.
+Definition confluent R := forall u v1 v2,
+  rewrites_to R u v1 -> rewrites_to R u v2 ->
+  exists w, rewrites_to R v1 w /\ rewrites_to R v2 w.
+Definition normal R u := rewrites R u == [::].
+Definition normalf R u v := normal R v /\ rewrites_to R u v.
+
+Lemma wf_terminating R : well_founded C -> decreasing R -> terminating R.
+Proof.
+move=> wf /allP /= decr; elim/(well_founded_induction wf) => u IHu.
+suff : exists n, forall v, v \in rewrites R u ->
+        forall p : seq (word T),
+          path (fun u v => v \in rewrites R u) v p -> size p <= n.
+  move=> [n Hn]; exists n.+1.
+  by case => [// | v p] /= /andP[/Hn]; apply.
+have : forall v, v \in rewrites R u -> C v u.
+  by move=> v /rewritesP[pre suf r ->{u IHu}->{v} /decr/(Cstable pre suf)].
+elim: (rewrites R u) => [|v rew IHrew] Hrew; first by exists 0.
+have {}/IHu[m Hm] : C v u by have /Hrew : v \in v :: rew by rewrite inE eqxx.
+have {Hrew}/IHrew[n Hn] : forall w, w \in rew -> C w u.
+  by move=> w Hw; have /Hrew : w \in v :: rew by rewrite inE orbC Hw.
+exists (maxn m n) => w; rewrite inE => /orP[/eqP->{w} | {}/Hn Hrec] pth.
+  by move/Hm => /leq_trans; apply; apply: leq_maxl.
+by move/Hrec => /leq_trans; apply; apply: leq_maxr.
+Qed.
+
+Section Confluence.
+
+Variable (R : relat T).
+Hypothesis Rconfl : confluent R.
+
+Lemma normalE u v : normal R u -> rewrites_to R u v -> u = v.
+Proof.
+move/eqP => noru [[_ ->{v} // | w pth /= /andP[/[swap] _ ]]].
+by rewrite noru.
+Qed.
+Lemma confluentE u v1 v2 : normalf R u v1 -> normalf R u v2 -> v1 = v2.
+Proof.
+move=> [/normalE norv1 /Rconfl HC ] [/normalE norv2 {}/HC].
+by move=> [w [/norv1-> /norv2->]].
+Qed.
+Lemma confl_rewritesE u1 v1 u2 v2 :
+  normalf R u1 v1 -> normalf R u2 v2 -> u2 \in rewrites R u1 -> v1 = v2.
+Proof.
+move/confluentE => eq [norv2 u2v2] /rewrites_to1/rewrites_to_trans/(_ u2v2) u1v2.
+exact: eq.
+Qed.
+Lemma normalf_rewrites u v w :
+  normalf R u w -> v \in rewrites (undirected R) u -> normalf R v w.
+Proof.
+move=> [norw u_w]; rewrite rewrites_undirected orbC.
+move=> /orP[/rewrites_to1 v_u | /rewrites_to1 u_v]; split; try exact: norw.
+  exact: (rewrites_to_trans _ u_w).
+by have [w0 [/(normalE norw) <-{w0}]] := Rconfl u_w u_v.
+Qed.
+Lemma normalf_equivE u w :
+  normalf R u w -> forall v, normalf R v w <-> u = v %[mod R].
+Proof.
+move=> noruw v; split.
+  move=> [_ /rewrites_to_equiv/equiv_sym/(equiv_trans _)]; apply.
+  by move: noruw => [_ /rewrites_to_equiv].
+move=> [pth Hpth ->{v}].
+elim: pth u noruw Hpth => // [p0 pth IHpth] u noruw /=.
+by move=> /andP[/(normalf_rewrites noruw)/IHpth].
+Qed.
+Lemma normalf_equivP u1 v1 u2 v2 :
+  normalf R u1 v1 -> normalf R u2 v2 -> reflect (u1 = u2 %[mod R]) (v1 == v2).
+Proof.
+move=> nor1 nor2; apply (iffP eqP) => [eq|]; rewrite -(normalf_equivE nor1).
+  by rewrite eq.
+by move/confluentE; apply.
+Qed.
+
+End Confluence.
+
+Fixpoint norfuel R n u :=
+  if n is n'.+1 then
+    if rewrites1 R u is Some v then norfuel R n' v else (u, true)
+  else (u, false).
+
+Lemma rewrites_to_norfuel R n u : rewrites_to R u (norfuel R n u).1.
+Proof.
+elim: n u => [|n IHn] u /=; first exact: rewrites_to_refl.
+case H : rewrites1 => [a|]; last exact: rewrites_to_refl.
+by move/rewrites1P/rewritesP/rewrites_to1/rewrites_to_trans : H; apply.
+Qed.
+Lemma norfuelT R n u : (norfuel R n u).2 -> normalf R u (norfuel R n u).1.
+Proof.
+have:= rewrites_to_norfuel R n u.
+case Hnor : norfuel => [v b] /= rew Hb; rewrite {}Hb in Hnor.
+split => // {rew}.
+move: Hnor; elim: n u => //= n IHn u.
+case H : rewrites1 => [w |]; first exact: IHn.
+by rewrite /normal => [[<-]] {IHn}; move/eqP: H; rewrite -rewrites0P.
+Qed.
+Lemma norfuelF R n u :
+  ~~ (norfuel R n u).2 ->
+  exists pth, [/\ path (fun u v => v \in rewrites R u) u pth,
+      (norfuel R n u).1 = last u pth & size pth = n].
+Proof.
+elim: n u => [// | n IHn] /= u; first by move=> _; exists [::].
+case Hrew : rewrites1 => [a | //] {}/IHn[pth [Hpth Hlast szpth]].
+exists (a :: pth); rewrite /= {}szpth; split => //.
+rewrite Hpth andbT.
+move: Hrew; rewrite rewrite1E; case: rewrites => [// | b v] /= [->].
+by rewrite inE eqxx.
+Qed.
+Lemma Newman R : terminating R -> locconfluent R -> confluent R.
+Proof.
+move=> term loc u v1 v2 u_v1 u_v2.
+move/(_ u): term => [bnd Hbnd].
+have := @norfuelT R bnd.+1 u; case Hnor : (norfuel R bnd.+1 u) => [w b] /= bnor.
+have {Hnor}/bnor norw : b.
+  have := @norfuelF R bnd.+1 u; rewrite {bnor}Hnor /=.
+  case: b => //= /(_ is_true_true) [pth][/Hbnd/[swap] _ /[swap]->].
+  by rewrite ltnn.
+Admitted.
+
+End RewritingTheory.
+
+
 Import Order.TTheory.
 Import Order.LexiSyntax.
 
@@ -844,6 +979,7 @@ End SizeLexNat.
 
 
 
+
 Goal ([:: 1; 2; 2] < [:: 2; 2; 1])%O. by []. Qed.
 Goal ~~ ([:: 2; 2] < [:: 1])%O. by []. Qed.
 Goal ~~ ([:: 1; 2; 2] < [:: 2; 2])%O. by []. Qed.
@@ -882,3 +1018,5 @@ by exists [::
         [:: 5; 1; 2];
         [:: 5; 3]].
 Qed.
+
+Eval vm_compute in norfuel present_page_3_1 10 [:: 2; 5].
