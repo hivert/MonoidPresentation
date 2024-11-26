@@ -875,19 +875,19 @@ Import Order.LexiSyntax.
 
 Fact sizelexidisplay : unit. Proof. by []. Qed.
 
-Section SizeLex.
+Section SizeLexi.
 Variable (d : unit) (T : orderType d).
 Implicit Types (u v w x y : seq T).
 
-Definition sizelex u v :=
+Definition sizelexi u v :=
   (size u < size v) || (size u == size v) && (u <= v :> seqlexi _)%O.
 
-Lemma sizelex_le u v : sizelex u v -> size u <= size v.
+Lemma sizelexi_le u v : sizelexi u v -> size u <= size v.
 Proof. by move=> /orP[/ltnW | /andP[/eqP -> _]]. Qed.
 
-Fact sizelex_refl : reflexive sizelex.
-Proof. by move=> u; rewrite /sizelex eqxx lexx /= orbT. Qed.
-Fact sizelex_anti : antisymmetric sizelex.
+Fact sizelexi_refl : reflexive sizelexi.
+Proof. by move=> u; rewrite /sizelexi eqxx lexx /= orbT. Qed.
+Fact sizelexi_anti : antisymmetric sizelexi.
 Proof.
 move=> u v /andP[/orP[ltsz | /andP[/eqP eqsz leuv]]].
   move/orP => []; first by rewrite (leq_gtF (ltnW ltsz)).
@@ -895,9 +895,9 @@ move=> u v /andP[/orP[ltsz | /andP[/eqP eqsz leuv]]].
 move=> /orP[| /andP[_ levu]]; first by rewrite eqsz ltnn.
 by apply/eqP; rewrite (eq_le (u : seqlexi _)) leuv levu.
 Qed.
-Fact sizelex_trans : transitive sizelex.
+Fact sizelexi_trans : transitive sizelexi.
 Proof.
-move=> v u w /orP[ltsz /sizelex_le | /andP[/eqP eqszuv leuv]].
+move=> v u w /orP[ltsz /sizelexi_le | /andP[/eqP eqszuv leuv]].
   by move=> /(leq_trans ltsz) {}ltsz; apply/orP; left.
 move=> /orP[ltsz | /andP[/eqP eqszvw levw]].
   by apply/orP; left; rewrite eqszuv.
@@ -905,17 +905,17 @@ apply/orP; right; rewrite eqszuv eqszvw eqxx /=.
 exact: (le_trans leuv levw).
 Qed.
 HB.instance Definition _  := Order.Le_isPOrder.Build sizelexidisplay
-                               (seq T) sizelex_refl sizelex_anti sizelex_trans.
-Fact sizelex_total : total sizelex.
+                               (seq T) sizelexi_refl sizelexi_anti sizelexi_trans.
+Fact sizelexi_total : total sizelexi.
 Proof.
-rewrite /sizelex => u v; case: (ltngtP (size u) (size v)) => cmpsz //=.
+rewrite /sizelexi => u v; case: (ltngtP (size u) (size v)) => cmpsz //=.
 by case: (leP (u : seqlexi _) v) => //= /ltW.
 Qed.
 HB.instance Definition _  := Order.POrder_isTotal.Build sizelexidisplay
-                               (seq T) sizelex_total.
+                               (seq T) sizelexi_total.
 Fact nil_bot u : ([::] <= u)%O.
 Proof.
-rewrite /Order.le /= /sizelex /= eq_sym.
+rewrite /Order.le /= /sizelexi /= eq_sym.
 by case: (boolP (size u == 0)) => [/nilP -> |]; last rewrite -lt0n => ->.
 Qed.
 HB.instance Definition _  := Order.hasBottom.Build sizelexidisplay
@@ -937,47 +937,52 @@ Qed.
 Lemma size_le_sizelexi u v : (u <= v)%O -> size u <= size v.
 Proof. by rewrite le_sizelexiE => /orP[/ltnW|/andP[/eqP-> _]]. Qed.
 
-End SizeLex.
+End SizeLexi.
 
 
-Section SizeLexNat.
-Implicit Types (u v w x y : seq nat).
+Section SizelexiWF.
+Variables (disp : unit) (T : orderType disp).
+Implicit Types (u v w : seq T).
 
-Lemma sizelex_wf : well_founded  (@Order.lt _ (seq nat)).
+Hypothesis Twf : well_founded (@Order.lt _ T).
+
+Lemma sizelexi_wf : well_founded (@Order.lt _ (seq T)).
 Proof.
 pose ltb b u v := is_true ((size v <= b) && (u < v)%O).
-suff bwf b : well_founded (ltb b).
+suff bwf bnd : well_founded (ltb bnd).
   move=> u; have [n] := ubnPleq (size u).
   elim/(well_founded_induction (bwf n)): u => u IHu szu.
   apply: Acc_intro => y ltyu; apply: IHu; first by rewrite /ltb szu ltyu.
   exact: (leq_trans (size_le_sizelexi (ltW ltyu)) szu).
-elim: b => [| b IHb].
+elim: bnd => [| bnd IHbnd].
   move=> u; apply: Acc_intro => y /andP[/[!leqn0]/nilP ->].
   by rewrite ltNge nil_bot.
-have rec u : size u <= b -> Acc (ltb b.+1) u.
-  elim/(well_founded_induction IHb) : u => u IHu szu.
+have rec u : size u <= bnd -> Acc (ltb bnd.+1) u.
+  elim/(well_founded_induction IHbnd) : u => u IHu szu.
   apply: Acc_intro => v /andP[_ ltvu]; apply IHu; first by rewrite /ltb szu ltvu.
   exact: (leq_trans (size_le_sizelexi (ltW ltvu)) szu).
-suff rec' u : size u <= b.+1 -> Acc (ltb b.+1) u.
+suff rec' u : size u <= bnd.+1 -> Acc (ltb bnd.+1) u.
   move=> u; apply: Acc_intro => y /andP[szu /ltW/size_le_sizelexi].
-  move/leq_trans/(_  szu); exact: rec'.
+  by move/leq_trans/(_  szu); apply: rec'.
 rewrite leq_eqVlt => /orP[/eqP szu|]; last exact: rec.
 case: u szu => [//| u0 u] /= [szu].
-have [m] := ubnP u0; elim: m u0 u szu => [| m IHm] u0 u; first by rewrite ltn0.
-rewrite ltnS leq_eqVlt => szu /orP[/eqP->{u0}|]; last exact: IHm.
-elim/(well_founded_induction IHb) : u szu => u recm szu.
-apply: Acc_intro => y /andP[_].
+elim/(well_founded_induction Twf): u0 u szu => [u0 IHm].
+elim/(well_founded_induction IHbnd) => u IHu szu.
+apply: Acc_intro => w /andP[/= _].
 rewrite lt_sizelexiE /= ltnS => /orP[|]; first by rewrite szu; apply: rec.
-case: y => [//| a v] /= /andP[/eqP[/[!szu] szv]].
-rewrite Order.SeqLexiOrder.ltxi_cons.
-rewrite le_eqVlt => /andP[/orP[/eqP->{a} | ltam _]]; last exact: IHm.
-rewrite lexx /= => lexvu; apply: recm => //.
-by rewrite /ltb szu leqnn /= lt_sizelexiE orbC szu szv eqxx lexvu.
+case: w => [//| a v] /= /andP[/eqP[/[!szu] szv]].
+rewrite Order.SeqLexiOrder.ltxi_cons le_eqVlt => /andP[/orP[/eqP->{a} | ltam _]].
+  rewrite lexx /= => ltlvu; apply IHu; last exact: szv.
+  by rewrite /ltb szu leqnn /= lt_sizelexiE orbC szu szv eqxx ltlvu.
+exact: (IHm a ltam).
 Qed.
 
-End SizeLexNat.
+End SizelexiWF.
 
-
+Lemma wf_ltnat : well_founded (@Order.lt _ nat).
+Proof. by elim/ltn_ind => n IHn; apply: Acc_intro => m /IHn. Qed.
+Lemma sizelexi_nat_wf : well_founded (@Order.lt _ (seq nat)).
+Proof. exact: sizelexi_wf wf_ltnat. Qed.
 
 
 Goal ([:: 1; 2; 2] < [:: 2; 2; 1])%O. by []. Qed.
