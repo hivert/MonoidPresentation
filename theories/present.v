@@ -734,6 +734,22 @@ Proof. exact: (equiv_trans (equiv_refl _ _) (equiv_sym (T2invE v))). Qed.
 End Tietze2.
 
 
+Lemma wf_impl (T : Type) (R : T -> T -> Prop) (S : T -> T -> Prop) :
+  (forall x y : T, R x y -> S x y) -> well_founded S -> well_founded R.
+Proof.
+move=> RS WfS.
+suff impl x: Acc S x -> Acc R x by move=> y; apply/impl/WfS.
+move: x; apply: (well_founded_induction_type WfS) => x HAcc ASx.
+apply: Acc_intro => y Ryx; apply: HAcc; first exact: RS.
+by apply: (Acc_inv ASx); exact: RS.
+Qed.
+
+Lemma wfP (T : Type) (R : T -> T -> Prop) (S : rel T) :
+  (forall x y : T, reflect (R x y) (S x y)) ->
+  (well_founded R <-> well_founded S).
+Proof. by move => refl; split; apply: wf_impl => x y /refl. Qed.
+
+
 Section RewritingTheory.
 
 Variable T : choiceType.
@@ -755,25 +771,6 @@ Definition confluent R := forall u v1 v2,
   exists w, rewrites_to R v1 w /\ rewrites_to R v2 w.
 Definition normal R u := rewrites R u == [::].
 Definition normalf R u v := normal R v /\ rewrites_to R u v.
-
-Lemma wf_terminating R : well_founded C -> decreasing R -> terminating R.
-Proof.
-move=> wf /allP /= decr; elim/(well_founded_induction wf) => u IHu.
-suff : exists n, forall v, v \in rewrites R u ->
-        forall p : seq (word T),
-          path (fun u v => v \in rewrites R u) v p -> size p <= n.
-  move=> [n Hn]; exists n.+1.
-  by case => [// | v p] /= /andP[/Hn]; apply.
-have : forall v, v \in rewrites R u -> C v u.
-  by move=> v /rewritesP[pre suf r ->{u IHu}->{v} /decr/(Cstable pre suf)].
-elim: (rewrites R u) => [|v rew IHrew] Hrew; first by exists 0.
-have {}/IHu[m Hm] : C v u by have /Hrew : v \in v :: rew by rewrite inE eqxx.
-have {Hrew}/IHrew[n Hn] : forall w, w \in rew -> C w u.
-  by move=> w Hw; have /Hrew : w \in v :: rew by rewrite inE orbC Hw.
-exists (maxn m n) => w; rewrite inE => /orP[/eqP->{w} | {}/Hn Hrec] pth.
-  by move/Hm => /leq_trans; apply; apply: leq_maxl.
-by move/Hrec => /leq_trans; apply; apply: leq_maxr.
-Qed.
 
 Section Confluence.
 
@@ -835,7 +832,8 @@ elim: n u => [|n IHn] u /=; first exact: rewrites_to_refl.
 case H : rewrites1 => [a|]; last exact: rewrites_to_refl.
 by move/rewrites1P/rewritesP/rewrites_to1/rewrites_to_trans : H; apply.
 Qed.
-Lemma norfuelT R n u : (norfuel R n u).2 -> normalf R u (norfuel R n u).1.
+Lemma norfuelT R n u :
+  (norfuel R n u).2 -> normalf R u (norfuel R n u).1.
 Proof.
 have:= rewrites_to_norfuel R n u.
 case Hnor : norfuel => [v b] /= rew Hb; rewrite {}Hb in Hnor.
@@ -856,11 +854,54 @@ rewrite Hpth andbT.
 move: Hrew; rewrite rewrite1E; case: rewrites => [// | b v] /= [->].
 by rewrite inE eqxx.
 Qed.
+
+Lemma decreasing_wf R :
+  well_founded C -> decreasing R -> well_founded (fun v u => v \in rewrites R u).
+Proof.
+move=> /[swap] /allP /= decr.
+apply: wf_impl => x y /rewritesP[pre suf r ->{x}->{y} rinR].
+by apply: Cstable; apply: decr.
+Qed.
+
+Lemma wf_terminating R :
+  well_founded (fun v u => v \in rewrites R u) <-> terminating R.
+Proof.
+split=> [wf | term].
+  elim/(well_founded_induction wf) => u IHu.
+  suff : exists n, forall v, v \in rewrites R u ->
+          forall p : seq (word T),
+            path (fun u v => v \in rewrites R u) v p -> size p <= n.
+    move=> [n Hn]; exists n.+1.
+    by case => [// | v p] /= /andP[/Hn]; apply.
+  elim: (rewrites R u) IHu => [|v rew IHrew] IHu; first by exists 0.
+  have /IHu[m Hm] : v \in v :: rew by rewrite inE eqxx.
+  have {IHu}/IHrew[n Hn] : forall y, y \in rew ->
+         exists n : nat, forall p : seq (word T),
+           path (fun u => in_mem^~ (mem (rewrites R u))) y p -> size p <= n.
+    by move=> y yinrew; apply: IHu; rewrite inE yinrew orbT.
+  exists (maxn m n) => w; rewrite inE => /orP[/eqP->{w} | {}/Hn Hrec] pth.
+    by move/Hm => /leq_trans; apply; apply: leq_maxl.
+  by move/Hrec => /leq_trans; apply; apply: leq_maxr.
+move=> u; move/(_ u): term => [n].
+elim: n u => [|n IHn] u pathu; apply: Acc_intro => v rewuv.
+  by exfalso; have /= := pathu [:: v]; rewrite ltnn andbT =>/(_ rewuv).
+apply: IHn => pth Hpth.
+have /= := pathu (v :: pth); rewrite ltnS; apply.
+by rewrite rewuv Hpth.
+Qed.
+
+Lemma confl_to_nor R u v w:
+  terminating R -> locconfluent R ->
+  rewrites_to R u v -> normalf R u w -> rewrites_to R v w.
+Proof.
+move=> term loc [].
+Admitted.
+
 Lemma Newman R : terminating R -> locconfluent R -> confluent R.
 Proof.
 move=> term loc u v1 v2 u_v1 u_v2.
 move/(_ u): term => [bnd Hbnd].
-have := @norfuelT R bnd.+1 u; case Hnor : (norfuel R bnd.+1 u) => [w b] /= bnor.
+have:= @norfuelT R bnd.+1 u; case Hnor : (norfuel R bnd.+1 u) => [w b] /= bnor.
 have {Hnor}/bnor norw : b.
   have := @norfuelF R bnd.+1 u; rewrite {bnor}Hnor /=.
   case: b => //= /(_ is_true_true) [pth][/Hbnd/[swap] _ /[swap]->].
