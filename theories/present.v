@@ -760,9 +760,7 @@ Hypothesis Cstable : forall u v1 v2 w,
     C v1 v2 -> C (u ++ v1 ++ w) (u ++ v2 ++ w).
 
 Definition decreasing R := all (fun r => C r.2 r.1) R.
-Definition terminating R :=
-  forall w, exists n, forall p,
-    path (fun u v => v \in rewrites R u) w p -> size p <= n.
+Definition terminating R := well_founded (fun v u => v \in rewrites R u).
 Definition locconfluent R := forall u v1 v2,
   v1 \in rewrites R u -> v2 \in rewrites R u ->
   exists w, rewrites_to R v1 w /\ rewrites_to R v2 w.
@@ -855,39 +853,11 @@ move: Hrew; rewrite rewrite1E; case: rewrites => [// | b v] /= [->].
 by rewrite inE eqxx.
 Qed.
 
-Lemma decreasing_wf R :
-  well_founded C -> decreasing R -> well_founded (fun v u => v \in rewrites R u).
+Lemma decreasing_wf R : well_founded C -> decreasing R -> terminating R.
 Proof.
 move=> /[swap] /allP /= decr.
 apply: wf_impl => x y /rewritesP[pre suf r ->{x}->{y} rinR].
 by apply: Cstable; apply: decr.
-Qed.
-
-Lemma wf_terminating R :
-  well_founded (fun v u => v \in rewrites R u) <-> terminating R.
-Proof.
-split=> [wf | term].
-  elim/(well_founded_induction wf) => u IHu.
-  suff : exists n, forall v, v \in rewrites R u ->
-          forall p : seq (word T),
-            path (fun u v => v \in rewrites R u) v p -> size p <= n.
-    move=> [n Hn]; exists n.+1.
-    by case => [// | v p] /= /andP[/Hn]; apply.
-  elim: (rewrites R u) IHu => [|v rew IHrew] IHu; first by exists 0.
-  have /IHu[m Hm] : v \in v :: rew by rewrite inE eqxx.
-  have {IHu}/IHrew[n Hn] : forall y, y \in rew ->
-         exists n : nat, forall p : seq (word T),
-           path (fun u => in_mem^~ (mem (rewrites R u))) y p -> size p <= n.
-    by move=> y yinrew; apply: IHu; rewrite inE yinrew orbT.
-  exists (maxn m n) => w; rewrite inE => /orP[/eqP->{w} | {}/Hn Hrec] pth.
-    by move/Hm => /leq_trans; apply; apply: leq_maxl.
-  by move/Hrec => /leq_trans; apply; apply: leq_maxr.
-move=> u; move/(_ u): term => [n].
-elim: n u => [|n IHn] u pathu; apply: Acc_intro => v rewuv.
-  by exfalso; have /= := pathu [:: v]; rewrite ltnn andbT =>/(_ rewuv).
-apply: IHn => pth Hpth.
-have /= := pathu (v :: pth); rewrite ltnS; apply.
-by rewrite rewuv Hpth.
 Qed.
 
 Lemma confl_to_nor R u v w:
@@ -900,12 +870,6 @@ Admitted.
 Lemma Newman R : terminating R -> locconfluent R -> confluent R.
 Proof.
 move=> term loc u v1 v2 u_v1 u_v2.
-move/(_ u): term => [bnd Hbnd].
-have:= @norfuelT R bnd.+1 u; case Hnor : (norfuel R bnd.+1 u) => [w b] /= bnor.
-have {Hnor}/bnor norw : b.
-  have := @norfuelF R bnd.+1 u; rewrite {bnor}Hnor /=.
-  case: b => //= /(_ is_true_true) [pth][/Hbnd/[swap] _ /[swap]->].
-  by rewrite ltnn.
 Admitted.
 
 End RewritingTheory.
