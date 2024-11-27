@@ -206,7 +206,16 @@ exists (pathxy ++ pathyz).
 - by rewrite cat_path Hxy -Hy Hyz.
 - by rewrite last_cat -Hy.
 Qed.
-
+Lemma rewrites_toP u v :
+  rewrites_to u v
+  <-> ((u = v) \/ (exists2 w, w \in rewrites u & rewrites_to w v)).
+Proof.
+split.
+  move=> [[/= _ -> | w pth /= /andP[u_w Hpth] /= ->{v}]]; first by left.
+  by right; exists w; [exact: u_w | exists pth].
+move=> [-> | [w /rewrites_to1]]; first exact: rewrites_to_refl.
+exact: rewrites_to_trans.
+Qed.
 Lemma rewrites_stable u v1 v2 w :
   v2 \in rewrites v1 -> u ++ v2 ++ w \in rewrites (u ++ v1 ++ w).
 Proof.
@@ -265,7 +274,7 @@ Qed.
 Lemma rewrites_to_symE x y : rewrites_to x y <-> rewrites_to y x.
 Proof. split; exact: rewrites_to_sym. Qed.
 
-Lemma rewrites_toP : congruencep rewrites_to.
+Lemma rewrites_to_congr : congruencep rewrites_to.
 Proof.
 split.
 - exact: rewrites_to_refl.
@@ -333,7 +342,7 @@ Proof. by rewrite !mem_undirected orbC. Qed.
 
 Let equiv_to := rewrites_to (undirected R).
 Lemma equiv_congr : congruencep equiv_to.
-Proof. exact: (rewrites_toP undirected_sym). Qed.
+Proof. exact: (rewrites_to_congr undirected_sym). Qed.
 Lemma equiv_sym : symmetricp equiv_to. Proof. by have [] := equiv_congr. Qed.
 Lemma equiv_refl : reflexivep equiv_to. Proof. by have [] := equiv_congr. Qed.
 Lemma equiv_trans : transitivep equiv_to. Proof. by have [] := equiv_congr. Qed.
@@ -763,10 +772,10 @@ Definition decreasing R := all (fun r => C r.2 r.1) R.
 Definition terminating R := well_founded (fun v u => v \in rewrites R u).
 Definition locconfluent R := forall u v1 v2,
   v1 \in rewrites R u -> v2 \in rewrites R u ->
-  exists w, rewrites_to R v1 w /\ rewrites_to R v2 w.
+  exists2 w, rewrites_to R v1 w & rewrites_to R v2 w.
 Definition confluent R := forall u v1 v2,
   rewrites_to R u v1 -> rewrites_to R u v2 ->
-  exists w, rewrites_to R v1 w /\ rewrites_to R v2 w.
+  exists2 w, rewrites_to R v1 w & rewrites_to R v2 w.
 Definition normal R u := rewrites R u == [::].
 Definition normalf R u v := normal R v /\ rewrites_to R u v.
 
@@ -783,7 +792,7 @@ Qed.
 Lemma confluentE u v1 v2 : normalf R u v1 -> normalf R u v2 -> v1 = v2.
 Proof.
 move=> [/normalE norv1 /Rconfl HC ] [/normalE norv2 {}/HC].
-by move=> [w [/norv1-> /norv2->]].
+by move=> [w /norv1-> /norv2->].
 Qed.
 Lemma confl_rewritesE u1 v1 u2 v2 :
   normalf R u1 v1 -> normalf R u2 v2 -> u2 \in rewrites R u1 -> v1 = v2.
@@ -797,7 +806,7 @@ Proof.
 move=> [norw u_w]; rewrite rewrites_undirected orbC.
 move=> /orP[/rewrites_to1 v_u | /rewrites_to1 u_v]; split; try exact: norw.
   exact: (rewrites_to_trans _ u_w).
-by have [w0 [/(normalE norw) <-{w0}]] := Rconfl u_w u_v.
+by have [w0 /(normalE norw) <-{w0}] := Rconfl u_w u_v.
 Qed.
 Lemma normalf_equivE u w :
   normalf R u w -> forall v, normalf R v w <-> u = v %[mod R].
@@ -819,38 +828,51 @@ Qed.
 
 End Confluence.
 
-Fixpoint norfuel R n u :=
-  if n is n'.+1 then
-    if rewrites1 R u is Some v then norfuel R n' v else (u, true)
+Fixpoint norfuel R fuel u :=
+  if fuel is fuel'.+1 then
+    if rewrites1 R u is Some v then norfuel R fuel' v else (u, true)
   else (u, false).
 
-Lemma rewrites_to_norfuel R n u : rewrites_to R u (norfuel R n u).1.
+Lemma rewrites_to_norfuel R fuel u : rewrites_to R u (norfuel R fuel u).1.
 Proof.
-elim: n u => [|n IHn] u /=; first exact: rewrites_to_refl.
+elim: fuel u => [|fuel IHfuel] u /=; first exact: rewrites_to_refl.
 case H : rewrites1 => [a|]; last exact: rewrites_to_refl.
 by move/rewrites1P/rewritesP/rewrites_to1/rewrites_to_trans : H; apply.
 Qed.
-Lemma norfuelT R n u :
-  (norfuel R n u).2 -> normalf R u (norfuel R n u).1.
+Lemma norfuelT R fuel u :
+  (norfuel R fuel u).2 -> normalf R u (norfuel R fuel u).1.
 Proof.
-have:= rewrites_to_norfuel R n u.
+have:= rewrites_to_norfuel R fuel u.
 case Hnor : norfuel => [v b] /= rew Hb; rewrite {}Hb in Hnor.
 split => // {rew}.
-move: Hnor; elim: n u => //= n IHn u.
-case H : rewrites1 => [w |]; first exact: IHn.
-by rewrite /normal => [[<-]] {IHn}; move/eqP: H; rewrite -rewrites0P.
+move: Hnor; elim: fuel u => //= fuel IHfuel u.
+case H : rewrites1 => [w |]; first exact: IHfuel.
+by rewrite /normal => [[<-]] {IHfuel}; move/eqP: H; rewrite -rewrites0P.
 Qed.
-Lemma norfuelF R n u :
-  ~~ (norfuel R n u).2 ->
+Lemma norfuelF R fuel u :
+  ~~ (norfuel R fuel u).2 ->
   exists pth, [/\ path (fun u v => v \in rewrites R u) u pth,
-      (norfuel R n u).1 = last u pth & size pth = n].
+      (norfuel R fuel u).1 = last u pth & size pth = fuel].
 Proof.
-elim: n u => [// | n IHn] /= u; first by move=> _; exists [::].
-case Hrew : rewrites1 => [a | //] {}/IHn[pth [Hpth Hlast szpth]].
+elim: fuel u => [// | fuel IHfuel] /= u; first by move=> _; exists [::].
+case Hrew : rewrites1 => [a | //] {}/IHfuel[pth [Hpth Hlast szpth]].
 exists (a :: pth); rewrite /= {}szpth; split => //.
 rewrite Hpth andbT.
 move: Hrew; rewrite rewrite1E; case: rewrites => [// | b v] /= [->].
 by rewrite inE eqxx.
+Qed.
+
+Lemma equivalence_fuelP R fuel :
+  confluent R -> forall u v,
+      let (un, uok) := norfuel R fuel u in
+      let (vn, vok) := norfuel R fuel v in
+      uok && vok -> reflect (u = v %[mod R]) (un == vn).
+Proof.
+move=> confl u v.
+case: norfuel (@norfuelT R fuel u) => /= un [/(_ is_true_true) uok /=| _];
+  last by case: norfuel.
+case: norfuel (@norfuelT R fuel v) => /= vn [/(_ is_true_true) vok /= _|//].
+exact: normalf_equivP.
 Qed.
 
 Lemma decreasing_wf R : well_founded C -> decreasing R -> terminating R.
@@ -860,17 +882,36 @@ apply: wf_impl => x y /rewritesP[pre suf r ->{x}->{y} rinR].
 by apply: Cstable; apply: decr.
 Qed.
 
-Lemma confl_to_nor R u v w:
-  terminating R -> locconfluent R ->
-  rewrites_to R u v -> normalf R u w -> rewrites_to R v w.
+Lemma terminatingP R : terminating R ->
+                       well_founded (fun v u => exists2 w : word T,
+                                         w \in rewrites R u & rewrites_to R w v).
 Proof.
-move=> term loc [].
-Admitted.
+move=> wf; elim/(well_founded_ind wf) => u IHu.
+apply: Acc_intro => v [/= w {}/IHu Accw /rewrites_toP[<- // |]].
+move=> [/= w1 w_w1 w1_v].
+by apply: (Acc_inv Accw); exists w1.
+Qed.
 
-Lemma Newman R : terminating R -> locconfluent R -> confluent R.
+Lemma diamond R : terminating R -> locconfluent R -> confluent R.
 Proof.
-move=> term loc u v1 v2 u_v1 u_v2.
-Admitted.
+move=> /terminatingP wf loc; elim/(well_founded_ind wf) => u IHu v1 v2.
+have {}IHu w y : w \in rewrites R u -> rewrites_to R w y ->
+          forall v1 v2, rewrites_to R y v1 -> rewrites_to R y v2 ->
+        exists2 w : word T, rewrites_to R v1 w & rewrites_to R v2 w.
+  by move=> w_u w_y; apply: IHu; exists w.
+move/rewrites_toP => [-> v1_v2| [/= w1 u_w1 w1_v1]].
+  by exists v2; last exact: rewrites_to_refl.
+move/rewrites_toP => [<- | [/= w2 u_w2 w2_v2]].
+  exists v1; first exact: rewrites_to_refl.
+  exact: (rewrites_to_trans (rewrites_to1 u_w1) w1_v1).
+have [l w1_l w2_l] := loc _ _ _ u_w1 u_w2.
+have [l1 v1_l1 l_l1] := IHu w1 w1 u_w1 (rewrites_to_refl R w1) v1 l w1_v1 w1_l.
+have [l2 v2_l2 l_l2] := IHu w2 w2 u_w2 (rewrites_to_refl R w2) v2 l w2_v2 w2_l.
+have [z l1_z l2_z] := IHu w1 l u_w1 w1_l l1 l2 l_l1 l_l2.
+exists z.
+- exact: rewrites_to_trans v1_l1 l1_z.
+- exact: rewrites_to_trans v2_l2 l2_z.
+Qed.
 
 End RewritingTheory.
 
