@@ -29,17 +29,27 @@ Reserved Notation "'{' 'rewmorph' U '->' V '}'"
 Reserved Notation "'{' 'presmorph' U '->' V '}'"
   (at level 0, U at level 98, V at level 99,
    format "{ 'presmorph'  U  ->  V }").
+Reserved Notation "x '~>' y" (at level 0, format "x '~>' y").
+Reserved Notation "x '~>*' y" (at level 0, format "x '~>*' y").
 
 Reserved Notation "x = y %[mod e ]" (at level 70, y at next level,
   no associativity,   format "'[hv ' x '/'  =  y '/'  %[mod  e ] ']'").
 
 
-Section Swap.
+Section Compl.
 Context {T : Type}.
 Definition swap (p : T * T) := (p.2, p.1).
 Lemma swapK : involutive swap. Proof. by move => [i j]. Qed.
 Lemma swap_inj : injective swap. Proof. exact: (can_inj swapK). Qed.
-End Swap.
+Implicit Type u v : seq T.
+Lemma catl_inj u : injective (cat u).
+Proof. by elim: u => [|a u IHu] //= v1 v2 []; exact: IHu. Qed.
+Lemma catr_inj u : injective (cat^~ u).
+Proof.
+move=> v1 v2 /(congr1 rev) /[!rev_cat] /catl_inj.
+exact: (can_inj revK).
+Qed.
+End Compl.
 
 
 Section Defs.
@@ -157,6 +167,7 @@ Fixpoint rewrites u :=
   if u is a :: u'
   then (rewrites_front R u) ++ [seq a :: v | v <- rewrites u']
   else rewrites_front R [::].
+
 
 Lemma rewrite1E u :
   rewrites1 u = head None [seq Some v | v <- rewrites u].
@@ -770,14 +781,23 @@ Hypothesis Cstable : forall u v1 v2 w,
 
 Definition decreasing R := all (fun r => C r.2 r.1) R.
 Definition terminating R := well_founded (fun v u => v \in rewrites R u).
+Definition confl_pair R u v :=
+  exists2 w, rewrites_to R u w & rewrites_to R v w.
 Definition locconfluent R := forall u v1 v2,
-  v1 \in rewrites R u -> v2 \in rewrites R u ->
-  exists2 w, rewrites_to R v1 w & rewrites_to R v2 w.
+  v1 \in rewrites R u -> v2 \in rewrites R u -> confl_pair R v1 v2.
 Definition confluent R := forall u v1 v2,
-  rewrites_to R u v1 -> rewrites_to R u v2 ->
-  exists2 w, rewrites_to R v1 w & rewrites_to R v2 w.
+  rewrites_to R u v1 -> rewrites_to R u v2 -> confl_pair R v1 v2.
+Definition convergent R := confluent R /\ terminating R.
+
 Definition normal R u := rewrites R u == [::].
 Definition normalf R u v := normal R v /\ rewrites_to R u v.
+
+Lemma confl_pairC R u v : confl_pair R u v -> confl_pair R v u.
+Proof. by move=> [w uw vw]; exists w. Qed.
+Lemma confl_pair_stable R u v1 v2 w :
+  confl_pair R v1 v2 -> confl_pair R (u ++ v1 ++ w) (u ++ v2 ++ w).
+Proof. by move=> [r r1 r2]; exists (u ++ r ++ w); apply: rewrites_to_stable. Qed.
+
 
 Section Confluence.
 
@@ -892,9 +912,10 @@ move=> [/= w1 w_w1 w1_v].
 by apply: (Acc_inv Accw); exists w1.
 Qed.
 
-Lemma diamond R : terminating R -> locconfluent R -> confluent R.
+Lemma diamond R : terminating R -> locconfluent R -> convergent R.
 Proof.
-move=> /terminatingP wf loc; elim/(well_founded_ind wf) => u IHu v1 v2.
+move=> term loc; split; last exact: term.
+move: term => /terminatingP wf; elim/(well_founded_ind wf) => u IHu v1 v2.
 have {}IHu w y : w \in rewrites R u -> rewrites_to R w y ->
           forall v1 v2, rewrites_to R y v1 -> rewrites_to R y v2 ->
         exists2 w : word T, rewrites_to R v1 w & rewrites_to R v2 w.
@@ -912,6 +933,138 @@ exists z.
 - exact: rewrites_to_trans v1_l1 l1_z.
 - exact: rewrites_to_trans v2_l2 l2_z.
 Qed.
+
+(** * Note : I include trivial spairs and npairs where u = v *)
+Inductive spair R u v : Prop :=
+  SPair: forall (pre mid suf: word T) (rpre rsuf : word T * word T),
+      rpre \in R -> rsuf \in R
+      -> mid != [::] -> rpre.1 = pre ++ mid -> rsuf.1 = mid ++ suf
+      -> u = rpre.2 ++ suf -> v = pre ++ rsuf.2 -> spair R u v.
+Inductive npair R u v : Prop :=
+  NPair: forall (pre mid suf: word T) (rw rmid : word T * word T),
+      rw \in R -> rmid \in R
+      -> rw.1 = pre ++ mid ++ suf -> rmid.1 = mid
+      -> u = rw.2 -> v = pre ++ rmid.2 ++ suf -> npair R u v.
+
+Definition all_spairs_rule (r1 r2 s1 s2 : seq T) :=
+  [seq (r2 ++ drop (size r1 - shift) s1, take shift r1 ++ s2) |
+    shift <- iota 0 (size r1) & prefix (drop shift r1) s1].
+Definition all_spairs R :=
+  flatten [seq all_spairs_rule r.1 r.2 s.1 s.2 | r <- R, s <- R].
+Definition all_npairs_rule (r1 r2 s1 s2 : seq T) :=
+  [seq (r2, take shift r1 ++ s2 ++ drop (shift + size s1) r1) |
+    shift <- iota 0 (size r1 - size s1).+1 & s1 == take (size s1) (drop shift r1)].
+Definition all_npairs R :=
+  flatten [seq all_npairs_rule r.1 r.2 s.1 s.2 | r <- R, s <- R].
+
+Lemma all_spairsP R u v : reflect (spair R u v) ((u, v) \in all_spairs R).
+Proof.
+apply (iffP flattenP) => /=.
+  move=> [seqp /allpairsP/=[[[r1 r2] [s1 s2] /= [rinR sinR] ->{seqp}]]].
+  rewrite /all_spairs_rule => /mapP[/= shift].
+  rewrite mem_filter mem_iota leq0n add0n /= => /andP[].
+  move=> /prefixP[suf eqs1] ltshift [->{u}->{v}].
+  pose pre := take shift r1.
+  pose mid := drop shift r1.
+  exists pre mid suf (r1, r2) (s1, s2) => //=.
+  - apply/negP=> /eqP eqmid.
+    have := congr1 size (cat_take_drop shift r1).
+    rewrite size_cat size_take ltshift => eq.
+    by move: ltshift; rewrite -eq -/mid eqmid /= addn0 ltnn.
+  - by rewrite /pre /mid cat_take_drop.
+  - by congr cat; rewrite eqs1 drop_cat size_drop ltnn subnn drop0.
+move=> [pre mid suf [r1 r2] [s1 s2] rinR sinR /=] midn0 eqr1 eqs1 ->{u}->{v}.
+have eqmid : mid = drop (size pre) r1 by rewrite eqr1 drop_size_cat.
+exists (all_spairs_rule r1 r2 s1 s2).
+  by apply/allpairsP => /=; exists (r1, r2, (s1, s2)).
+apply/mapP; exists (size pre).
+  rewrite mem_filter mem_iota add0n /= -eqmid eqs1 prefix_prefix /=.
+  rewrite eqr1 -[size pre]addn0 size_cat ltn_add2l lt0n.
+  by move: midn0; case mid.
+by rewrite eqs1 eqr1 take_size_cat // size_cat addKn drop_size_cat.
+Qed.
+
+Lemma all_npairsP R u v : reflect (npair R u v) ((u, v) \in all_npairs R).
+Proof.
+apply (iffP flattenP) => /=.
+  move=> [seqp /allpairsP/=[[[r1 r2] [s1 s2] /= [rinR sinR] ->{seqp}]]].
+  rewrite /all_npairs_rule => /mapP[shift].
+  rewrite mem_filter mem_iota leq0n add0n /= => /andP[].
+  rewrite ltnS => /eqP eqs1 ltshift [->{u}->{v}].
+  set pre := take shift r1.
+  set suf := drop (shift + size s1) r1.
+  exists pre s1 suf (r1, r2) (s1, s2) => //=.
+  rewrite /pre eqs1 /suf take_drop.
+  have -> : take shift r1 = take shift (take (size s1 + shift) r1).
+    by rewrite take_takel ?leq_addl.
+  by rewrite catA addnC !cat_take_drop.
+move=> [pre mid suf [r1 r2] [s1 s2] rinR sinR /= eqr1 eqs1 ->{u}->{v}].
+exists (all_npairs_rule r1 r2 s1 s2).
+  by apply/allpairsP => /=; exists (r1, r2, (s1, s2)).
+apply/mapP; exists (size pre).
+  rewrite mem_filter mem_iota add0n /= ltnS.
+  rewrite eqr1 eqs1 drop_size_cat // take_size_cat // eqxx /=.
+  by rewrite !size_cat [size mid + _]addnC addnA addnK leq_addr.
+by rewrite eqr1 eqs1 take_size_cat // -size_cat !catA drop_size_cat.
+Qed.
+
+
+Lemma cat2E u v x y :
+  size u <= size x -> u ++ v = x ++ y ->
+  exists2 mid, v = mid ++ y & x = u ++ mid.
+Proof.
+move=> ltsize eq.
+exists (take (size x - size u) v).
+  have := congr1 (drop (size u)) eq.
+  rewrite drop_size_cat // => ->; rewrite drop_cat; first last.
+  move: ltsize; rewrite leq_eqVlt => /orP[/eqP -> | ->].
+    by rewrite ltnn subnn take0 drop0.
+  by rewrite take_size_cat // size_drop.
+have := congr1 (take (size x)) eq.
+rewrite [X in _ = X -> _]take_size_cat // => {1}<-.
+by rewrite take_cat ltnNge ltsize /=.
+Qed.
+
+Lemma nspair_confluence R :
+  (forall u v, npair R u v -> confl_pair R u v) ->
+  (forall u v, spair R u v -> confl_pair R u v) -> locconfluent R.
+Proof.
+move=> npairconfl  spairconfl u v1 v2.
+move=> /rewritesP[pre1 suf1 r1 ->{u}->{v1} r1inR].
+move=> /rewritesP[pre2 suf2 r2  equ ->{v2} r2inR].
+wlog lt12 : pre1 suf1 pre2 suf2 r1 r1inR r2 r2inR equ / size pre1 <= size pre2.
+  move=> Hwlog.
+  case: (leqP (size pre1) (size pre2)) => [le12 | /ltnW le21]; first exact: Hwlog.
+  exact/confl_pairC/Hwlog.
+case: r1 r2 r1inR r2inR equ => [r1 r2] [s1 s2] r1inR r2inR /= equ.
+move: equ => /(cat2E lt12) {lt12} [a equ ->{pre2}].
+case: (leqP (size r1) (size a)) => [ler1_a | lea_r1].
+  (** Trivial pair *)
+  move: equ => /(cat2E ler1_a) {ler1_a} [mid ->{suf1} ->{a}].
+  rewrite -!catA.
+  exists (pre1 ++ r2 ++ mid ++ s2 ++ suf2); apply/rewrites_to1/rewritesP.
+  - by exists (pre1 ++ r2 ++ mid) suf2 (s1, s2); rewrite ?catA.
+  - by exists pre1 (mid ++ s2 ++ suf2) (r1, r2); rewrite ?catA.
+move: equ => /esym/(cat2E (ltnW lea_r1)) [b] equ eqr1.
+case: (leqP (size s1) (size b)) => [les1_b | /ltnW leb_s1].
+  (** Nested pair *)
+  move: equ => /(cat2E les1_b) {les1_b} [c ->{suf2} eqb].
+  rewrite -!catA [a ++ _]catA [(a ++ s2) ++ _]catA; apply confl_pair_stable.
+  rewrite -catA; apply: npairconfl => {spairconfl}.
+  exists a s1 c (r1, r2) (s1, s2) => //=.
+  by rewrite eqr1 eqb.
+(** True critical Spair *)
+move: equ => /esym/(cat2E leb_s1) {leb_s1} [c ->{suf1} eqs1].
+rewrite -!catA [r2 ++ _]catA [a ++ _]catA; apply confl_pair_stable.
+apply: spairconfl => {npairconfl}.
+exists a b c (r1, r2) (s1, s2) => //=.
+by apply/negP => /eqP eqb; move: lea_r1; rewrite eqr1 eqb cats0 ltnn.
+Qed.
+
+Lemma spair_confluence R :
+  (forall u v, ~ npair R u v) ->
+  (forall u v, spair R u v -> confl_pair R u v) -> locconfluent R.
+Proof. by move=> no_npair; apply: nspair_confluence => u v /no_npair. Qed.
 
 End RewritingTheory.
 
@@ -1071,3 +1224,6 @@ by exists [::
 Qed.
 
 Eval vm_compute in norfuel present_page_3_1 10 [:: 2; 5].
+
+Eval vm_compute in all_spairs present_page_3_1.
+Eval vm_compute in all_npairs present_page_3_1.
