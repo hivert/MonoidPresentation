@@ -792,6 +792,8 @@ Definition convergent R := confluent R /\ terminating R.
 Definition normal R u := rewrites R u == [::].
 Definition normalf R u v := normal R v /\ rewrites_to R u v.
 
+Lemma confl_pair_refl R u : confl_pair R u u.
+Proof. by exists u; apply: rewrites_to_refl. Qed.
 Lemma confl_pairC R u v : confl_pair R u v -> confl_pair R v u.
 Proof. by move=> [w uw vw]; exists w. Qed.
 Lemma confl_pair_stable R u v1 v2 w :
@@ -1062,9 +1064,56 @@ by apply/negP => /eqP eqb; move: lea_r1; rewrite eqr1 eqb cats0 ltnn.
 Qed.
 
 Lemma spair_confluence R :
-  (forall u v, ~ npair R u v) ->
+  (forall u v, npair R u v -> u = v) ->
   (forall u v, spair R u v -> confl_pair R u v) -> locconfluent R.
-Proof. by move=> no_npair; apply: nspair_confluence => u v /no_npair. Qed.
+Proof.
+move=> no_npair; apply: nspair_confluence => u v /no_npair ->.
+exact: confl_pair_refl.
+Qed.
+
+
+Variant check_convergence_result :=
+  | Ok : check_convergence_result
+  | NotDecreasing : check_convergence_result
+  | HaveNpair : relat T -> check_convergence_result
+  | HaveSpair : (word T * word T) -> check_convergence_result.
+
+Definition check_convergence_error fuel R : check_convergence_result :=
+  if ~~ (decreasing R) then NotDecreasing 
+  else if has (fun p => p.1 != p.2) (all_npairs R) then HaveNpair (all_npairs R)
+  else let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
+      (* if normalisation fails by out of fuel but results agree *)
+      (* we do have confluence                                   *)
+  let pos := find (fun p => norfuel R fuel p.1 != norfuel R fuel p.2) spairs in
+  if pos == size spairs then Ok
+  else HaveSpair (nth ([::], [::]) spairs pos).
+
+Definition check_convergence fuel R : bool :=
+  if ~~ (decreasing R) then false
+  else if has (fun p => p.1 != p.2) (all_npairs R) then false
+  else let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
+      (* if normalisation fails by out of fuel but results agree *)
+      (* we do have confluence                                   *)
+  all (fun p => norfuel R fuel p.1 == norfuel R fuel p.2) spairs.
+
+
+Lemma check_convergenceP :
+  well_founded (fun x x0 => C x x0) ->
+  forall fuel R, check_convergence fuel R -> convergent R.
+Proof.
+rewrite /check_convergence => wfC fuel R /=.
+case: (boolP (decreasing R)) => [/= dec | _ //].
+case: hasP => [// | /= nonpair].
+have {nonpair}/spair_confluence loc_confl : forall u v, npair R u v -> u = v.
+  move=> u v /all_npairsP H; apply/eqP/negP => /negP neq.
+  by apply: nonpair; exists (u, v).
+move/allP => /= confl; apply: diamond; first exact: (decreasing_wf wfC dec).
+apply: loc_confl => u v Suv.
+case: (altP (u =P v)) => [-> | nequv]; first by exists v; apply: rewrites_to_refl.
+have /confl/eqP/=eqnor : (u, v) \in filter (fun p => p.1 != p.2) (all_spairs R).
+  by rewrite mem_filter /= {}nequv /=; apply/all_spairsP.
+by exists (norfuel R fuel u).1 => [|/[!eqnor]]; exact: rewrites_to_norfuel.
+Qed.
 
 End RewritingTheory.
 
@@ -1077,6 +1126,7 @@ Fact sizelexidisplay : unit. Proof. by []. Qed.
 Section SizeLexi.
 Variable (d : unit) (T : orderType d).
 Implicit Types (u v w x y : seq T).
+
 
 Definition sizelexi u v :=
   (size u < size v) || (size u == size v) && (u <= v :> seqlexi _)%O.
@@ -1136,6 +1186,18 @@ Qed.
 Lemma size_le_sizelexi u v : (u <= v)%O -> size u <= size v.
 Proof. by rewrite le_sizelexiE => /orP[/ltnW|/andP[/eqP-> _]]. Qed.
 
+Lemma lt_sizelexi_stable u v1 v2 w :
+  (v1 < v2 -> (u ++ v1 ++ w) < (u ++ v2 ++ w))%O.
+Proof.
+rewrite !lt_sizelexiE => /orP[ltsz | /andP[/eqP eqsz ltlex12]].
+  by rewrite !size_cat ltn_add2l ltn_add2r ltsz.
+rewrite !size_cat eqsz ltnn eqxx /=.
+elim: u => [/=| a u IHu]; last by rewrite /= ltxi_cons lexx.
+elim: v1 v2 eqsz ltlex12 => [|h1 v1 IHv1] [|h2 v2]//= [{}/IHv1 rec].
+rewrite !ltxi_cons => /andP[->]/= /implyP H.
+by apply/implyP => /H/rec.
+Qed.
+
 End SizeLexi.
 
 
@@ -1183,6 +1245,32 @@ Proof. by elim/ltn_ind => n IHn; apply: Acc_intro => m /IHn. Qed.
 Lemma sizelexi_nat_wf : well_founded (@Order.lt _ (seq nat)).
 Proof. exact: sizelexi_wf wf_ltnat. Qed.
 
+Definition check_convergence_natP fuel R :
+  check_convergence <%O fuel R -> convergent R :=
+  check_convergenceP (@lt_sizelexi_stable _ nat) sizelexi_nat_wf
+    (fuel := fuel) (R := R).
+
+Definition present_final :=
+  [:: (*  c < e < d < a < b. *)
+      (*  0 < 1 < 2 < 3 < 4. *)
+     ([:: 3; 4], [:: 0]);           (* ab → c *)
+     ([:: 4; 3], [:: 2]);           (* ba → d *)
+     ([:: 3; 0], [:: 1]);           (* ac → e *)
+     ([:: 3; 2], [:: 0; 3]);        (* ad → ca *)
+     ([:: 4; 0], [:: 2; 4]);        (* bc → db *)
+     ([:: 4; 1], [:: 1; 0]);        (* be → ec *)
+     ([:: 2; 3], [:: 1; 3]);        (* da → ea *)
+     ([:: 2; 0], [:: 1; 0]);        (* dc → ec *)
+     ([:: 2; 1], [:: 1; 1]);        (* de → ee *)
+     ([:: 3; 1; 3], [:: 0; 3; 3]);  (* aea → caa *)
+     ([:: 3; 1; 0], [:: 0; 1]);     (* aec → ce *)
+     ([:: 3; 1; 1], [:: 0; 3; 1])   (* aee → cae*)
+   ].
+
+Goal convergent present_final.
+Proof. exact: (check_convergence_natP (fuel := 10)). Qed.
+
+
 
 Goal ([:: 1; 2; 2] < [:: 2; 2; 1])%O. by []. Qed.
 Goal ~~ ([:: 2; 2] < [:: 1])%O. by []. Qed.
@@ -1198,13 +1286,25 @@ Eval vm_compute in rewrites [:: ([:: 2; 2], [:: 1]);
 
 Definition present_page_3_1 :=
   [::
-   ([:: 2; 1; 1], [::1; 1; 2; 1]);
+   ([:: 2; 1; 1], [:: 1; 1; 2; 1]);
    ([:: 1; 2], [:: 3]);
    ([:: 2; 1], [:: 4]);
    ([:: 1; 3], [:: 5]);
    ([:: 1; 4], [:: 3; 1]);
    ([:: 2; 3], [:: 4; 2]);
    ([:: 2; 5], [:: 5; 3])].
+
+
+
+
+
+Definition check_convergence fuel R :=
+  if ~~ (decreasing R) then false
+  else if all_npairs R != [::] then false
+       else let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
+            (* if normalisation fails by out of fuel but results agree *)
+            (* we do have confluence                                   *)
+            all (fun p => norfuel R fuel p.1 == norfuel R fuel p.2) spairs.
 
 Goal not (correctpres present_page_3_1 (geq 3)). by []. Qed.
 Goal not (correctpres present_page_3_1 (geq 4)). by []. Qed.
