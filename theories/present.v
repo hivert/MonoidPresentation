@@ -98,15 +98,15 @@ Inductive rewrites_spec R u v : Prop :=
 Lemma rewrite_front_spec_cons R u v r1 r2:
   rewrites_front_spec R u v -> rewrites_front_spec ((r1, r2) :: R) u v.
 Proof.
-move=> [suf [s1 s2] /= ->{u}->{v} sinR].
+move=> [suf [s1 s2] /= {u}->{v}-> sinR].
 by exists suf (s1, s2) => //=; rewrite inE sinR orbT.
 Qed.
 Lemma rewrites_front_specP R u v pre :
   rewrites_front_spec R u v -> rewrites_spec R (pre ++ u) (pre ++ v).
-Proof. by move=> [suf r ->{u}->{v} rinR]; exists pre suf r. Qed.
+Proof. by move=> [suf r {u}->{v}-> rinR]; exists pre suf r. Qed.
 Lemma cons_rewrites_spec R a u v :
   rewrites_spec R u v -> rewrites_spec R (a :: u) (a :: v).
-Proof. by move=> [pre suf r /= ->{u}->{v} rinR]; exists (a :: pre) suf r. Qed.
+Proof. by move=> [pre suf r /= {u}->{v}-> rinR]; exists (a :: pre) suf r. Qed.
 
 
 Fixpoint rewrites1_front R u :=
@@ -128,15 +128,15 @@ Lemma rewrites_frontP R u v :
   reflect (rewrites_front_spec R u v) (v \in rewrites_front R u).
 Proof.
 apply (iffP idP); elim: R => [|[r1 r2] R IHR] //=.
-- case: prefixP => [| _ {}/IHR[suf [s1 s2]/= ->{u}->{v} sinR]]; first last.
+- case: prefixP => [| _ {}/IHR[suf [s1 s2]/= {u}->{v}-> sinR]]; first last.
     by exists suf (s1, s2) => //=; rewrite inE sinR orbT.
   move=> [suf equ]; subst u => /=.
-  rewrite inE => /orP[/eqP->{v IHR} | {}/IHR].
+  rewrite inE => /orP[/eqP{v IHR}-> | {}/IHR].
     by exists suf (r1, r2); rewrite ?drop_size_cat // inE eqxx.
   exact: rewrite_front_spec_cons.
 - by move=> [].
 move=> [suf [s1 s2]/= equ eqv]; subst u v.
-rewrite inE => /orP[/eqP[<-{r1}<-{r2}] | sinR].
+rewrite inE => /orP[/eqP[{r1}<-{r2}<-] | sinR].
   by rewrite prefix_prefix inE drop_size_cat // eqxx.
 have {}/IHR : rewrites_front_spec R (s1 ++ suf) (s2 ++ suf) by exists suf (s1, s2).
 by case: prefixP => _ //; rewrite inE orbC => ->.
@@ -182,12 +182,12 @@ Proof.
 apply (iffP idP); elim: u v => [| a u IHu] v /=.
 - by move=> /rewrites_frontP/(rewrites_front_specP [::]).
 - rewrite mem_cat => /orP[/rewrites_frontP/(rewrites_front_specP [::]) //|].
-  move=> /mapP[/= w {}/IHu /[swap]->{v}].
+  move=> /mapP[/= w {}/IHu /[swap]{v}->].
   exact: cons_rewrites_spec.
 - move=> [] [|//] /[swap] [[/= [|//] b]] /= [|//] _ -> rinR /[!cats0].
   by apply/rewrites_frontP; exists [::] ([::], b); rewrite // cats0.
-- rewrite mem_cat => -[pre suf [r1 r2] /= /[dup] equ-> ->{v} rinR].
-  case: pre equ => [/=| b pre /= [<-{b}]] equ; apply/orP.
+- rewrite mem_cat => -[pre suf [r1 r2] /= /[dup] equ-> {v}-> rinR].
+  case: pre equ => [/=| b pre /= [{b}<-]] equ; apply/orP.
     by left; apply/rewrites_frontP; exists suf (r1, r2).
   right; rewrite mem_map; last by move=> ? ? [].
   by apply: IHu; rewrite {}equ; exists pre suf (r1, r2).
@@ -196,7 +196,7 @@ Lemma rewrites0P u : (rewrites u == [::]) = (rewrites1 u == None).
 Proof. by rewrite rewrite1E; case: rewrites. Qed.
 Lemma rewrites1P u v : rewrites1 u = Some v -> v \in rewrites u.
 Proof.
-by rewrite rewrite1E; case: rewrites => [//| w s] /= [<-{v}]; rewrite inE eqxx.
+by rewrite rewrite1E; case: rewrites => [//| w s] /= [{v}<-]; rewrite inE eqxx.
 Qed.
 
 
@@ -222,7 +222,7 @@ Lemma rewrites_toP u v :
   <-> ((u = v) \/ (exists2 w, w \in rewrites u & rewrites_to w v)).
 Proof.
 split.
-  move=> [[/= _ -> | w pth /= /andP[u_w Hpth] /= ->{v}]]; first by left.
+  move=> [[/= _ -> | w pth /= /andP[u_w Hpth] /= {v}->]]; first by left.
   by right; exists w; [exact: u_w | exists pth].
 move=> [-> | [w /rewrites_to1]]; first exact: rewrites_to_refl.
 exact: rewrites_to_trans.
@@ -230,12 +230,12 @@ Qed.
 Lemma rewrites_stable u v1 v2 w :
   v2 \in rewrites v1 -> u ++ v2 ++ w \in rewrites (u ++ v1 ++ w).
 Proof.
-move=> /rewritesP[pre suf [r1 r2] ->{v1} ->{v2} rinR /=].
+move=> /rewritesP[pre suf [r1 r2] {v1}->{v2}-> rinR /=].
 by apply/rewritesP; exists (u ++ pre) (suf ++ w) (r1, r2); rewrite //= !catA.
 Qed.
 Lemma rewrites_to_stable : stablep rewrites_to.
 Proof.
-move=> u v1 v2 w [p path_p ->{v2}].
+move=> u v1 v2 w [p path_p {v2}->].
 pose F b := u ++ b ++ w; rewrite -/(F v1).
 exists [seq F b | b <- p]; last by rewrite last_map.
 by move: path_p; apply: homo_path => x y; apply: rewrites_stable.
@@ -248,9 +248,9 @@ Lemma rewrites_to_min CR :
   reflexivep CR -> transitivep CR -> stablep CR ->
   forall u v, rewrites_to u v -> CR u v.
 Proof.
-move=> incl CR_refl CR_trans CR_stable u v [p path_p ->{v}].
+move=> incl CR_refl CR_trans CR_stable u v [p path_p {v}->].
 elim: p u path_p => [//=| p0 p IHp] u /= /andP[p0_u] {}/IHp; apply CR_trans.
-move/rewritesP : p0_u => [pre suf [r1 pr] ->{u}->{p0} rinR] /=.
+move/rewritesP : p0_u => [pre suf [r1 pr] {u}->{p0}-> rinR] /=.
 by apply: CR_stable; apply: (incl _ rinR).
 Qed.
 
@@ -262,7 +262,7 @@ Hypothesis Rsym : forall u v, (u, v) \in R -> (v, u) \in R.
 Lemma rewrites_sym_impl x y :
   x \in rewrites y -> y \in rewrites x.
 Proof.
-move=> /rewritesP[pre suf [r1 r2] ->{y}->{x} rinR  /=].
+move=> /rewritesP[pre suf [r1 r2] {y}->{x}-> rinR  /=].
 apply/rewritesP; exists pre suf (r2, r1) => //.
 exact: Rsym.
 Qed.
@@ -276,7 +276,7 @@ Proof.
 move=> x y [pathxy]; rewrite -rev_path => Hxy Hy.
 move: Hxy; rewrite -Hy.
 case/lastP: pathxy Hy => [/= -> _ | pathxz z]; first by exists [::].
-rewrite last_rcons belast_rcons rev_cons => ->{y} Hpath.
+rewrite last_rcons belast_rcons rev_cons => {y}-> Hpath.
 exists (rcons (rev pathxz) x); last by rewrite last_rcons.
 set rel := (X in path X _ _) in Hpath.
 rewrite (eq_path (e' := rel)) /=; first exact: Hpath.
@@ -302,9 +302,9 @@ Lemma rewrites_cat R1 R2 u :
   rewrites (R1 ++ R2) u =i (rewrites R1 u) ++ (rewrites R2 u).
 Proof.
 move=> /= v; rewrite mem_cat; apply/idP/orP.
-  move=> /rewritesP[pre suf r ->{u}->{v} ].
+  move=> /rewritesP[pre suf r {u}->{v}-> ].
   by rewrite mem_cat => /orP[]; [left|right]; apply/rewritesP; exists pre suf r.
-by move=> []/rewritesP[pre suf r ->{u}->{v} rinR];
+by move=> []/rewritesP[pre suf r {u}->{v}-> rinR];
        apply/rewritesP; exists pre suf r => //=; rewrite mem_cat rinR ?orbT.
 Qed.
 Lemma rewrites_cons p R u :
@@ -324,7 +324,7 @@ Lemma rewrites_map_swap R u v :
 Proof.
 have impl S x y :
   (y \in rewrites S x) -> (x \in rewrites [seq swap p | p <- S] y).
-  move=> /rewritesP[pre suf [r1 r2] ->{u}->{v} rinR /=].
+  move=> /rewritesP[pre suf [r1 r2] {u}->{v}-> rinR /=].
   apply/rewritesP; exists pre suf (swap (r1, r2)) => //=.
   by rewrite (mem_map swap_inj).
 apply/idP/idP; last exact: impl.
@@ -374,13 +374,13 @@ Hypothesis sub_rule : {subset R1 <= R2}.
 
 Lemma sub_rewrites u v : v \in rewrites R1 u -> v \in rewrites R2 u.
 Proof.
-move=> /rewritesP[pre suf [r1 r2] /= ->{v} ->{u} rinR].
+move=> /rewritesP[pre suf [r1 r2] /= {v}->{u}-> rinR].
 apply/rewritesP; exists pre suf (r1, r2) => //=.
 exact: sub_rule.
 Qed.
 Lemma sub_rewrites_to u v : rewrites_to R1 u v -> rewrites_to R2 u v.
 Proof.
-move=> [p p_path ->{v}]; exists p => //.
+move=> [p p_path {v}->]; exists p => //.
 by move: p_path; apply (sub_path sub_rewrites).
 Qed.
 Lemma sub_undirected : {subset undirected R1 <= undirected R2}.
@@ -479,7 +479,7 @@ Lemma rewmorph_toP u v : v \in rewrites R u -> rewrites_to S (f u) (f v).
 Proof. exact: rewmorphism_subproof. Qed.
 Lemma rewmorphP u v : rewrites_to R u v -> rewrites_to S (f u) (f v).
 Proof.
-move=> [p Hp ->{v}].
+move=> [p Hp {v}->].
 elim: p u Hp => [u _ |p0 pth IHpth u] /=; first exact: rewrites_to_refl.
 move=> /andP[p0_u {}/IHpth]; apply: rewrites_to_trans.
 exact: rewmorph_toP.
@@ -645,12 +645,12 @@ Lemma rewrites_to_cons_rule R u v :
 Proof.
 move=> cuv x y.
 split; first by apply: sub_rewrites_to => p p_inR; rewrite inE p_inR orbT.
-move=> [p /[swap] ->{y}]; elim: p x => [|p0 p IHp] x /=.
+move=> [p /[swap] {y}->]; elim: p x => [|p0 p IHp] x /=.
   by move=> _; exists [::].
 move=> /andP[p0_rew {}/IHp p0_p].
 suff {p0_p} x_p0 : rewrites_to R x p0 by apply: (rewrites_to_trans x_p0 p0_p).
 move: p0_rew; rewrite rewrites_cons mem_cat => /orP[]; last exact: rewrites_to1.
-move=> /rewritesP[pre suf [r1 r2] ->{x}->{p0} /[!inE]/eqP[->{r1}->{r2}]]/=.
+move=> /rewritesP[pre suf [r1 r2] {x}->{p0}-> /[!inE]/eqP[{r1}->{r2}->]]/=.
 exact: (rewrites_to_stable pre suf cuv).
 Qed.
 
@@ -733,8 +733,8 @@ Lemma T2invE u : u = T2inv u %[mod Tietze2].
 Proof. exact: (rewrites_to_equiv (T2inv_rewrites_to u)). Qed.
 Fact rewmorphism_T2inv : rewmorphism Tietze2 R T2inv.
 Proof.
-rewrite /Tietze2 => u v /rewritesP[pre suf [r1 r2]] ->{u}->{v}.
-rewrite mem_rcons inE => /orP[/eqP [->{r1}->{r2}] | rinR] /=.
+rewrite /Tietze2 => u v /rewritesP[pre suf [r1 r2]] {u}->{v}->.
+rewrite mem_rcons inE => /orP[/eqP [{r1}->{r2}->] | rinR] /=.
   rewrite -cat1s !mul_catE !mmorphM /= -!mul_catE; apply: rewrites_to_stable.
   by rewrite T2inv_gen T2inv_w; apply: rewrites_to_refl.
 rewrite !mul_catE !mmorphM /= -!mul_catE.
@@ -806,7 +806,7 @@ Hypothesis Rconfl : confluent R.
 
 Lemma normalE u v : normal R u -> rewrites_to R u v -> u = v.
 Proof.
-move/eqP => noru [[_ ->{v} // | w pth /= /andP[/[swap] _ ]]].
+move/eqP => noru [[_ {v}-> // | w pth /= /andP[/[swap] _ ]]].
 by rewrite noru.
 Qed.
 Lemma confluentE u v1 v2 : normalf R u v1 -> normalf R u v2 -> v1 = v2.
@@ -836,7 +836,7 @@ Proof.
 move=> noruw v; split.
   move=> [_ /rewrites_to_equiv/equiv_sym/(equiv_trans _)]; apply.
   by move: noruw => [_ /rewrites_to_equiv].
-move=> [pth Hpth ->{v}].
+move=> [pth Hpth {v}->].
 elim: pth u noruw Hpth => // [p0 pth IHpth] u noruw /=.
 by move=> /andP[/(normalf_rewrites noruw)/IHpth].
 Qed.
@@ -955,10 +955,10 @@ Definition all_npairs R :=
 Lemma all_spairsP R u v : reflect (spair R u v) ((u, v) \in all_spairs R).
 Proof.
 apply (iffP flattenP) => /=.
-  move=> [seqp /allpairsP/=[[[r1 r2] [s1 s2] /= [rinR sinR] ->{seqp}]]].
+  move=> [seqp /allpairsP/=[[[r1 r2] [s1 s2] /= [rinR sinR] {seqp}->]]].
   rewrite /all_spairs_rule => /mapP[/= shift].
   rewrite mem_filter mem_iota leq0n add0n /= => /andP[].
-  move=> /prefixP[suf eqs1] ltshift [->{u}->{v}].
+  move=> /prefixP[suf eqs1] ltshift [{u}->{v}->].
   pose pre := take shift r1.
   pose mid := drop shift r1.
   exists pre mid suf (r1, r2) (s1, s2) => //=.
@@ -968,7 +968,7 @@ apply (iffP flattenP) => /=.
     by move: ltshift; rewrite -eq -/mid eqmid /= addn0 ltnn.
   - by rewrite /pre /mid cat_take_drop.
   - by congr cat; rewrite eqs1 drop_cat size_drop ltnn subnn drop0.
-move=> [pre mid suf [r1 r2] [s1 s2] rinR sinR /=] midn0 eqr1 eqs1 ->{u}->{v}.
+move=> [pre mid suf [r1 r2] [s1 s2] rinR sinR /=] midn0 eqr1 eqs1 {u}->{v}->.
 have eqmid : mid = drop (size pre) r1 by rewrite eqr1 drop_size_cat.
 exists (all_spairs_rule r1 r2 s1 s2).
   by apply/allpairsP => /=; exists (r1, r2, (s1, s2)).
@@ -982,10 +982,10 @@ Qed.
 Lemma all_npairsP R u v : reflect (npair R u v) ((u, v) \in all_npairs R).
 Proof.
 apply (iffP flattenP) => /=.
-  move=> [seqp /allpairsP/=[[[r1 r2] [s1 s2] /= [rinR sinR] ->{seqp}]]].
+  move=> [seqp /allpairsP/=[[[r1 r2] [s1 s2] /= [rinR sinR] {seqp}->]]].
   rewrite /all_npairs_rule => /mapP[shift].
   rewrite mem_filter mem_iota leq0n add0n /= => /andP[].
-  rewrite ltnS => /eqP eqs1 ltshift [->{u}->{v}].
+  rewrite ltnS => /eqP eqs1 ltshift [{u}->{v}->].
   set pre := take shift r1.
   set suf := drop (shift + size s1) r1.
   exists pre s1 suf (r1, r2) (s1, s2) => //=.
@@ -993,7 +993,7 @@ apply (iffP flattenP) => /=.
   have -> : take shift r1 = take shift (take (size s1 + shift) r1).
     by rewrite take_takel ?leq_addl.
   by rewrite catA addnC !cat_take_drop.
-move=> [pre mid suf [r1 r2] [s1 s2] rinR sinR /= eqr1 eqs1 ->{u}->{v}].
+move=> [pre mid suf [r1 r2] [s1 s2] rinR sinR /= eqr1 eqs1 {u}->{v}->].
 exists (all_npairs_rule r1 r2 s1 s2).
   by apply/allpairsP => /=; exists (r1, r2, (s1, s2)).
 apply/mapP; exists (size pre).
@@ -1025,17 +1025,17 @@ Lemma nspair_confluence R :
   (forall u v, spair R u v -> joinable R u v) -> locconfluent R.
 Proof.
 move=> npairconfl  spairconfl u v1 v2.
-move=> /rewritesP[pre1 suf1 r1 ->{u}->{v1} r1inR].
-move=> /rewritesP[pre2 suf2 r2  equ ->{v2} r2inR].
+move=> /rewritesP[pre1 suf1 r1 {u}->{v1}-> r1inR].
+move=> /rewritesP[pre2 suf2 r2  equ {v2}-> r2inR].
 wlog lt12 : pre1 suf1 pre2 suf2 r1 r1inR r2 r2inR equ / size pre1 <= size pre2.
   move=> Hwlog.
   case: (leqP (size pre1) (size pre2)) => [le12 | /ltnW le21]; first exact: Hwlog.
   exact/joinableC/Hwlog.
 case: r1 r2 r1inR r2inR equ => [r1 r2] [s1 s2] r1inR r2inR /= equ.
-move: equ => /(cat2E lt12) {lt12} [a equ ->{pre2}].
+move: equ => /(cat2E lt12) {lt12} [a equ {pre2}->].
 case: (leqP (size r1) (size a)) => [ler1_a | lea_r1].
   (** Trivial pair *)
-  move: equ => /(cat2E ler1_a) {ler1_a} [mid ->{suf1} ->{a}].
+  move: equ => /(cat2E ler1_a) {ler1_a} [mid {suf1}->{a}->].
   rewrite -!catA.
   exists (pre1 ++ r2 ++ mid ++ s2 ++ suf2); apply/rewrites_to1/rewritesP.
   - by exists (pre1 ++ r2 ++ mid) suf2 (s1, s2); rewrite ?catA.
@@ -1043,13 +1043,13 @@ case: (leqP (size r1) (size a)) => [ler1_a | lea_r1].
 move: equ => /esym/(cat2E (ltnW lea_r1)) [b] equ eqr1.
 case: (leqP (size s1) (size b)) => [les1_b | /ltnW leb_s1].
   (** Nested pair *)
-  move: equ => /(cat2E les1_b) {les1_b} [c ->{suf2} eqb].
+  move: equ => /(cat2E les1_b) {les1_b} [c {suf2}-> eqb].
   rewrite -!catA [a ++ _]catA [(a ++ s2) ++ _]catA; apply joinable_stable.
   rewrite -catA; apply: npairconfl => {spairconfl}.
   exists a s1 c (r1, r2) (s1, s2) => //=.
   by rewrite eqr1 eqb.
 (** True critical Spair *)
-move: equ => /esym/(cat2E leb_s1) {leb_s1} [c ->{suf1} eqs1].
+move: equ => /esym/(cat2E leb_s1) {leb_s1} [c {suf1}-> eqs1].
 rewrite -!catA [r2 ++ _]catA [a ++ _]catA; apply joinable_stable.
 apply: spairconfl => {npairconfl}.
 exists a b c (r1, r2) (s1, s2) => //=.
@@ -1114,7 +1114,7 @@ Hypothesis C_wf : well_founded C.
 Lemma decreasing_wf R : decreasing R -> terminating R.
 Proof.
 move=> /allP /= decr.
-apply: (wf_impl _ C_wf) => x y /rewritesP[pre suf r ->{x}->{y} rinR].
+apply: (wf_impl _ C_wf) => x y /rewritesP[pre suf r {x}->{y}-> rinR].
 by apply: Cstable; apply: decr.
 Qed.
 
@@ -1139,9 +1139,6 @@ Lemma check_convergenceP fuel R :
 Proof. by rewrite check_convergenceE; apply: check_convergence_andP. Qed.
 
 End WellFounded.
-
-Variable R : relat T.
-Hypothesis Rterm : terminating R.
 
 End RewritingTheory.
 
@@ -1260,7 +1257,7 @@ elim/(well_founded_induction IHbnd) => u IHu szu.
 apply: Acc_intro => w /andP[/= _].
 rewrite lt_sizelexiE /= ltnS => /orP[|]; first by rewrite szu; apply: rec.
 case: w => [//| a v] /= /andP[/eqP[/[!szu] szv]].
-rewrite Order.SeqLexiOrder.ltxi_cons le_eqVlt => /andP[/orP[/eqP->{a} | ltam _]].
+rewrite Order.SeqLexiOrder.ltxi_cons le_eqVlt => /andP[/orP[/eqP{a}-> | ltam _]].
   rewrite lexx /= => ltlvu; apply IHu; last exact: szv.
   by rewrite /ltb szu leqnn /= lt_sizelexiE orbC szu szv eqxx ltlvu.
 exact: (IHm a ltam).
