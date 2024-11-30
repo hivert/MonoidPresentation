@@ -145,13 +145,11 @@ Lemma rewrites_front0P R u :
   (rewrites_front R u == [::]) = (rewrites1_front R u == None).
 Proof. by rewrite rewrite1_frontE; case: rewrites_front. Qed.
 Lemma rewrites1_frontP R u v :
-  rewrites1_front R u = Some v -> rewrites_front_spec R u v.
+  rewrites1_front R u = Some v -> v \in rewrites_front R u.
 Proof.
 rewrite rewrite1_frontE.
-case Hrew : (rewrites_front R u) => [//| w s] /= [<-{v}].
-by have /rewrites_frontP : w \in rewrites_front R u by rewrite Hrew inE eqxx.
+by case: rewrites_front => [//| w s] /= [<-{v}]; rewrite inE eqxx.
 Qed.
-
 
 Section DefRewrites.
 
@@ -175,6 +173,10 @@ Proof.
 elim: u => /= [| a u ->]; rewrite rewrite1_frontE //.
 by case: rewrites_front => //=; case: rewrites.
 Qed.
+Lemma rewrite1_in u v : rewrites1 u = Some v -> v \in rewrites u.
+Proof.
+by rewrite rewrite1E; case: rewrites => [//| a l [->]/=]; rewrite inE eqxx.
+Qed.
 Lemma rewritesP u v : reflect (rewrites_spec R u v) (v \in rewrites u).
 Proof.
 apply (iffP idP); elim: u v => [| a u IHu] v /=.
@@ -192,11 +194,9 @@ apply (iffP idP); elim: u v => [| a u IHu] v /=.
 Qed.
 Lemma rewrites0P u : (rewrites u == [::]) = (rewrites1 u == None).
 Proof. by rewrite rewrite1E; case: rewrites. Qed.
-Lemma rewrites1P u v : rewrites1 u = Some v -> rewrites_spec R u v.
+Lemma rewrites1P u v : rewrites1 u = Some v -> v \in rewrites u.
 Proof.
-rewrite rewrite1E.
-case Hrew : (rewrites u) => [//| w s] /= [<-{v}].
-by have /rewritesP : w \in rewrites u by rewrite Hrew inE eqxx.
+by rewrite rewrite1E; case: rewrites => [//| w s] /= [<-{v}]; rewrite inE eqxx.
 Qed.
 
 
@@ -319,21 +319,18 @@ Section DefPresentation.
 
 Definition undirected R := R ++ [seq swap p | p <- R].
 
-Lemma rewrites_map_swap_impl R u v :
-  (v \in rewrites R u) -> (u \in rewrites [seq swap p | p <- R] v).
-Proof.
-move=> /rewritesP[pre suf [r1 r2] ->{u}->{v} rinR /=].
-apply/rewritesP; exists pre suf (swap (r1, r2)) => //=.
-by rewrite (mem_map swap_inj).
-Qed.
 Lemma rewrites_map_swap R u v :
   (u \in rewrites [seq swap p | p <- R] v) = (v \in rewrites R u).
 Proof.
-apply/idP/idP; last exact: rewrites_map_swap_impl.
+have impl S x y :
+  (y \in rewrites S x) -> (x \in rewrites [seq swap p | p <- S] y).
+  move=> /rewritesP[pre suf [r1 r2] ->{u}->{v} rinR /=].
+  apply/rewritesP; exists pre suf (swap (r1, r2)) => //=.
+  by rewrite (mem_map swap_inj).
+apply/idP/idP; last exact: impl.
 rewrite -{2}(map_id R) -(eq_map swapK) (map_comp swap swap).
-exact: rewrites_map_swap_impl.
+exact: impl.
 Qed.
-
 Lemma rewrites_undirected R u v :
   u \in (rewrites (undirected R)) v =
           (u \in rewrites R v) || (v \in rewrites R u).
@@ -440,6 +437,7 @@ Lemma flatten_prodE (s : seq (word A)) :
 Proof. by rewrite -{1}(map_id s) flatten_map_prodE. Qed.
 
 End FreeMonoidInterface.
+
 
 Section Morphism.
 
@@ -822,6 +820,8 @@ Proof.
 move/confluentE => eq [norv2 u2v2] /rewrites_to1/rewrites_to_trans/(_ u2v2) u1v2.
 exact: eq.
 Qed.
+Lemma normalf_rewrite0 u : rewrites R u == [::] -> normalf R u u.
+Proof. by move=> H; split; last exact: rewrites_to_refl. Qed.
 Lemma normalf_rewrites u v w :
   normalf R u w -> v \in rewrites (undirected R) u -> normalf R v w.
 Proof.
@@ -859,7 +859,7 @@ Lemma rewrites_to_norfuel R fuel u : rewrites_to R u (norfuel R fuel u).1.
 Proof.
 elim: fuel u => [|fuel IHfuel] u /=; first exact: rewrites_to_refl.
 case H : rewrites1 => [a|]; last exact: rewrites_to_refl.
-by move/rewrites1P/rewritesP/rewrites_to1/rewrites_to_trans : H; apply.
+by move/rewrites1P/rewrites_to1/rewrites_to_trans : H; apply.
 Qed.
 Lemma norfuelT R fuel u :
   (norfuel R fuel u).2 -> normalf R u (norfuel R fuel u).1.
@@ -895,13 +895,6 @@ case: norfuel (@norfuelT R fuel u) => /= un [/(_ is_true_true) uok /=| _];
   last by case: norfuel.
 case: norfuel (@norfuelT R fuel v) => /= vn [/(_ is_true_true) vok /= _|//].
 exact: normalf_equivP.
-Qed.
-
-Lemma decreasing_wf R : well_founded C -> decreasing R -> terminating R.
-Proof.
-move=> /[swap] /allP /= decr.
-apply: wf_impl => x y /rewritesP[pre suf r ->{x}->{y} rinR].
-by apply: Cstable; apply: decr.
 Qed.
 
 Lemma terminatingP R : terminating R ->
@@ -1071,7 +1064,6 @@ move=> no_npair; apply: nspair_confluence => u v /no_npair ->.
 exact: joinable_refl.
 Qed.
 
-
 Variant check_convergence_result :=
   | Ok : check_convergence_result
   | NotDecreasing : check_convergence_result
@@ -1104,23 +1096,6 @@ Definition check_convergence_and fuel R : bool :=
     all (fun p => norfuel R fuel p.1 == norfuel R fuel p.2)
       (filter (fun p => p.1 != p.2) (all_spairs R))].
 
-Lemma check_convergence_andP :
-  well_founded (fun x x0 => C x x0) ->
-  forall fuel R, check_convergence_and fuel R -> convergent R.
-Proof.
-rewrite /check_convergence_and => wfC fuel R /=.
-case: (boolP (decreasing R)) => [/= dec | //].
-case: allP => [/= nonpair | //].
-have {nonpair}/spair_confluence loc_confl : forall u v, npair R u v -> u = v.
-  by move=> u v /all_npairsP /nonpair /= /eqP ->.
-move/allP => /= confl; apply: diamond; first exact: (decreasing_wf wfC dec).
-apply: loc_confl => u v Suv.
-case: (altP (u =P v)) => [-> | nequv]; first by exists v; apply: rewrites_to_refl.
-have /confl/eqP/=eqnor : (u, v) \in filter (fun p => p.1 != p.2) (all_spairs R).
-  by rewrite mem_filter /= {}nequv /=; apply/all_spairsP.
-by exists (norfuel R fuel u).1 => [|/[!eqnor]]; exact: rewrites_to_norfuel.
-Qed.
-
 Lemma check_convergenceE fuel R :
   is_Ok (check_convergence fuel R) = check_convergence_and fuel R.
 Proof.
@@ -1130,13 +1105,43 @@ rewrite has_predC; case: (all _ _) => [/=|//].
 move: (filter _ _) => S; rewrite -[all _ _]negbK -has_predC has_find.
 by case: ltnP.
 Qed.
-Lemma check_convergenceP :
-  well_founded (fun x x0 => C x x0) ->
-  forall fuel R, is_Ok (check_convergence fuel R) -> convergent R.
+
+
+Section WellFounded.
+
+Hypothesis C_wf : well_founded C.
+
+Lemma decreasing_wf R : decreasing R -> terminating R.
 Proof.
-move/check_convergence_andP => H f R; rewrite check_convergenceE.
-exact: H.
+move=> /allP /= decr.
+apply: (wf_impl _ C_wf) => x y /rewritesP[pre suf r ->{x}->{y} rinR].
+by apply: Cstable; apply: decr.
 Qed.
+
+Lemma check_convergence_andP fuel R :
+  check_convergence_and fuel R -> convergent R.
+Proof.
+rewrite /check_convergence_and => /=.
+case: (boolP (decreasing R)) => [/= dec | //].
+case: allP => [/= nonpair | //].
+have {nonpair}/spair_confluence loc_confl : forall u v, npair R u v -> u = v.
+  by move=> u v /all_npairsP /nonpair /= /eqP ->.
+move/allP => /= confl; apply: diamond; first exact: (decreasing_wf dec).
+apply: loc_confl => u v Suv.
+case: (altP (u =P v)) => [-> | nequv]; first by exists v; apply: rewrites_to_refl.
+have /confl/eqP/=eqnor : (u, v) \in filter (fun p => p.1 != p.2) (all_spairs R).
+  by rewrite mem_filter /= {}nequv /=; apply/all_spairsP.
+by exists (norfuel R fuel u).1 => [|/[!eqnor]]; exact: rewrites_to_norfuel.
+Qed.
+
+Lemma check_convergenceP fuel R :
+  is_Ok (check_convergence fuel R) -> convergent R.
+Proof. by rewrite check_convergenceE; apply: check_convergence_andP. Qed.
+
+End WellFounded.
+
+Variable R : relat T.
+Hypothesis Rterm : terminating R.
 
 End RewritingTheory.
 
