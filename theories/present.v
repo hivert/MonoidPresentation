@@ -1146,10 +1146,10 @@ End RewritingTheory.
 Import Order.TTheory.
 Import Order.LexiSyntax.
 
-Fact sizelexidisplay : unit. Proof. by []. Qed.
+Fact sizelexidisplay : Order.disp_t. Proof. exact: Order.Disp tt tt. Qed.
 
 Section SizeLexi.
-Variable (d : unit) (T : orderType d).
+Variable (d : Order.disp_t) (T : orderType d).
 Implicit Types (u v w x y : seq T).
 
 
@@ -1197,12 +1197,12 @@ HB.instance Definition _  := Order.hasBottom.Build sizelexidisplay
 
 Lemma le_sizelexiE u v :
   (u <= v)%O =
-    (size u < size v) || (size u == size v) && (u <=^l v :> seqlexi _)%O.
+    (size u < size v) || (size u == size v) && (u <= v :> seqlexi_with d _)%O.
 Proof. by []. Qed.
 
 Lemma lt_sizelexiE u v :
   (u < v)%O =
-    (size u < size v) || (size u == size v) && (u <^l v :> seqlexi _)%O.
+    (size u < size v) || (size u == size v) && (u < v :> seqlexi_with d _)%O.
 Proof.
 rewrite !lt_neqAle; case: eqP => [-> | _] //=.
 by rewrite andbF orbF ltnn.
@@ -1227,7 +1227,7 @@ End SizeLexi.
 
 
 Section SizelexiWF.
-Variables (disp : unit) (T : orderType disp).
+Variables (disp : Order.disp_t) (T : orderType disp).
 Implicit Types (u v w : seq T).
 
 Hypothesis Twf : well_founded (@Order.lt _ T).
