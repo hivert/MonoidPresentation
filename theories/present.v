@@ -35,7 +35,7 @@ Reserved Notation "x '~>*' y" (at level 0, format "x '~>*' y").
 Reserved Notation "x = y %[mod e ]" (at level 70, y at next level,
   no associativity,   format "'[hv ' x '/'  =  y '/'  %[mod  e ] ']'").
 
-
+(* Potential PRs to MathComp *)
 Section Compl.
 Context {T : Type}.
 Definition swap (p : T * T) := (p.2, p.1).
@@ -63,8 +63,10 @@ Implicit Types (R : relat) (u v w x y : word) (p : word * word).
 
 Section RelationsTerminology.
 
+(* Relations on words, in Prop for the purpose of this development *)
 Variable RP : word -> word -> Prop.
 
+(* The relations we consider are congruences *)
 Definition reflexivep := forall u, RP u u.
 Definition symmetricp := forall u v, RP u v -> RP v u.
 Definition transitivep := forall u v w, RP u v -> RP v w -> RP u w.
@@ -85,11 +87,17 @@ Qed.
 End RelationsTerminology.
 
 
+(* A rewrite rule is a pair of words, the first being the lhs of the rw rule, 
+   a rewrite system is a list of rewrite rules.
+   rewrites_front_spec R u v holds when u rewrites into v by applying a rw rule
+    in R to a prefix of u. *)
 Inductive rewrites_front_spec R u v : Prop :=
   RewritesFront : forall (suf : word) (rule : word * word),
       u = rule.1 ++ suf -> v = rule.2 ++ suf -> rule \in R
                -> rewrites_front_spec R u v.
 
+(* rewrites_spec R u v when a rw rule in R applies rewrite u into v by applying
+   a rule in R to an arbitrary subword of u *)
 Inductive rewrites_spec R u v : Prop :=
   Rewrites : forall (pre suf : word) (rule : word * word),
       u = pre ++ rule.1 ++ suf -> v = pre ++ rule.2 ++ suf -> rule \in R
@@ -108,13 +116,16 @@ Lemma cons_rewrites_spec R a u v :
   rewrites_spec R u v -> rewrites_spec R (a :: u) (a :: v).
 Proof. by move=> [pre suf r /= {u}->{v}-> rinR]; exists (a :: pre) suf r. Qed.
 
-
+(* Finds the first matching rule in R that matches a prefix of u and produces
+   the rewriten v, or None. *)
 Fixpoint rewrites1_front R u :=
   if R is (r1, r2) :: R' then
     if prefix r1 u then Some (r2 ++ drop (size r1) u)
     else rewrites1_front R' u
   else None.
 
+(* Produces the list of all words v than can be obtained by rewriting a prefix
+   of u with a rule in R *)
 Fixpoint rewrites_front R u :=
   if R is (r1, r2) :: R' then
     if prefix r1 u then (r2 ++ drop (size r1) u) :: rewrites_front R' u
@@ -155,6 +166,8 @@ Section DefRewrites.
 
 Variable (R : relat).
 
+(* Finds the first matching rule in R that matches a subword of u and produces
+   the rewriten v, or None. *)
 Fixpoint rewrites1 u :=
   if u is a :: u' then
     if rewrites1_front R u is Some u as res then res
@@ -166,7 +179,8 @@ Fixpoint rewrites u :=
   then (rewrites_front R u) ++ [seq a :: v | v <- rewrites u']
   else rewrites_front R [::].
 
-
+(* Produces the list of all words v than can be obtained by rewriting 
+   u with a rule in R *)
 Lemma rewrite1E u :
   rewrites1 u = head None [seq Some v | v <- rewrites u].
 Proof.
@@ -199,7 +213,8 @@ Proof.
 by rewrite rewrite1E; case: rewrites => [//| w s] /= [{v}<-]; rewrite inE eqxx.
 Qed.
 
-
+(* rewrites_to u v holds when a sequence of rewriting with rules from R turns
+  u into v *)
 Inductive rewrites_to u v : Prop :=
   RewritesTo : forall pth, path (fun u v => v \in rewrites u) u pth ->
                   v = last u pth -> rewrites_to u v.

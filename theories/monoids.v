@@ -35,7 +35,7 @@ Declare Scope monoid_scope.
 Delimit Scope monoid_scope with M.
 Local Open Scope monoid_scope.
 
-
+(* Structure of monoid on carrier type V *)
 HB.mixin Record isMonoid V := {
   one : V;
   mul : V -> V -> V;
@@ -52,7 +52,7 @@ Arguments mulm1 {V} : rename.
 
 Bind Scope monoid_scope with Monoid.sort.
 
-
+(* Notations and definitions, in the style of ssralg/bigop *)
 Notation "1" := (@one _) : monoid_scope.
 Notation "1%M" := (@one _) : monoid_scope.
 Notation "*%M" := (@mul _) : function_scope.
@@ -93,6 +93,7 @@ Notation "\prod_ ( i 'in' A | P ) F" :=
 Notation "\prod_ ( i 'in' A ) F" :=
   (\big[*%M/1%M]_(i in A) F%M) : monoid_scope.
 
+(* Basic batteries of identities *)
 Section MonoidTheory.
 
 Variable M : monoidType.
@@ -160,6 +161,7 @@ Proof. by rewrite iter_mulm mulm1. Qed.
 
 End MonoidTheory.
 
+(* Commutative monoids *)
 
 HB.mixin Record Monoid_hasCommutativeMul M of Monoid M := {
   mulmC : commutative (@mul M)
@@ -184,7 +186,7 @@ HB.instance Definition _ := isMonoid.Build V mulmA mul1m mulm1_fromC.
 HB.instance Definition _ := Monoid_hasCommutativeMul.Build V mulmC.
 HB.end.
 
-
+(* Monoid morphism *)
 Definition monmorphism (R S : monoidType) (f : R -> S) : Prop :=
   (f 1 = 1) * {morph f : x y / x * y}.
 
@@ -227,6 +229,7 @@ Qed.
 
 End Properties.
 
+(* Canonical instances of morphisms (identity and compositions)*)
 Section Projections.
 
 Variables (R S T : monoidType).
@@ -248,7 +251,7 @@ End Projections.
 
 End MonMorphismTheory.
 
-
+(* Predicates closed under a monoid law *)
 Section Predicates.
 Variable (R : monoidType) (S : {pred R}).
 
@@ -265,7 +268,7 @@ HB.mixin Record isMulm1Closed (R : monoidType) (S : {pred R}) := {
   mpred1 : 1 \in S
 }.
 
-(* Structures for stability properties *)
+(* Structures for predicates/domains closed under a monoid law *)
 
 #[short(type="mulm2Closed")]
 HB.structure Definition Mulm2Closed R := {S of isMulm2Closed R S}.
@@ -304,7 +307,7 @@ Qed.
 
 End MonoidPred.
 
-
+(* Sub-monoids of a given parameter monoid *)
 HB.mixin Record isSubMonoid (R : monoidType) (S : pred R) U
     of SubChoice R S U & Monoid U := {
   valM_subproof : monmorphism (val : U -> R);
@@ -348,7 +351,7 @@ Proof. by split=> [|x y] /=; rewrite !SubK. Qed.
 HB.instance Definition _ := isSubMonoid.Build R S U valM.
 HB.end.
 
-
+(* Sub commutative monoids *)
 #[short(type="subComMonoidType")]
 HB.structure Definition SubComMonoid (R : monoidType) S :=
   {U of SubMonoid R S U & ComMonoid U}.
@@ -362,7 +365,7 @@ Proof. by move=> x y; apply: val_inj; rewrite !mmorphM mulmC. Qed.
 HB.instance Definition _ := Monoid_hasCommutativeMul.Build U mulmC.
 HB.end.
 
-
+(* Monoid structure on (seq T) for T a choiceType, aka the free monoid *)
 Definition FreeMonoidT (a : choiceType) := seq a.
 HB.instance Definition _ (a : choiceType) := Choice.on (FreeMonoidT a).
 HB.instance Definition _ (a : choiceType) :=
@@ -377,6 +380,7 @@ Proof.
 by elim: x => [|s s0 {1}->]; rewrite ?big_nil // big_cons [RHS]cat1s.
 Qed.
 
+(* Universal property for the free monoid *)
 Section UniversalProperty.
 
 Variables (A : choiceType) (M : monoidType) (f : A -> M).
@@ -399,7 +403,7 @@ Qed.
 
 End UniversalProperty.
 
-
+(* Monoid structure on the type of finite endofunctions *)
 Module Transformation.
 Section Transformation.
 
@@ -440,7 +444,7 @@ End Transformation.
 HB.export Transformation.Exports.
 Notation "{ 'transf' T }" := (Transformation.type T).
 
-
+(* Monoid structure on the type of binary relations on a finType *)
 Module Relation.
 Section Relation.
 
@@ -527,6 +531,7 @@ Import GRing.Theory.
 
 Local Open Scope ring_scope.
 
+(* The multiplicative monoid of a semi-ring *)
 Record multMon (R : semiRingType) := MkMultMon { multmonval : R }.
 Coercion to_multMon (R : semiRingType) (x : R) := MkMultMon x.
 Lemma to_multMonK R : cancel (@MkMultMon R) (@multmonval R).
@@ -585,7 +590,8 @@ End Exports.
 End Monoid_of_SemiRing.
 HB.export Monoid_of_SemiRing.Exports.
 
-
+(* A semiring morphism is a monoid morphism for the corresponding
+   multiplicative monoids *)
 Section Functoriality.
 
 Variable (R S : semiRingType) (f : {rmorphism R -> S}).
@@ -601,7 +607,7 @@ HB.instance Definition _ :=
 
 End Functoriality.
 
-
+(* Converse monoid *)
 Section ConverseMonoid.
 
 HB.instance Definition _ (R : monoidType) :=
@@ -614,7 +620,7 @@ HB.instance Definition _ (R : comMonoidType) :=
 
 End ConverseMonoid.
 
-
+(* A product of monoid is a canonical instance of monoid *)
 Section Product.
 
 Variable (U V : monoidType).
@@ -632,7 +638,7 @@ HB.instance Definition _ :=
 
 End Product.
 
-
+(* A product of commutative monoid is a canonical instance of monoid *)
 Section ComProduct.
 
 Variable (U V : comMonoidType).
