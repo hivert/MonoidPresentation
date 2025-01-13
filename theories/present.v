@@ -1197,12 +1197,12 @@ HB.instance Definition _  := Order.hasBottom.Build sizelexidisplay
 
 Lemma le_sizelexiE u v :
   (u <= v)%O =
-    (size u < size v) || (size u == size v) && (u <= v :> seqlexi_with d _)%O.
+    (size u < size v) || (size u == size v) && (u <= v :> seqlexi _)%O.
 Proof. by []. Qed.
 
 Lemma lt_sizelexiE u v :
   (u < v)%O =
-    (size u < size v) || (size u == size v) && (u < v :> seqlexi_with d _)%O.
+    (size u < size v) || (size u == size v) && (u < v :> seqlexi _)%O.
 Proof.
 rewrite !lt_neqAle; case: eqP => [-> | _] //=.
 by rewrite andbF orbF ltnn.
