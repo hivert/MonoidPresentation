@@ -87,7 +87,7 @@ Qed.
 End RelationsTerminology.
 
 
-(* A rewrite rule is a pair of words, the first being the lhs of the rw rule, 
+(* A rewrite rule is a pair of words, the first being the lhs of the rw rule,
    a rewrite system is a list of rewrite rules.
    rewrites_front_spec R u v holds when u rewrites into v by applying a rw rule
     in R to a prefix of u. *)
@@ -179,7 +179,7 @@ Fixpoint rewrites u :=
   then (rewrites_front R u) ++ [seq a :: v | v <- rewrites u']
   else rewrites_front R [::].
 
-(* Produces the list of all words v than can be obtained by rewriting 
+(* Produces the list of all words v than can be obtained by rewriting
    u with a rule in R *)
 Lemma rewrite1E u :
   rewrites1 u = head None [seq Some v | v <- rewrites u].
@@ -486,7 +486,7 @@ Record pres := Pres {
 (* TODO: improve this name *)
 Definition words_of (R : pres) := [pred w | all (mem (pgen R)) w].
 
-Lemma words_of_prelat (R : pres) r : 
+Lemma words_of_prelat (R : pres) r :
   r \in prelat R -> (r.1 \in words_of R) && (r.2 \in words_of R).
 Proof. by move=> Rr; move/allP: (wf_relat R) => /(_ r Rr). Qed.
 
@@ -494,7 +494,7 @@ Lemma words_of_cat R u v :
   u ++ v \in words_of R = (u \in words_of R) && (v \in words_of R).
 Proof. by rewrite /words_of /= !inE all_cat. Qed.
 
-Lemma rewrites_word_of (R : pres) u v : 
+Lemma rewrites_word_of (R : pres) u v :
   u \in words_of R -> v \in rewrites R u -> v \in words_of R.
 Proof.
 move=> hu /rewritesP[] pre suf [r1 r2] eu -> hr.
@@ -502,14 +502,22 @@ move: hu; rewrite {}eu !words_of_cat /=.
 by case/and3P=> -> _ ->; case/andP: (words_of_prelat hr)=> _ ->.
 Qed.
 
+Lemma rewrites_to_word_of (R : pres) u v :
+  u \in words_of R -> rewrites_to R u v -> v \in words_of R.
+Proof.
+move=> uinR [pathuv Huv {v}->].
+elim: pathuv u uinR Huv => [| p0 pth IHpth] //= u uinR.
+by case/andP => /(rewrites_word_of uinR) p0inR /(IHpth _ p0inR).
+Qed.
+
 End Presentation.
 
-Definition rewmorphism A B (R : pres A) (S : pres B) 
+Definition rewmorphism A B (R : pres A) (S : pres B)
   (f : seq A -> seq B) :=
   forall u v : word A, u \in words_of R -> v \in words_of R ->
   v \in rewrites R u -> rewrites_to S (f u) (f v).
 
-Definition rewmorphism_to A B (R : pres A) (S : pres B) 
+Definition rewmorphism_to A B (R : pres A) (S : pres B)
   (f : seq A -> seq B) :=
   forall u v : word A, u \in words_of R -> v \in words_of R ->
      rewrites_to R u v -> rewrites_to S (f u) (f v).
@@ -530,19 +538,19 @@ Section RewMorphismTheory.
 
 Variables (A B : choiceType) (R : pres A) (S : pres B) (f : {rewmorph R -> S}).
 
-Lemma rewmorph_toP u v : 
+Lemma rewmorph_toP u v :
   u \in words_of R -> v \in words_of R ->
   v \in rewrites R u -> rewrites_to S (f u) (f v).
 Proof. exact: rewmorphism_subproof. Qed.
-Lemma rewmorphP u v : 
+Lemma rewmorphP u v :
   u \in words_of R -> v \in words_of R ->
   rewrites_to R u v -> rewrites_to S (f u) (f v).
 Proof.
 move=> hu hv [p Hp ->].
 elim: p u Hp hu => [u _ _ |p0 pth IHpth u] /=; first exact: rewrites_to_refl.
 move=> /andP[p0_u {}/IHpth] ihp hu.
-have hp0 : p0 \in words_of R by admit. 
-apply: rewrites_to_trans (ihp hp0); exact: rewmorph_toP.
+have hp0 : p0 \in words_of R by apply: (rewrites_word_of hu p0_u).
+by apply: rewrites_to_trans (ihp hp0); exact: rewmorph_toP.
 Qed.
 
 End RewMorphismTheory.
@@ -1331,7 +1339,7 @@ Definition check_convergence_natP fuel R :
   is_Ok (check_convergence <%O fuel R) -> convergent R :=
   check_convergenceP (@lt_sizelexi_stable _ nat) sizelexi_nat_wf
     (fuel := fuel) (R := R).
-(* 
+(*
 Definition present_final :=
   [:: (*  c < e < d < a < b. *)
       (*  0 < 1 < 2 < 3 < 4. *)
