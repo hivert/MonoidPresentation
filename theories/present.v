@@ -330,7 +330,7 @@ Lemma rewrites_rcons R p u :
 Proof. by move=> v; rewrite -cats1 rewrites_cat !mem_cat orbC. Qed.
 
 
-Section DefPresentation.
+Section DefPresentationRels.
 
 Definition undirected R := R ++ [seq swap p | p <- R].
 
@@ -378,7 +378,7 @@ move=> Hin [refl trans stab sym]; apply: rewrites_to_min => // [[u v]].
 by rewrite mem_undirected => /orP[] /Hin //= /sym.
 Qed.
 
-End DefPresentation.
+End DefPresentationRels.
 Notation "x = y %[mod R ]" := (rewrites_to (undirected R) x y).
 
 
@@ -453,7 +453,6 @@ Proof. by rewrite -{1}(map_id s) flatten_map_prodE. Qed.
 
 End FreeMonoidInterface.
 
-
 Section Morphism.
 
 Variable (A B : choiceType).
@@ -469,17 +468,58 @@ Proof. by rewrite flatten_prodE mmorph_prod [RHS]flatten_map_prodE. Qed.
 
 End Morphism.
 
+Section Presentation.
 
-Definition rewmorphism A B (R : relat A) (S : relat B) (f : seq A -> seq B) :=
-  forall u v : word A, v \in rewrites R u -> rewrites_to S (f u) (f v).
-Definition rewmorphism_to A B (R : relat A) (S : relat B) (f : seq A -> seq B) :=
-  forall u v : word A, rewrites_to R u v -> rewrites_to S (f u) (f v).
+Variable (A : choiceType).
+Implicit Types (u v w x y : word A).
+
+Definition correctrelat (R : relat A) (P : pred A) :=
+  all (fun p => all P p.1 && all P p.2) R.
+
+Record pres := Pres {
+  pgen : seq A;
+  prelat :> relat A; (* let's see if this coercion is handy enough *)
+  uniq_pgen : uniq pgen;
+  wf_relat : correctrelat prelat (mem pgen)
+}.
+
+(* TODO: improve this name *)
+Definition words_of (R : pres) := [pred w | all (mem (pgen R)) w].
+
+Lemma words_of_prelat (R : pres) r : 
+  r \in prelat R -> (r.1 \in words_of R) && (r.2 \in words_of R).
+Proof. by move=> Rr; move/allP: (wf_relat R) => /(_ r Rr). Qed.
+
+Lemma words_of_cat R u v :
+  u ++ v \in words_of R = (u \in words_of R) && (v \in words_of R).
+Proof. by rewrite /words_of /= !inE all_cat. Qed.
+
+Lemma rewrites_word_of (R : pres) u v : 
+  u \in words_of R -> v \in rewrites R u -> v \in words_of R.
+Proof.
+move=> hu /rewritesP[] pre suf [r1 r2] eu -> hr.
+move: hu; rewrite {}eu !words_of_cat /=.
+by case/and3P=> -> _ ->; case/andP: (words_of_prelat hr)=> _ ->.
+Qed.
+
+End Presentation.
+
+Definition rewmorphism A B (R : pres A) (S : pres B) 
+  (f : seq A -> seq B) :=
+  forall u v : word A, u \in words_of R -> v \in words_of R ->
+  v \in rewrites R u -> rewrites_to S (f u) (f v).
+
+Definition rewmorphism_to A B (R : pres A) (S : pres B) 
+  (f : seq A -> seq B) :=
+  forall u v : word A, u \in words_of R -> v \in words_of R ->
+     rewrites_to R u v -> rewrites_to S (f u) (f v).
 
 HB.mixin Record isRewMorphism
-  A B (R : relat A) (S : relat B) (f : {freemon A} -> {freemon B}) := {
+  A B (R : pres A) (S : pres B) (f : {freemon A} -> {freemon B}) := {
     rewmorphism_subproof : rewmorphism R S f
   }.
-HB.structure Definition RewMorphism A B (R : relat A) (S : relat B) :=
+
+HB.structure Definition RewMorphism A B (R : pres A) (S : pres B) :=
   {f of MonMorphism {freemon A} f & isRewMorphism A B R S f}.
 Notation "{ 'rewmorph' R -> S }" := (RewMorphism.type R S) : type_scope.
 Notation "{ 'presmorph' R -> S }" :=
@@ -488,16 +528,21 @@ Notation "{ 'presmorph' R -> S }" :=
 
 Section RewMorphismTheory.
 
-Variables (A B : choiceType) (R : relat A) (S : relat B) (f : {rewmorph R -> S}).
+Variables (A B : choiceType) (R : pres A) (S : pres B) (f : {rewmorph R -> S}).
 
-Lemma rewmorph_toP u v : v \in rewrites R u -> rewrites_to S (f u) (f v).
+Lemma rewmorph_toP u v : 
+  u \in words_of R -> v \in words_of R ->
+  v \in rewrites R u -> rewrites_to S (f u) (f v).
 Proof. exact: rewmorphism_subproof. Qed.
-Lemma rewmorphP u v : rewrites_to R u v -> rewrites_to S (f u) (f v).
+Lemma rewmorphP u v : 
+  u \in words_of R -> v \in words_of R ->
+  rewrites_to R u v -> rewrites_to S (f u) (f v).
 Proof.
-move=> [p Hp {v}->].
-elim: p u Hp => [u _ |p0 pth IHpth u] /=; first exact: rewrites_to_refl.
-move=> /andP[p0_u {}/IHpth]; apply: rewrites_to_trans.
-exact: rewmorph_toP.
+move=> hu hv [p Hp ->].
+elim: p u Hp hu => [u _ _ |p0 pth IHpth u] /=; first exact: rewrites_to_refl.
+move=> /andP[p0_u {}/IHpth] ihp hu.
+have hp0 : p0 \in words_of R by admit. 
+apply: rewrites_to_trans (ihp hp0); exact: rewmorph_toP.
 Qed.
 
 End RewMorphismTheory.
@@ -573,7 +618,6 @@ HB.instance Definition _ :=
   isRewMorphismTo.Build A C R T (g \o f) comp_is_rewmorphism.
 
 End RewMorphismTheory.
-
 
 Record isopres (A B : choiceType) (R : relat A) (S : relat B) := IsoPres {
     mor :> {presmorph R -> S};
@@ -695,13 +739,11 @@ Definition isopres_rcons_rule := isopres_eq equiv_rcons_rule.
 End Tietze1.
 
 
-Definition correctpres (R : relat nat) (P : pred nat) :=
-  all (fun p => all P p.1 && all P p.2) R.
 
 Section Tietze2.
 
 Context (R : relat nat) (P : pred nat) (gen : nat) (w : word nat).
-Hypothesis Rcorr : correctpres R P.
+Hypothesis Rcorr : correctrelat R P.
 Hypothesis wcorr : all P w.
 Hypothesis gen_nP : ~~ P gen.
 
@@ -1289,7 +1331,7 @@ Definition check_convergence_natP fuel R :
   is_Ok (check_convergence <%O fuel R) -> convergent R :=
   check_convergenceP (@lt_sizelexi_stable _ nat) sizelexi_nat_wf
     (fuel := fuel) (R := R).
-
+(* 
 Definition present_final :=
   [:: (*  c < e < d < a < b. *)
       (*  0 < 1 < 2 < 3 < 4. *)
@@ -1336,10 +1378,10 @@ Definition present_page_3_1 :=
 
 
 
-Goal not (correctpres present_page_3_1 (geq 3)). by []. Qed.
-Goal not (correctpres present_page_3_1 (geq 4)). by []. Qed.
-Goal correctpres present_page_3_1 (geq 5). by []. Qed.
-Goal correctpres present_page_3_1 (geq 6). by []. Qed.
+Goal not (correctrelat present_page_3_1 (geq 3)). by []. Qed.
+Goal not (correctrelat present_page_3_1 (geq 4)). by []. Qed.
+Goal correctrelat present_page_3_1 (geq 5). by []. Qed.
+Goal correctrelat present_page_3_1 (geq 6). by []. Qed.
 
 
 Lemma step_3_1 : [:: 2; 5] = [:: 5; 3] %[mod present_page_3_1].
@@ -1356,4 +1398,4 @@ Qed.
 Eval vm_compute in norfuel present_page_3_1 10 [:: 2; 5].
 
 Eval vm_compute in all_spairs present_page_3_1.
-Eval vm_compute in all_npairs present_page_3_1.
+Eval vm_compute in all_npairs present_page_3_1. *)
