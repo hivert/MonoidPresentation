@@ -1056,6 +1056,12 @@ Proof. by move/allP_T2inv => ->; apply: equiv_refl. Qed.
 Lemma T2invK v : T2mor (T2inv v) = v %[mod prelat T2_pres].
 Proof. exact: (equiv_trans (equiv_refl _ _) (equiv_sym (T2invE v))). Qed.
 
+Fact T2invK_in v :
+  v \in words_of T2_pres -> T2mor (T2inv v) = v %[mod prelat T2_pres].
+Proof. by move => _; exact: T2invK. Qed.
+Definition isopres_Tietze2 : isopres R T2_pres :=
+  IsoPres T2morK T2invK_in.
+
 End Tietze2.
 
 
