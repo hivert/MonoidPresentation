@@ -520,7 +520,7 @@ by case/andP => /(rewrites_word_of uinR) p0inR /(IHpth _ p0inR).
 Qed.
 
 
-Lemma wf_undirected_pres (R : pres A) : 
+Lemma wf_undirected_pres (R : pres A) :
   correctrelat (undirected (prelat R)) (mem (pgen R)).
 Proof.
 apply/allP=> /= [[x1 x2]] /=.
@@ -529,7 +529,7 @@ rewrite mem_undirected => /orP [] hx //=; last rewrite andbC.
 all: by rewrite (hwf _ hx).
 Qed.
 
-Definition undirected_pres (R : pres A) : pres A := 
+Definition undirected_pres (R : pres A) : pres A :=
   Pres (uniq_pgen R) (wf_undirected_pres R).
 
 End Presentation.
@@ -542,7 +542,7 @@ Definition rewmorphism A B (R : pres A) (S : pres B)
 
 (* assia : or may be axiom on generators and this as a theory lemma *)
 Definition rewmorphism_in A B (R : pres A) (S : pres B)
-(f : seq A -> seq B) :=
+  (f : seq A -> seq B) :=
   forall u : word A, u \in words_of R -> (f u \in words_of S).
 
 (* assia: where is this needed? *)
@@ -552,7 +552,7 @@ Definition rewmorphism_to A B (R : pres A) (S : pres B)
      rewrites_to (prelat R) u v -> rewrites_to (prelat S) (f u) (f v).
 
 Lemma rewmorphism_toP A B (R : pres A) (S : pres B)
-(f : seq A -> seq B) : rewmorphism R S f <-> rewmorphism_to R S f.
+  (f : seq A -> seq B) : rewmorphism R S f <-> rewmorphism_to R S f.
 Proof.
 split; last first.
 - by move=> h u v wu wv hrw; apply: h=> //; apply: rewrites_to1.
@@ -586,7 +586,7 @@ Lemma rewmorph_toP u v :
   v \in rewrites (prelat R) u -> rewrites_to (prelat S) (f u) (f v).
 Proof. exact: rewmorphism_subproof. Qed.
 
-Lemma rewmorph_inP u : 
+Lemma rewmorph_inP u :
   u \in words_of R -> f u \in words_of S.
 Proof. exact: rewmorphism_in_subproof. Qed.
 
@@ -621,7 +621,7 @@ HB.instance Definition _  :=
   isRewMorphism.Build A B R S f rewmorphism_toP rewmorphism_to_inP.
 HB.end.
 
-(* assia: builds the instance of morphism on symmetrized relations, 
+(* assia: builds the instance of morphism on symmetrized relations,
 from a morphism on the   undirected relations. *)
 HB.factory Record isPresMorphism
   A B (R : pres A) (S : pres B) (f : {freemon A} -> {freemon B}) := {
@@ -632,11 +632,11 @@ HB.builders Context A B (R : pres A) (S : pres B) f of
   isPresMorphism A B R S f.
 
 (* what is "fresh_name_22"? *)
-Lemma rewmorphism_undirected : 
+Lemma rewmorphism_undirected :
   rewmorphism (undirected_pres R) (undirected_pres S) f.
 Proof.
 move=> u v; rewrite rewrites_undirected => /= hu hv /orP [].
-all: move=> /presmorphism_subproof/rewrites_to_equiv // h. 
+all: move=> /presmorphism_subproof/rewrites_to_equiv // h.
 2: apply: equiv_sym.
 all: exact: h.
 Qed.
@@ -646,8 +646,8 @@ Lemma rewmorphism_in_undirected :
 Proof. move=> u hu; exact: rewmorphism_in_subproof. Qed.
 
 HB.instance Definition _  :=
-  isRewMorphism.Build A B 
-  (undirected_pres R) (undirected_pres S) f 
+  isRewMorphism.Build A B
+  (undirected_pres R) (undirected_pres S) f
   rewmorphism_undirected rewmorphism_in_undirected.
 HB.end.
 
@@ -661,8 +661,8 @@ HB.builders Context A B (R : pres A) (S : pres B) f of
   isPresMorphismTo A B R S f.
 
 Lemma rewmorphism_to_undirected : rewmorphism R S f.
-Proof. 
-move=> u v hu hv /rewrites_to1/presmorphism_to_subproof; exact. 
+Proof.
+move=> u v hu hv /rewrites_to1/presmorphism_to_subproof; exact.
 Qed.
 
 (* assia: is this name ok ?*)
@@ -671,7 +671,7 @@ Lemma rewmorphism_in_undirected :
 Proof. move=> u hu; exact: presmorphism_in_subproof. Qed.
 
 HB.instance Definition _  :=
-  isPresMorphism.Build A B R S f 
+  isPresMorphism.Build A B R S f
   rewmorphism_to_undirected rewmorphism_in_undirected.
 HB.end.
 
@@ -702,8 +702,8 @@ Variables (A B C : choiceType) (R : pres A) (S : pres B) (T : pres C)
   (f : {rewmorph R -> S}) (g : {rewmorph S -> T}).
 
 Fact comp_is_rewmorphism : rewmorphism_to R T (g \o f).
-Proof. 
-move=> u v hu hv hR. 
+Proof.
+move=> u v hu hv hR.
 by apply: rewmorphP; last apply: rewmorphP=> //; apply: rewmorph_inP.
 Qed.
 
@@ -711,7 +711,7 @@ Fact comp_rewmorphism_in : rewmorphism_in R T (g \o f).
 Proof. by move=> u hu; do 2! apply: rewmorph_inP. Qed.
 
 HB.instance Definition _ :=
-  isRewMorphismTo.Build A C R T (g \o f) 
+  isRewMorphismTo.Build A C R T (g \o f)
   comp_is_rewmorphism comp_rewmorphism_in.
 
 End RewMorphismTheory.
@@ -719,10 +719,10 @@ End RewMorphismTheory.
 Record isopres (A B : choiceType) (R : pres A) (S : pres B) := IsoPres {
     mor :> {presmorph R -> S};
     inv : {presmorph S -> R};
-    canmor : forall a : word A, 
+    canmor : forall a : word A,
       a \in words_of R -> inv (mor a) = a %[mod (prelat R)];
-    caninv : forall b : word B, 
-      b \in words_of S -> mor (inv b) = b %[mod (prelat S)] 
+    caninv : forall b : word B,
+      b \in words_of S -> mor (inv b) = b %[mod (prelat S)]
   }.
 
 Definition isopres_sym A B (R : pres A) (S : pres B)
@@ -753,18 +753,18 @@ Proof. move=> hu hv; exact: (isopresP (isopres_sym eq)). Qed.
 
 
 Section IsopresTheory.
-Variables (A B C : choiceType) (R : pres A) (S : pres B) (T : pres C).
 
+Variables (A B C : choiceType) (R : pres A) (S : pres B) (T : pres C).
 
 Definition isopres_refl :=
   let uR := undirected_pres R in IsoPres (mor := idmor uR) (inv := idmor uR)
-      (fun a _ => rewrites_to_refl (prelat uR) a) 
+      (fun a _ => rewrites_to_refl (prelat uR) a)
       (fun a _ => rewrites_to_refl (prelat uR) a).
 
 Variable (eqRS : isopres R S) (eqST : isopres S T).
 Fact canmor_trans a :
-a \in words_of R ->
-(inv eqRS \o inv eqST) ((eqST \o eqRS) a) = a %[mod (prelat R)].
+  a \in words_of R ->
+        (inv eqRS \o inv eqST) ((eqST \o eqRS) a) = a %[mod (prelat R)].
 Proof.
 move=> wa.
 have wRSa : eqRS a \in words_of S by apply: rewmorph_inP.
@@ -774,10 +774,9 @@ have := canmor eqST wRSa; rewrite -(isopres_invP eqRS) /=.
 - exact: rewmorph_inP.
 Qed.
 
-
-Fact invmor_trans c : 
-c \in words_of T -> 
-(eqST \o eqRS) ((inv eqRS \o inv eqST) c) = c %[mod (prelat T)].
+Fact invmor_trans c :
+  c \in words_of T ->
+        (eqST \o eqRS) ((inv eqRS \o inv eqST) c) = c %[mod (prelat T)].
 Proof.
 move=> wc.
 have wiSTc : inv eqST c \in words_of S by apply: rewmorph_inP.
@@ -785,8 +784,8 @@ have := caninv eqRS wiSTc; rewrite -(isopres_invP eqST) //=.
 - by move/(equiv_trans _); apply; apply canmor; do 3! apply: rewmorph_inP.
 - by do 4! apply: rewmorph_inP.
 Qed.
-
 Definition isopres_trans := IsoPres canmor_trans invmor_trans.
+
 Lemma isopres_transE : isopres_trans =1 eqST \o eqRS.
 Proof. by []. Qed.
 Lemma isopres_trans_invE : inv isopres_trans =1 (inv eqRS \o inv eqST).
@@ -796,12 +795,13 @@ End IsopresTheory.
 
 
 Section PresEqEquivTheory.
-Variables (A : choiceType) (R R' : pres A).
-Hypothesis eqR : forall u v, 
-[/\ u \in words_of R, v \in words_of R & u = v %[mod prelat R]] <-> 
-[/\ u \in words_of R', v \in words_of R' & u = v %[mod prelat R']].
 
-Let mor_subproof u v : u \in words_of R -> v \in words_of R -> 
+Variables (A : choiceType) (R R' : pres A).
+Hypothesis eqR : forall u v,
+    [/\ u \in words_of R, v \in words_of R & u = v %[mod prelat R]] <->
+    [/\ u \in words_of R', v \in words_of R' & u = v %[mod prelat R']].
+
+Let mor_subproof u v : u \in words_of R -> v \in words_of R ->
   u = v %[mod prelat R] -> u = v %[mod prelat R'].
 Proof.
 move=> wu wv Ruv.
@@ -809,7 +809,7 @@ have : [/\ u \in words_of R, v \in words_of R & u = v %[mod prelat R]] by split.
 by case/eqR.
 Qed.
 
-Lemma mor_in_subproof u : 
+Lemma mor_in_subproof u :
   u \in words_of (undirected_pres R) -> u \in words_of (undirected_pres R').
 Proof.
 move=> wu.
@@ -818,7 +818,7 @@ suff : [/\ u \in words_of R, u \in words_of R & u = u %[mod prelat R]].
 split=> //; exact: rewrites_to_refl.
 Qed.
 
-Let inv_subproof u v :  u \in words_of R' -> v \in words_of R' -> 
+Let inv_subproof u v :  u \in words_of R' -> v \in words_of R' ->
  u = v %[mod prelat R'] -> u = v %[mod prelat R].
 Proof.
 move=> wu wv R'uv.
@@ -826,7 +826,7 @@ have : [/\ u \in words_of R', v \in words_of R' & u = v %[mod prelat R']] by spl
 by case/eqR.
 Qed.
 
-Lemma inv_in_subproof u : 
+Lemma inv_in_subproof u :
   u \in words_of (undirected_pres R') -> u \in words_of (undirected_pres R).
 Proof.
 move=> wu.
@@ -835,25 +835,24 @@ suff : [/\ u \in words_of R', u \in words_of R' & u = u %[mod prelat R']].
 split=> //; exact: rewrites_to_refl.
 Qed.
 
-
 Let morRR' : {presmorph R -> R'}.
-- apply: idmorRR'.
-- apply: mor_subproof.
-- apply: mor_in_subproof.
+apply: idmorRR'.
+- exact: mor_subproof.
+- exact: mor_in_subproof.
 Defined.
 
 Let morR'R : {presmorph R' -> R}.
-- apply: idmorRR'.
-- apply: inv_subproof.
-- apply: inv_in_subproof.
+apply: idmorRR'.
+- exact: inv_subproof.
+- exact: inv_in_subproof.
 Defined.
-
 
 Fact canmor_eq a : morR'R (morRR' a) = a %[mod prelat R].
 Proof. exact: equiv_refl. Qed.
 Fact caninv_eq a : morRR' (morR'R a) = a %[mod prelat R'].
 Proof. exact: equiv_refl. Qed.
-Definition isopres_eq : isopres R R' := IsoPres (fun _ _ => canmor_eq _) (fun _ _ => caninv_eq _).
+Definition isopres_eq : isopres R R' :=
+  IsoPres (fun _ _ => canmor_eq _) (fun _ _ => caninv_eq _).
 
 End PresEqEquivTheory.
 
@@ -882,10 +881,10 @@ Qed.
 
 
 (** First Tietze transformation, equivalence version *)
-Variables (R : pres A) (u v : word A). 
+Variables (R : pres A) (u v : word A).
 Hypotheses (pgen_u : all (mem (pgen R)) u) (pgen_v : all (mem (pgen R)) v).
 
-Lemma wf_ext_pres : 
+Lemma wf_ext_pres :
   correctrelat ((u, v) :: (prelat R)) (mem (pgen R)).
 Proof.
 apply/allP=> /= [[x1 x2]] /=.
@@ -896,7 +895,7 @@ Qed.
 
 Definition ext_pres : pres A :=  Pres (uniq_pgen R) wf_ext_pres.
 
-Lemma wf_rcons_ext_pres : 
+Lemma wf_rcons_ext_pres :
   correctrelat (rcons (prelat R) (u, v)) (mem (pgen R)).
 Proof.
 apply/allP=> /= [[x1 x2]] /=.
@@ -920,7 +919,7 @@ rewrite !(mem_undirected, inE) -[(y, x) == _](inj_eq swap_inj) /swap /=.
 by case: eqP; rewrite !(orbT, orbA).
 Qed.
 
-Fact equiv_cons_rule x y : 
+Fact equiv_cons_rule x y :
   [/\ x \in words_of R, y \in words_of R & x = y %[mod prelat R]] <->
   [/\ x \in words_of R, y \in words_of R & x = y %[mod (u, v) :: prelat R]].
 Proof.
@@ -928,22 +927,22 @@ by split; case=> wx wy Rxy; split=> //; apply/equiv_cons_rule_mod.
 Qed.
 Definition isopres_cons_rule := @isopres_eq _ _ ext_pres equiv_cons_rule.
 
-Lemma equiv_rcons_rule_mod x y : x = y %[mod prelat R] <-> x = y %[mod rcons (prelat R) (u, v)].
+Lemma equiv_rcons_rule_mod x y :
+  x = y %[mod prelat R] <-> x = y %[mod rcons (prelat R) (u, v)].
 Proof.
 rewrite (equiv_cons_rule_mod x y); apply eq_equiv => /= p.
 by rewrite mem_rcons.
 Qed.
 
 Fact equiv_rcons_rule x y :
-[/\ x \in words_of R, y \in words_of R & x = y %[mod prelat R]] <->
-[/\ x \in words_of R, y \in words_of R & x = y %[mod rcons (prelat R) (u, v)]].
+  [/\ x \in words_of R, y \in words_of R & x = y %[mod prelat R]] <->
+  [/\ x \in words_of R, y \in words_of R & x = y %[mod rcons (prelat R) (u, v)]].
 Proof.
 by split; case=> wx wy Rxy; split=> //; apply/equiv_rcons_rule_mod.
 Qed.
 Definition isopres_rcons_rule := @isopres_eq _ _ rcons_ext_pres equiv_rcons_rule.
 
 End Tietze1.
-
 
 
 Section Tietze2.
@@ -973,7 +972,7 @@ have sub_gen : subpred (mem (pgen R)) (mem Tietze2_gen).
   by move=> x Rx; rewrite /= mem_rcons mem_behead.
 apply/allP=> /= [] r.
 rewrite mem_rcons inE; case/orP=> [/eqP | Rr].
-- case:r  => r1 r2 [] -> ->; rewrite /= mem_rcons mem_head /=. 
+- case:r  => r1 r2 [] -> ->; rewrite /= mem_rcons mem_head /=.
   exact: (sub_all sub_gen).
 - have /allP/(_ _ Rr) /andP[rr1 Rr2] := wf_relat R.
   by rewrite !(sub_all sub_gen).
@@ -987,7 +986,7 @@ Proof. exact: (sub_equiv subset_Tietze2). Qed.
 Lemma sub_words_of_T2 u : u \in words_of (undirected_pres R) ->
    u \in words_of (undirected_pres T2_pres).
 Proof.
-move=> wu. 
+move=> wu.
 have sub_gen : subpred (mem (pgen R)) (mem Tietze2_gen). (* should be a fact*)
   by move=> x Rx; rewrite /= mem_rcons mem_behead.
 by apply/allP=> /= [] r ur; apply: sub_gen; apply: (allP wu).
@@ -995,7 +994,7 @@ Qed.
 
 Definition T2mor : {presmorph R -> T2_pres}.
 apply: idmorRR'.
-- move=> u v wu wv; exact: sub_2.
+- by move=> u v wu wv; exact: sub_2.
 - exact: sub_words_of_T2.
 Defined.
 
@@ -1034,7 +1033,7 @@ Proof.
 rewrite /T2_pres => u v /= wu wv /rewritesP [pre suf [r1 r2]] /= eu ev.
 rewrite eu ev  mem_rcons inE => /orP [/eqP [er1 er2] | rinR] /=.
   rewrite er1 er2 -cat1s !mul_catE !mmorphM /= -!mul_catE; apply: rewrites_to_stable.
-  rewrite T2inv_gen T2inv_w /T2inv big_nil cats0; apply: rewrites_to_refl.
+  by rewrite T2inv_gen T2inv_w /T2inv big_nil cats0; apply: rewrites_to_refl.
 rewrite !mul_catE !mmorphM /= -!mul_catE.
 move/allP: (wf_relat R) => /=/(_ _ rinR) /= /andP[/allP_T2inv-> /allP_T2inv->].
 by apply: rewrites_to1; apply/rewritesP; exists (T2inv pre) (T2inv suf) (r1, r2).
