@@ -484,9 +484,6 @@ Structure pres (A : choiceType) := Pres {
   wf_relat : correctrelat prelat (mem pgen)
 }.
 
-Lemma pres_irrelevance A (R1 R2 : pres A)  :
-   pgen R1 = pgen R2 -> prelat R1 = prelat R1 -> isopres R1 R2.
-Admitted.
 
 (* assia : introduce a notation for _ = _ %[mod R] which hides the prelat *)
 
@@ -861,6 +858,14 @@ Definition isopres_eq : isopres R R' :=
 End PresEqEquivTheory.
 
 
+Lemma pres_irrelevance A (R1 R2 : pres A)  :
+   pgen R1 = pgen R2 -> prelat R1 = prelat R2 -> isopres R1 R2.
+Proof.
+move=> geneq releq; apply: isopres_eq => u v.
+by rewrite /words_of geneq releq.
+Qed.
+
+
 Section Tietze1.
 
 Variable A : choiceType.
@@ -958,8 +963,8 @@ Hypothesis gen_nP : gen \notin (pgen R).
 
 Implicit Types (u v x y : word A).
 
-Definition Tietze2_relat := rcons (prelat R) ([:: gen], w).
 Definition Tietze2_gen := rcons (pgen R) gen.
+Definition Tietze2_relat := rcons (prelat R) ([:: gen], w).
 
 Lemma subset_Tietze2 : {subset prelat R <= Tietze2_relat}.
 Proof. by move=> /= p; rewrite mem_rcons inE orbC => ->. Qed.
@@ -1068,8 +1073,9 @@ Definition isopres_Tietze2 : isopres R T2_pres :=
 
 End Tietze2.
 
+
 Lemma pres_irrelevance A (R1 R2 : pres A)  :
-   pgen R1 = pgen R2 -> prelat R1 = prelat R1 -> isopres R1 R2.
+  pgen R1 = pgen R2 -> prelat R1 = prelat R1 -> isopres R1 R2.
 Admitted.
 
 
