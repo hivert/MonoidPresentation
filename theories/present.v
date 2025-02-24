@@ -478,8 +478,8 @@ Definition correctrelat A (R : relat A) (P : pred A) :=
   all (fun p => all P p.1 && all P p.2) R.
 
 Structure pres (A : choiceType) := Pres {
-  prelat : relat A;
   pgen : seq A;
+  prelat : relat A;
   uniq_pgen : uniq pgen;
   wf_relat : correctrelat prelat (mem pgen)
 }.
