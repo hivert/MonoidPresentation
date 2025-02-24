@@ -953,6 +953,11 @@ Definition isopres_rcons_rule := @isopres_eq _ _ rcons_ext_pres equiv_rcons_rule
 
 End Tietze1.
 
+Lemma Tietze_add_rel  A (R1 R2 : pres A) (u v : word A) :
+  all (mem (pgen R1)) u -> all (mem (pgen R1)) v -> 
+  pgen R1 = pgen R2 -> prelat R2 = rcons (prelat R1) (u, v) -> isopres R1 R2.
+Admitted.
+
 
 Section Tietze2.
 
