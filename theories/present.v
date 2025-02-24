@@ -484,6 +484,10 @@ Structure pres (A : choiceType) := Pres {
   wf_relat : correctrelat prelat (mem pgen)
 }.
 
+Lemma pres_irrelevance A (R1 R2 : pres A)  :
+   pgen R1 = pgen R2 -> prelat R1 = prelat R1 -> isopres R1 R2.
+Admitted.
+
 (* assia : introduce a notation for _ = _ %[mod R] which hides the prelat *)
 
 Section Presentation.
@@ -1063,6 +1067,10 @@ Definition isopres_Tietze2 : isopres R T2_pres :=
   IsoPres T2morK T2invK_in.
 
 End Tietze2.
+
+Lemma pres_irrelevance A (R1 R2 : pres A)  :
+   pgen R1 = pgen R2 -> prelat R1 = prelat R1 -> isopres R1 R2.
+Admitted.
 
 
 Lemma wf_impl (T : Type) (R : T -> T -> Prop) (S : T -> T -> Prop) :
