@@ -43,7 +43,7 @@ csuf : word A
 
 Definition rew_cert := seq cquad.
 
-Definition wf_cquad (R : relat A) (c : cquad) := (crel1 c, crel2 c) \in R.
+Definition wf_cquad (R : relat A) (c : cquad) := (crel1 c, crel2 c) \in undirected R.
 
 Definition cquad_rel (c1 c2 : cquad) := 
   cpre c1 ++ crel2 c1 ++ csuf c1 == cpre c2 ++ crel1 c2 ++ csuf c2.
@@ -55,11 +55,26 @@ Definition init_cquad (u : word A) := CQuad [::] [::] u [::].
 Definition end_cquad  (u : word A) := CQuad [::] u [::] [::].
 
 Definition check_cert (R : relat A) (u v : word A) (prf : rew_cert) :=
-  (all (wf_cquad R) prf) && (wf_cert R (init_cquad u) (rcons prf (end_cquad v))).
+  (all (wf_cquad R) prf)  && (wf_cert R (init_cquad u) (rcons prf (end_cquad v))).
 
 Lemma check_certP (R : relat A) (u v : word A) (prf : rew_cert) :
   check_cert R u v prf -> u = v %[mod R].
-Admitted.
+Proof.
+elim: prf u => [| c prf ihprf] u /=.
+- case/andP=> /= _; rewrite andbT => /eqP /=; rewrite !cats0 => ->. 
+  exact: rewrites_to_refl.
+case/andP=> /= /andP[wfc hall] /andP[] /eqP /=; rewrite cats0 => e hwf.
+pose u1 := cpre c ++ crel2 c ++ csuf c.
+have t1 : u = u1 %[mod R].
+  rewrite e /u1. apply: rewrites_to_stable; apply: rewrites_to1. 
+  exact: rewrites_rel.
+apply: rewrites_to_trans t1 _.
+apply: ihprf; rewrite /check_cert hall /=.
+case: prf hwf {hall} => [| c1 prf]/=.
+- by rewrite andbT /cquad_rel /= !cats0 andbT //.
+case/andP=> hcc1 ->; rewrite andbT.
+by move: hcc1; rewrite /cquad_rel /= !cats0 => /eqP<-.
+Qed.
 
 End RewriteProofs.
 
@@ -79,6 +94,13 @@ pose p2 := @Pres _ [::0; 1; 2]
    ([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0])] erefl erefl.
 have step_1 : isopres p1 p2.
   apply: (@Tietze_add_rel _ _ _ [:: 1; 0; 1; 0; 0; 2] [:: 0; 2; 2; 0]) => //.
+  pose prf : rew_cert nat := [:: CQuad [:: 1; 0; 1; 0; 0] [:: 2] [:: 1; 0; 0; 0] [:: ];
+  CQuad [:: ] [:: 1; 0; 1; 0; 0; 1; 0; 0] [:: 0; 1; 0; 0; 0; 1; 0; 0; 0] [:: 0];
+  CQuad [:: 0] [:: 1; 0; 0; 0] [:: 2] [:: 1; 0; 0; 0; 0];
+  CQuad [:: 0; 2] [:: 1; 0; 0; 0] [:: 2] [:: 0]].
+  exact: (check_certP (prf := prf)).
+  compute.
+
 pose p3 := @Pres _ [::0; 1; 2]  
 [::  
 ([:: 2], [:: 1; 0; 0; 0]); 
