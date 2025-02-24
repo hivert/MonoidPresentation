@@ -1073,9 +1073,9 @@ Definition isopres_Tietze2 : isopres R T2_pres :=
 
 End Tietze2.
 
-
-Lemma pres_irrelevance A (R1 R2 : pres A)  :
-  pgen R1 = pgen R2 -> prelat R1 = prelat R1 -> isopres R1 R2.
+Lemma Tietze_add_gen A (R1 R2 : pres A) (c : A) (w : word A) :
+   pgen R2 = rcons (pgen R1) c -> prelat R2 = rcons (prelat R1) ([:: c], w) ->
+   all (mem (pgen R1)) w -> c \notin (pgen R1) -> isopres R1 R2.
 Admitted.
 
 
