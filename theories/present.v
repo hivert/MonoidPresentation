@@ -216,6 +216,12 @@ Proof.
 by rewrite rewrite1E; case: rewrites => [//| w s] /= [{v}<-]; rewrite inE eqxx.
 Qed.
 
+Lemma rewrites_rel u v : (u, v) \in R -> v \in rewrites u.
+Proof.
+move=> rin; apply/rewritesP.
+by exists [::] [::] (u, v); rewrite //= cats0.
+Qed.
+
 (* rewrites_to u v holds when a sequence of rewriting with rules from R turns
   u into v. The sequence can be empty, i.e., the relation is reflexive *)
 Inductive rewrites_to u v : Prop :=
