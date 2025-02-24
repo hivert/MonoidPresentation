@@ -1074,9 +1074,13 @@ Definition isopres_Tietze2 : isopres R T2_pres :=
 End Tietze2.
 
 Lemma Tietze_add_gen A (R1 R2 : pres A) (c : A) (w : word A) :
-   pgen R2 = rcons (pgen R1) c -> prelat R2 = rcons (prelat R1) ([:: c], w) ->
-   all (mem (pgen R1)) w -> c \notin (pgen R1) -> isopres R1 R2.
-Admitted.
+  pgen R2 = rcons (pgen R1) c -> prelat R2 = rcons (prelat R1) ([:: c], w) ->
+  all (mem (pgen R1)) w -> c \notin (pgen R1) -> isopres R1 R2.
+Proof.
+move=> eqgen eqrelat allw cok.
+apply: (isopres_trans (isopres_Tietze2 allw cok)).
+exact: pres_irrelevance.
+Qed.
 
 
 Lemma wf_impl (T : Type) (R : T -> T -> Prop) (S : T -> T -> Prop) :
