@@ -1017,7 +1017,7 @@ Fact Tietze2_gen_uniq : uniq Tietze2_gen.
 Proof.
 rewrite rcons_uniq gen_nP; exact: uniq_pgen.
 Qed.
-Fact Tietze2_wf_relat : is_true (correctrelat Tietze2_relat (mem Tietze2_gen)).
+Fact Tietze2_wf_relat : correctrelat Tietze2_relat (mem Tietze2_gen).
 Proof.
 have sub_relat : subpred (mem (prelat R)) (mem Tietze2_relat).
   by move=> x Rx; rewrite /= mem_rcons mem_behead.
@@ -1117,24 +1117,24 @@ Definition isopres_Tietze2 : isopres R T2_pres :=
 
 End Tietze2.
 
-Lemma Tietze_add_gen_swap A (R1 R2 : pres A) (c : A) (w : word A) :
-  pgen R2 = rcons (pgen R1) c -> prelat R2 = rcons (prelat R1) ([:: c], w) ->
-  w \in words_of R1 -> c \notin (pgen R1) -> isopres R1 R2.
+Lemma Tietze_add_gen_swap A (R1 R2 : pres A) (g : A) (w : word A) :
+  pgen R2 = rcons (pgen R1) g -> prelat R2 = rcons (prelat R1) ([:: g], w) ->
+  w \in words_of R1 -> g \notin (pgen R1) -> isopres R1 R2.
 Proof.
-move=> eqgen eqrelat allw cok.
-apply: (isopres_trans (isopres_Tietze2 allw cok)).
+move=> eqgen eqrelat allw gok.
+apply: (isopres_trans (isopres_Tietze2 allw gok)).
 exact: pres_irrelevance.
 Qed.
-Lemma Tietze_add_gen A (R1 R2 : pres A) (c : A) (w : word A) :
-  pgen R2 = rcons (pgen R1) c -> prelat R2 = rcons (prelat R1) (w, [:: c]) ->
-  w \in words_of R1 -> c \notin (pgen R1) -> isopres R1 R2.
+Lemma Tietze_add_gen A (R1 R2 : pres A) (g : A) (w : word A) :
+  pgen R2 = rcons (pgen R1) g -> prelat R2 = rcons (prelat R1) (w, [:: g]) ->
+  w \in words_of R1 -> g \notin (pgen R1) -> isopres R1 R2.
 Proof.
 move=> eqgen eqrelat allw cok.
 apply: (isopres_trans (isopres_Tietze2 allw cok)).
 apply: isopres_eq => u v.
 rewrite /words_of /= /Tietze2_gen {}eqgen.
 suff /eq_equiv_undirected /(_ u v) Heq :
-    undirected (Tietze2_relat R1 c w) =i undirected (prelat R2).
+    undirected (Tietze2_relat R1 g w) =i undirected (prelat R2).
   by split => [][-> -> /Heq].
 move=> [x y]; rewrite !mem_undirected {}eqrelat /Tietze2_relat.
 rewrite !mem_rcons !inE.
@@ -1626,7 +1626,7 @@ Hypothesis Twf : well_founded (@Order.lt _ T).
 
 Lemma sizelexi_wf : well_founded (@Order.lt _ (seq T)).
 Proof.
-pose ltb b u v := is_true ((size v <= b) && (u < v)%O).
+pose ltb b u v := ((size v <= b) && (u < v)%O).
 suff bwf bnd : well_founded (ltb bnd).
   move=> u; have [n] := ubnPleq (size u).
   elim/(well_founded_induction (bwf n)): u => u IHu szu.
