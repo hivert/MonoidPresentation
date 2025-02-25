@@ -18,7 +18,7 @@ Definition present_entry := @Pres _ [::1; 0]
     erefl erefl.
 
 (* Candidate alternate presentation, this time with three generators *)
-Definition present_final := @Pres _ [:: 0; 1; 2]
+Definition present_final := @Pres _ [:: 1; 0; 2]
     [:: ([:: 1; 0; 0; 0], [:: 2]);
         ([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0]);
         ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 2; 2])] erefl erefl.
@@ -141,28 +141,19 @@ have step_3 : isopres p3 p4.
   CQuad [:: 0; 1; 0; 0; 0] [:: 2] [:: 1; 0; 0; 0] [:: ]].
   exact: (check_certP (prf := prf)).
 apply: isopres_trans step_3 _.
+exact: isopres_refl.
+Defined.
 
-
-
-  pose p3 := @Pres _ [::0; 1; 2]
-[::
-([:: 2], [:: 1; 0; 0; 0]);
-([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0])] erefl erefl.
-have step_1 : isopres p2 p3.
-Admitted.
-(* Step 0*)
-
-
-Corollary equiv_equal u v :
-(u = v %[mod present_entry]) <-> (present_equiv u = present_equiv v %[mod present_final_1]).
-Proof. admit. Admitted.
+Corollary equiv_equal u v : u \in words_of present_entry -> v \in words_of present_entry ->
+  (present_equiv u = present_equiv v %[mod prelat present_final]) <-> (u = v %[mod prelat present_entry]).
+Proof. move=> wu wv; exact: isopresP. Qed.
 
 (* Proof that the presentation is terminating + confluent. *)
-Theorem final_1_ok : convergent present_final_1.
+Theorem final_ok : convergent (prelat present_final).
 Proof. exact: (check_convergence_natP (fuel := 5)). Qed.
-
+Search _ well_founded.
 (* The word problem is hence decidable in this monoid. *)
-Theorem decidable_entry : True.
+Theorem decidable_entry u v : .
 Proof. done. Qed.
 
 (* To be implemented combining norfuel and termination somehow *)
