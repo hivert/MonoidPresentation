@@ -876,9 +876,9 @@ by rewrite /words_of geneq releq.
 Qed.
 
 Lemma pres_irrelevance_perm_eq A (R1 R2 : pres A)  :
-  pgen R1 =i pgen R2 -> prelat R1 =i prelat R2 -> isopres R1 R2.
+  perm_eq (pgen R1) (pgen R2) -> perm_eq (prelat R1) (prelat R2) -> isopres R1 R2.
 Proof.
-move=> geneq releq; apply: isopres_eq => u v.
+move=> /perm_mem geneq /perm_mem releq; apply: isopres_eq => u v.
 rewrite /words_of !unfold_in /=.
 have all_pgen : all (mem (pgen R1)) =1 all (mem (pgen R2)).
   by move=> w; apply: eq_all.
