@@ -444,6 +444,10 @@ Proof. by split; apply: sub_equiv => p /[!eq_rule]. Qed.
 
 End EqRule.
 
+Lemma eq_equiv_undirected R1 R2 (eq_rule : undirected R1 =i undirected R2) u v :
+  u = v %[mod R1] <-> u = v %[mod R2].
+Proof. by split; apply: sub_rewrites_to => /= p /[!eq_rule]. Qed.
+
 End Defs.
 Notation "x = y %[mod R ]" := (rewrites_to (undirected R) x y).
 
@@ -865,10 +869,26 @@ End PresEqEquivTheory.
 
 
 Lemma pres_irrelevance A (R1 R2 : pres A)  :
-   pgen R1 = pgen R2 -> prelat R1 = prelat R2 -> isopres R1 R2.
+  pgen R1 = pgen R2 -> prelat R1 = prelat R2 -> isopres R1 R2.
 Proof.
 move=> geneq releq; apply: isopres_eq => u v.
 by rewrite /words_of geneq releq.
+Qed.
+
+Lemma pres_irrelevance_perm_eq A (R1 R2 : pres A)  :
+  pgen R1 =i pgen R2 -> prelat R1 =i prelat R2 -> isopres R1 R2.
+Proof.
+move=> geneq releq; apply: isopres_eq => u v.
+rewrite /words_of !unfold_in /=.
+have all_pgen : all (mem (pgen R1)) =1 all (mem (pgen R2)).
+  by move=> w; apply: eq_all.
+rewrite !all_pgen.
+case: (all _ u); rewrite ?orbT //; last by split => [][].
+case: (all _ v); rewrite ?orbT //; last by split => [][].
+suff /eq_equiv_undirected /(_ u v) Heq :
+    undirected (prelat R1) =i undirected (prelat R2).
+  by split => [][_ _ /Heq].
+by move=> [x y]; rewrite !mem_undirected !releq.
 Qed.
 
 
@@ -1089,13 +1109,30 @@ Definition isopres_Tietze2 : isopres R T2_pres :=
 
 End Tietze2.
 
-Lemma Tietze_add_gen A (R1 R2 : pres A) (c : A) (w : word A) :
+Lemma Tietze_add_gen_swap A (R1 R2 : pres A) (c : A) (w : word A) :
   pgen R2 = rcons (pgen R1) c -> prelat R2 = rcons (prelat R1) ([:: c], w) ->
   all (mem (pgen R1)) w -> c \notin (pgen R1) -> isopres R1 R2.
 Proof.
 move=> eqgen eqrelat allw cok.
 apply: (isopres_trans (isopres_Tietze2 allw cok)).
 exact: pres_irrelevance.
+Qed.
+Lemma Tietze_add_gen A (R1 R2 : pres A) (c : A) (w : word A) :
+  pgen R2 = rcons (pgen R1) c -> prelat R2 = rcons (prelat R1) (w, [:: c]) ->
+  all (mem (pgen R1)) w -> c \notin (pgen R1) -> isopres R1 R2.
+Proof.
+move=> eqgen eqrelat allw cok.
+apply: (isopres_trans (isopres_Tietze2 allw cok)).
+apply: isopres_eq => u v.
+rewrite /words_of /= /Tietze2_gen {}eqgen.
+suff /eq_equiv_undirected /(_ u v) Heq :
+    undirected (Tietze2_relat R1 c w) =i undirected (prelat R2).
+  by split => [][-> -> /Heq].
+move=> [x y]; rewrite !mem_undirected {}eqrelat /Tietze2_relat.
+rewrite !mem_rcons !inE.
+case: (_ \in prelat R1); rewrite ?orbT //.
+case: (_ \in prelat R1); rewrite ?orbT //= !orbF orbC.
+by rewrite !xpair_eqE ![_ && (y == _)]andbC.
 Qed.
 
 
