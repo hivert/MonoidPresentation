@@ -879,12 +879,11 @@ Lemma pres_irrelevance_perm_eq A (R1 R2 : pres A)  :
   perm_eq (pgen R1) (pgen R2) -> perm_eq (prelat R1) (prelat R2) -> isopres R1 R2.
 Proof.
 move=> /perm_mem geneq /perm_mem releq; apply: isopres_eq => u v.
-rewrite /words_of !unfold_in /=.
-have all_pgen : all (mem (pgen R1)) =1 all (mem (pgen R2)).
+have eq_word_of : words_of R1 =i words_of R2.
   by move=> w; apply: eq_all.
-rewrite !all_pgen.
-case: (all _ u); rewrite ?orbT //; last by split => [][].
-case: (all _ v); rewrite ?orbT //; last by split => [][].
+rewrite !eq_word_of.
+case: (u \in _); rewrite ?orbT //; last by split => [][].
+case: (v \in _); rewrite ?orbT //; last by split => [][].
 suff /eq_equiv_undirected /(_ u v) Heq :
     undirected (prelat R1) =i undirected (prelat R2).
   by split => [][_ _ /Heq].
@@ -917,7 +916,12 @@ Qed.
 
 (** First Tietze transformation, equivalence version *)
 Variables (R : pres A) (u v : word A).
-Hypotheses (pgen_u : all (mem (pgen R)) u) (pgen_v : all (mem (pgen R)) v).
+Hypotheses (pgen_u : u \in words_of R) (pgen_v : v \in words_of R).
+
+Let pgu : all (mem (pgen R)) u.
+Proof. exact: pgen_u. Qed.
+Let pgv : all (mem (pgen R)) v.
+Proof. exact: pgen_v. Qed.
 
 Lemma wf_ext_pres :
   correctrelat ((u, v) :: (prelat R)) (mem (pgen R)).
@@ -925,7 +929,7 @@ Proof.
 apply/allP=> /= [[x1 x2]] /=.
 have /allP := wf_relat R => /= hwf.
 rewrite inE; case/orP; last exact: hwf.
-by case/eqP=> -> ->; rewrite pgen_u.
+by case/eqP=> -> ->; rewrite pgu.
 Qed.
 
 Definition ext_pres : pres A :=  Pres (uniq_pgen R) wf_ext_pres.
@@ -936,14 +940,15 @@ Proof.
 apply/allP=> /= [[x1 x2]] /=.
 have /allP := wf_relat R => /= hwf.
 rewrite mem_rcons; case/orP; last exact: hwf.
-by case/eqP=> -> ->; rewrite pgen_u.
+by case/eqP=> -> ->; rewrite pgu.
 Qed.
 
 Definition rcons_ext_pres : pres A :=  Pres (uniq_pgen R) wf_rcons_ext_pres.
 
 Hypothesis (Ruv : u = v %[mod prelat R]).
 
-Lemma equiv_cons_rule_mod x y : x = y %[mod prelat R] <-> x = y %[mod (u, v) :: prelat R].
+Lemma equiv_cons_rule_mod x y :
+  x = y %[mod prelat R] <-> x = y %[mod (u, v) :: prelat R].
 Proof.
 rewrite (rewrites_to_cons_rule Ruv).
 have rvu : rewrites_to ((u, v) :: undirected (prelat R)) v u.
@@ -980,7 +985,7 @@ Definition isopres_rcons_rule := @isopres_eq _ _ rcons_ext_pres equiv_rcons_rule
 End Tietze1.
 
 Lemma Tietze_add_rel  A (R1 R2 : pres A) (u v : word A) :
-  all (mem (pgen R1)) u -> all (mem (pgen R1)) v ->
+  u \in words_of R1 -> v \in words_of R1 ->
   pgen R1 = pgen R2 -> prelat R2 = rcons (prelat R1) (u, v) ->
   u = v %[mod prelat R1] -> isopres R1 R2.
 Proof.
@@ -994,8 +999,11 @@ Section Tietze2.
 
 Context (A : choiceType) (R : pres A) (gen : A) (w : word A).
 
-Hypothesis wcorr : all (mem (pgen R)) w.
+Hypothesis wcorr : w \in words_of R.
 Hypothesis gen_nP : gen \notin (pgen R).
+
+Let wall : all (mem (pgen R)) w.
+Proof. exact: wcorr. Qed.
 
 Implicit Types (u v x y : word A).
 
@@ -1088,7 +1096,7 @@ Proof.
 elim=> [_ |a u ihu]; first by rewrite /T2inv big_nil.
 rewrite inE /= mem_rcons inE; case/andP=> ha hu.
 rewrite /T2inv big_cons; case/orP: ha => ha.
-- by rewrite ha /= inE all_cat wcorr; apply: ihu.
+- by rewrite ha /= inE all_cat wall; apply: ihu.
 - case: ifP; last first.
     by move/negbT; rewrite negbK => /eqP ea; move: gen_nP; rewrite -ea ha.
   by move=> aNg; rewrite inE all_cat /= ha; apply: ihu.
@@ -1111,7 +1119,7 @@ End Tietze2.
 
 Lemma Tietze_add_gen_swap A (R1 R2 : pres A) (c : A) (w : word A) :
   pgen R2 = rcons (pgen R1) c -> prelat R2 = rcons (prelat R1) ([:: c], w) ->
-  all (mem (pgen R1)) w -> c \notin (pgen R1) -> isopres R1 R2.
+  w \in words_of R1 -> c \notin (pgen R1) -> isopres R1 R2.
 Proof.
 move=> eqgen eqrelat allw cok.
 apply: (isopres_trans (isopres_Tietze2 allw cok)).
@@ -1119,7 +1127,7 @@ exact: pres_irrelevance.
 Qed.
 Lemma Tietze_add_gen A (R1 R2 : pres A) (c : A) (w : word A) :
   pgen R2 = rcons (pgen R1) c -> prelat R2 = rcons (prelat R1) (w, [:: c]) ->
-  all (mem (pgen R1)) w -> c \notin (pgen R1) -> isopres R1 R2.
+  w \in words_of R1 -> c \notin (pgen R1) -> isopres R1 R2.
 Proof.
 move=> eqgen eqrelat allw cok.
 apply: (isopres_trans (isopres_Tietze2 allw cok)).
