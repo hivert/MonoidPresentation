@@ -13,7 +13,7 @@ Parameter cool : False.
 
 
 (* Presentation entry, in this case <a, b | babaabaa = abaaabaaa>. *)
-Definition present_entry := @Pres _ [::0; 1]
+Definition present_entry := @Pres _ [::1; 0]
     [:: ([:: 1; 0; 1; 0; 0; 1; 0; 0], [::0; 1; 0; 0; 0; 1; 0; 0; 0])]
     erefl erefl.
 
@@ -80,15 +80,17 @@ End RewriteProofs.
 Theorem present_equiv :  isopres present_entry present_final.
 Proof.
 pose p0 := present_entry.
-pose p1 := @Pres _ [::0; 1; 2]
+(* step 0: add gen *)
+pose p1 := @Pres _ [::1; 0; 2]
   [:: ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 1; 0; 0; 0; 1; 0; 0; 0]);
-      ([:: 2], [:: 1; 0; 0; 0])] erefl erefl.
+      ([:: 1; 0; 0; 0], [:: 2])] erefl erefl.
 have step_0 : isopres p0 p1.
   exact: (@Tietze_add_gen _ _ _ 2 [:: 1; 0; 0; 0]).
 apply: isopres_trans step_0 _.
-pose p2 := @Pres _ [:: 0; 1; 2]
+(* step 1 : add rel *)
+pose p2 := @Pres _ [:: 1; 0; 2]
   [:: ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 1; 0; 0; 0; 1; 0; 0; 0]);
-      ([:: 2], [:: 1; 0; 0; 0]);
+      ( [:: 1; 0; 0; 0], [:: 2]);
       ([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0])] erefl erefl.
 have step_1 : isopres p1 p2.
   apply: (@Tietze_add_rel _ _ _ [:: 1; 0; 1; 0; 0; 2] [:: 0; 2; 2; 0]) => //.
@@ -99,9 +101,50 @@ have step_1 : isopres p1 p2.
         CQuad [:: 0; 2] [:: 1; 0; 0; 0] [:: 2] [:: 0]].
   exact: (check_certP (prf := prf)).
 apply: isopres_trans step_1 _.
+(* step 2 : add rel *)
+pose p3 := @Pres _ [:: 1; 0; 2]
+ [:: 
+    ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 1; 0; 0; 0; 1; 0; 0; 0]);
+    ([:: 1; 0; 0; 0], [:: 2]);
+    ([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0]);
+    ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 2; 2])
+  ] erefl erefl.
+have step_2 : isopres p2 p3.
+  apply: (@Tietze_add_rel _ _ _ [:: 1; 0; 1; 0; 0; 1; 0; 0] [:: 0; 2; 2]) => //.
+   pose prf : rew_cert nat := 
+   [:: CQuad [:: ] [:: 1; 0; 1; 0; 0; 1; 0; 0] [:: 0; 1; 0; 0; 0; 1; 0; 0; 0] [:: ]; 
+   CQuad [:: 0] [:: 1; 0; 0; 0] [:: 2] [:: 1; 0; 0; 0]; 
+   CQuad [:: 0; 2] [:: 1; 0; 0; 0] [:: 2] [:: ]].
+   exact: (check_certP (prf := prf)).
+apply: isopres_trans step_2 _.
+(* step 3 : rm relation *)
+pose p3_perm := @Pres _ [:: 1; 0; 2]
+  [:: 
+     ([:: 1; 0; 0; 0], [:: 2]);
+     ([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0]);
+     ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 2; 2]);
+     ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 1; 0; 0; 0; 1; 0; 0; 0])
+   ] erefl erefl.
+have htrans : isopres p3 p3_perm by exact: pres_irrelevance_perm_eq.
+pose p4 := @Pres _  [:: 1; 0; 2]
+  [:: 
+   ([:: 1; 0; 0; 0], [:: 2]);
+   ([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0]);
+   ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 2; 2])
+   ] erefl erefl.
+have step_3 : isopres p3 p4.
+  apply: isopres_trans htrans _.
+  apply: isopres_sym.
+  apply: (@Tietze_add_rel _ _ _ [:: 1; 0; 1; 0; 0; 1; 0; 0] [:: 0; 1; 0; 0; 0; 1; 0; 0; 0]) => //.
+  pose prf := [:: CQuad [:: ] [:: 1; 0; 1; 0; 0; 1; 0; 0] [:: 0; 2; 2] [:: ]; 
+  CQuad [:: 0] [:: 2] [:: 1; 0; 0; 0] [:: 2]; 
+  CQuad [:: 0; 1; 0; 0; 0] [:: 2] [:: 1; 0; 0; 0] [:: ]].
+  exact: (check_certP (prf := prf)).
+apply: isopres_trans step_3 _.
 
 
-pose p3 := @Pres _ [::0; 1; 2]
+
+  pose p3 := @Pres _ [::0; 1; 2]
 [::
 ([:: 2], [:: 1; 0; 0; 0]);
 ([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0])] erefl erefl.
