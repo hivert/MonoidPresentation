@@ -82,7 +82,7 @@ pose p0 := present_entry.
 pose p1 := @Pres _ [::1; 0; 2]
   [:: ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 1; 0; 0; 0; 1; 0; 0; 0]);
       ([:: 1; 0; 0; 0], [:: 2])] erefl erefl.
-have step_0 : isopres p0 p1.
+have @step_0 : isopres p0 p1.
   exact: (@Tietze_add_gen _ _ _ 2 [:: 1; 0; 0; 0]).
 apply: isopres_trans step_0 _.
 (* step 1 : add rel *)
@@ -90,7 +90,7 @@ pose p2 := @Pres _ [:: 1; 0; 2]
   [:: ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 1; 0; 0; 0; 1; 0; 0; 0]);
       ( [:: 1; 0; 0; 0], [:: 2]);
       ([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0])] erefl erefl.
-have step_1 : isopres p1 p2.
+have @step_1 : isopres p1 p2.
   apply: (@Tietze_add_rel _ _ _ [:: 1; 0; 1; 0; 0; 2] [:: 0; 2; 2; 0]) => //.
   pose prf : rew_cert nat :=
     [:: CQuad [:: 1; 0; 1; 0; 0] [:: 2] [:: 1; 0; 0; 0] [:: ];
@@ -107,7 +107,7 @@ pose p3 := @Pres _ [:: 1; 0; 2]
     ([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0]);
     ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 2; 2])
   ] erefl erefl.
-have step_2 : isopres p2 p3.
+have @step_2 : isopres p2 p3.
   apply: (@Tietze_add_rel _ _ _ [:: 1; 0; 1; 0; 0; 1; 0; 0] [:: 0; 2; 2]) => //.
    pose prf : rew_cert nat := 
    [:: CQuad [:: ] [:: 1; 0; 1; 0; 0; 1; 0; 0] [:: 0; 1; 0; 0; 0; 1; 0; 0; 0] [:: ]; 
@@ -123,14 +123,14 @@ pose p3_perm := @Pres _ [:: 1; 0; 2]
      ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 2; 2]);
      ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 1; 0; 0; 0; 1; 0; 0; 0])
    ] erefl erefl.
-have htrans : isopres p3 p3_perm by exact: pres_irrelevance_perm_eq.
+have @htrans : isopres p3 p3_perm by exact: pres_irrelevance_perm_eq.
 pose p4 := @Pres _  [:: 1; 0; 2]
   [:: 
    ([:: 1; 0; 0; 0], [:: 2]);
    ([:: 1; 0; 1; 0; 0; 2], [:: 0; 2; 2; 0]);
    ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 2; 2])
    ] erefl erefl.
-have step_3 : isopres p3 p4.
+have @step_3 : isopres p3 p4.
   apply: isopres_trans htrans _.
   apply: isopres_sym.
   apply: (@Tietze_add_rel _ _ _ [:: 1; 0; 1; 0; 0; 1; 0; 0] [:: 0; 1; 0; 0; 0; 1; 0; 0; 0]) => //.
@@ -141,6 +141,11 @@ have step_3 : isopres p3 p4.
 apply: isopres_trans step_3 _.
 exact: isopres_refl.
 Defined.
+
+Lemma test_iso : present_equiv = id :> (_ -> _).
+Proof.
+compute.
+Eval compute in (present_equiv [::]).
 
 Corollary equiv_equal u v : u \in words_of present_entry -> v \in words_of present_entry ->
   (present_equiv u = present_equiv v %[mod prelat present_final]) <-> (u = v %[mod prelat present_entry]).
