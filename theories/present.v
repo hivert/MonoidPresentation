@@ -738,10 +738,12 @@ Record isopres (A B : choiceType) (R : pres A) (S : pres B) := IsoPres {
 
 Definition isopres_sym A B (R : pres A) (S : pres B)
   (eq : isopres R S) := IsoPres (caninv eq) (canmor eq).
-Lemma isopres_symK  A B (R : pres A) (S : pres B) eq :
+Lemma isopres_symK A B (R : pres A) (S : pres B) eq :
   ((@isopres_sym B A S R) \o (@isopres_sym A B R S)) eq = eq.
 Proof. by rewrite /isopres_sym; move: eq => [m i cm ci]/=. Qed.
-
+Lemma isopres_symE A B (R : pres A) (S : pres B) (eq : isopres R S) :
+  isopres_sym eq =1 inv eq.
+Proof. by []. Qed.
 
 Lemma isopresP A B (R : pres A) (S : pres B) (eq : isopres R S) u v :
   u \in words_of R -> v \in words_of R ->
@@ -771,6 +773,9 @@ Definition isopres_refl :=
   let uR := undirected_pres R in IsoPres (mor := idmor uR) (inv := idmor uR)
       (fun a _ => rewrites_to_refl (prelat uR) a)
       (fun a _ => rewrites_to_refl (prelat uR) a).
+
+Lemma isopres_reflE : isopres_refl =1 (@idmor _ R).
+Proof. by []. Qed.
 
 Variable (eqRS : isopres R S) (eqST : isopres S T).
 Fact canmor_trans a :
@@ -865,6 +870,9 @@ Proof. exact: equiv_refl. Qed.
 Definition isopres_eq : isopres R R' :=
   IsoPres (fun _ _ => canmor_eq _) (fun _ _ => caninv_eq _).
 
+Lemma isopres_eqE : isopres_eq =1 id.
+Proof. by []. Qed.
+
 End PresEqEquivTheory.
 
 
@@ -873,7 +881,7 @@ Lemma pres_irrelevance A (R1 R2 : pres A)  :
 Proof.
 move=> geneq releq; apply: isopres_eq => u v.
 by rewrite /words_of geneq releq.
-Qed.
+Qed.  (* TODO Defined ??? *)
 
 Lemma pres_irrelevance_perm_eq A (R1 R2 : pres A)  :
   perm_eq (pgen R1) (pgen R2) -> perm_eq (prelat R1) (prelat R2) -> isopres R1 R2.
@@ -888,7 +896,7 @@ suff /eq_equiv_undirected /(_ u v) Heq :
     undirected (prelat R1) =i undirected (prelat R2).
   by split => [][_ _ /Heq].
 by move=> [x y]; rewrite !mem_undirected !releq.
-Qed.
+Qed.  (* TODO Defined ??? *)
 
 
 Section Tietze1.
@@ -967,6 +975,9 @@ by split; case=> wx wy Rxy; split=> //; apply/equiv_cons_rule_mod.
 Qed.
 Definition isopres_cons_rule := @isopres_eq _ _ ext_pres equiv_cons_rule.
 
+Lemma isopres_cons_ruleE : isopres_cons_rule =1 id.
+Proof. by []. Qed.
+
 Lemma equiv_rcons_rule_mod x y :
   x = y %[mod prelat R] <-> x = y %[mod rcons (prelat R) (u, v)].
 Proof.
@@ -981,6 +992,9 @@ Proof.
 by split; case=> wx wy Rxy; split=> //; apply/equiv_rcons_rule_mod.
 Qed.
 Definition isopres_rcons_rule := @isopres_eq _ _ rcons_ext_pres equiv_rcons_rule.
+
+Lemma isopres_rcons_ruleE : isopres_cons_rule =1 id.
+Proof. by []. Qed.
 
 End Tietze1.
 
@@ -1008,7 +1022,7 @@ Proof. exact: wcorr. Qed.
 Implicit Types (u v x y : word A).
 
 Definition Tietze2_gen := rcons (pgen R) gen.
-Definition Tietze2_relat := rcons (prelat R) ([:: gen], w).
+Definition Tietze2_relat := rcons (prelat R) (w, [:: gen]).
 
 Lemma subset_Tietze2 : {subset prelat R <= Tietze2_relat}.
 Proof. by move=> /= p; rewrite mem_rcons inE orbC => ->. Qed.
@@ -1025,7 +1039,7 @@ have sub_gen : subpred (mem (pgen R)) (mem Tietze2_gen).
   by move=> x Rx; rewrite /= mem_rcons mem_behead.
 apply/allP=> /= [] r.
 rewrite mem_rcons inE; case/orP=> [/eqP | Rr].
-- case:r  => r1 r2 [] -> ->; rewrite /= mem_rcons mem_head /=.
+- case:r  => r1 r2 [] -> ->; rewrite /= mem_rcons mem_head /= andbT.
   exact: (sub_all sub_gen).
 - have /allP/(_ _ Rr) /andP[rr1 Rr2] := wf_relat R.
   by rewrite !(sub_all sub_gen).
@@ -1070,17 +1084,21 @@ Qed.
 Lemma T2inv_w : T2inv w = w.
 Proof. exact: allP_T2inv. Qed.
 
-Lemma T2inv_rewrites_to u : rewrites_to Tietze2_relat u (T2inv u).
+Lemma T2inv_rewrites_to u : rewrites_to Tietze2_relat (T2inv u) u.
 Proof.
 rewrite /T2inv; elim: u => [| u0 u /(rewrites_to_cat _) IHu] /=.
   by rewrite big_nil; exists [::].
-rewrite big_cons -mul_catE -cat1s; apply: IHu.
+rewrite big_cons -mul_catE -[u0 :: u]cat1s; apply: IHu.
 case: eqP => [-> |_] /= ; last exact: rewrites_to_refl.
 apply: rewrites_to1; rewrite /Tietze2_relat rewrites_rcons mem_cat.
-by rewrite {1}/rewrites /= eq_refl /= cats0 inE eq_refl.
+apply/orP; left; apply/rewritesP.
+by exists [::] [::] (w, [:: gen]); rewrite //= ?cats0 // inE.
 Qed.
 Lemma T2invE u : u = T2inv u %[mod (prelat T2_pres)].
-Proof. exact: (rewrites_to_equiv (T2inv_rewrites_to u)). Qed.
+Proof.
+apply: equiv_sym.
+exact: (rewrites_to_equiv (T2inv_rewrites_to u)).
+Qed.
 Fact rewmorphism_T2inv : rewmorphism T2_pres R T2inv.
 Proof.
 rewrite /T2_pres => u v /= wu wv /rewritesP [pre suf [r1 r2]] /= eu ev.
@@ -1115,18 +1133,22 @@ Proof. by move => _; exact: T2invK. Qed.
 Definition isopres_Tietze2 : isopres R T2_pres :=
   IsoPres T2morK T2invK_in.
 
+Lemma isopres_Tietze2E : isopres_Tietze2 =1 id.
+Proof. by []. Qed.
+
 End Tietze2.
 
-Lemma Tietze_add_gen_swap A (R1 R2 : pres A) (g : A) (w : word A) :
-  pgen R2 = rcons (pgen R1) g -> prelat R2 = rcons (prelat R1) ([:: g], w) ->
+Lemma Tietze_add_gen A (R1 R2 : pres A) (g : A) (w : word A) :
+  pgen R2 = rcons (pgen R1) g -> prelat R2 = rcons (prelat R1) (w, [:: g]) ->
   w \in words_of R1 -> g \notin (pgen R1) -> isopres R1 R2.
 Proof.
 move=> eqgen eqrelat allw gok.
 apply: (isopres_trans (isopres_Tietze2 allw gok)).
 exact: pres_irrelevance.
 Qed.
-Lemma Tietze_add_gen A (R1 R2 : pres A) (g : A) (w : word A) :
-  pgen R2 = rcons (pgen R1) g -> prelat R2 = rcons (prelat R1) (w, [:: g]) ->
+
+Lemma Tietze_add_gen_swap A (R1 R2 : pres A) (g : A) (w : word A) :
+  pgen R2 = rcons (pgen R1) g -> prelat R2 = rcons (prelat R1) ([:: g], w) ->
   w \in words_of R1 -> g \notin (pgen R1) -> isopres R1 R2.
 Proof.
 move=> eqgen eqrelat allw cok.
