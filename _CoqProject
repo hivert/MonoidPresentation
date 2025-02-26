@@ -7,3 +7,4 @@
 theories/monoids.v
 theories/present.v
 theories/cert.v
+theories/entry_sample.v

@@ -6,8 +6,6 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Parameter cool : False.
-
 (* A sample of formalized page of the encyclopaedia of 1-relation of monoid
    presentations. *)
 
