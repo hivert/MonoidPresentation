@@ -145,7 +145,9 @@ Defined.
 Lemma test_iso : present_equiv = id :> (_ -> _).
 Proof.
 compute.
-Eval compute in (present_equiv [::]).
+(* Eval compute in (present_equiv [::]).*)
+done.
+Qed.
 
 Corollary equiv_equal u v : u \in words_of present_entry -> v \in words_of present_entry ->
   (present_equiv u = present_equiv v %[mod prelat present_final]) <-> (u = v %[mod prelat present_entry]).
