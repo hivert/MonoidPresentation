@@ -774,7 +774,7 @@ Definition isopres_refl :=
       (fun a _ => rewrites_to_refl (prelat uR) a)
       (fun a _ => rewrites_to_refl (prelat uR) a).
 
-Lemma isopres_reflE : isopres_refl =1 (@idmor _ R).
+Lemma isopres_reflE : isopres_refl = (@idmor _ R) :> (_ -> _).
 Proof. by []. Qed.
 
 Variable (eqRS : isopres R S) (eqST : isopres S T).
@@ -802,9 +802,9 @@ have := caninv eqRS wiSTc; rewrite -(isopres_invP eqST) //=.
 Qed.
 Definition isopres_trans := IsoPres canmor_trans invmor_trans.
 
-Lemma isopres_transE : isopres_trans =1 eqST \o eqRS.
+Lemma isopres_transE : isopres_trans = eqST \o eqRS :> (_ -> _).
 Proof. by []. Qed.
-Lemma isopres_trans_invE : inv isopres_trans =1 (inv eqRS \o inv eqST).
+Lemma isopres_trans_invE : inv isopres_trans = (inv eqRS \o inv eqST) :> (_ -> _).
 Proof. by []. Qed.
 
 End IsopresTheory.
@@ -870,7 +870,7 @@ Proof. exact: equiv_refl. Qed.
 Definition isopres_eq : isopres R R' :=
   IsoPres (fun _ _ => canmor_eq _) (fun _ _ => caninv_eq _).
 
-Lemma isopres_eqE : isopres_eq =1 id.
+Lemma isopres_eqE : isopres_eq = id :> (_ -> _).
 Proof. by []. Qed.
 
 End PresEqEquivTheory.
@@ -881,7 +881,11 @@ Lemma pres_irrelevance A (R1 R2 : pres A)  :
 Proof.
 move=> geneq releq; apply: isopres_eq => u v.
 by rewrite /words_of geneq releq.
-Qed.  (* TODO Defined ??? *)
+Defined.
+Lemma pres_irrelevanceE A (R1 R2 : pres A)
+  (eqgen : pgen R1 = pgen R2) (eqrel : prelat R1 = prelat R2) :
+  pres_irrelevance eqgen eqrel = id :> (_ -> _).
+Proof. by []. Qed.
 
 Lemma pres_irrelevance_perm_eq A (R1 R2 : pres A)  :
   perm_eq (pgen R1) (pgen R2) -> perm_eq (prelat R1) (prelat R2) -> isopres R1 R2.
@@ -896,7 +900,11 @@ suff /eq_equiv_undirected /(_ u v) Heq :
     undirected (prelat R1) =i undirected (prelat R2).
   by split => [][_ _ /Heq].
 by move=> [x y]; rewrite !mem_undirected !releq.
-Qed.  (* TODO Defined ??? *)
+Defined.
+Lemma pres_irrelevance_perm_eqE A (R1 R2 : pres A)
+  (eqgen : perm_eq (pgen R1) (pgen R2)) (eqrel : perm_eq (prelat R1) (prelat R2)) :
+  pres_irrelevance_perm_eq eqgen eqrel = id :> (_ -> _).
+Proof. by []. Qed.
 
 
 Section Tietze1.
@@ -975,7 +983,7 @@ by split; case=> wx wy Rxy; split=> //; apply/equiv_cons_rule_mod.
 Qed.
 Definition isopres_cons_rule := @isopres_eq _ _ ext_pres equiv_cons_rule.
 
-Lemma isopres_cons_ruleE : isopres_cons_rule =1 id.
+Lemma isopres_cons_ruleE : isopres_cons_rule = id :> (_ -> _).
 Proof. by []. Qed.
 
 Lemma equiv_rcons_rule_mod x y :
@@ -993,7 +1001,7 @@ by split; case=> wx wy Rxy; split=> //; apply/equiv_rcons_rule_mod.
 Qed.
 Definition isopres_rcons_rule := @isopres_eq _ _ rcons_ext_pres equiv_rcons_rule.
 
-Lemma isopres_rcons_ruleE : isopres_cons_rule =1 id.
+Lemma isopres_rcons_ruleE : isopres_cons_rule = id :> (_ -> _).
 Proof. by []. Qed.
 
 End Tietze1.
@@ -1006,7 +1014,7 @@ Proof.
 move=> allu allv eqgen eqrelat newrelat.
 apply: (isopres_trans (isopres_rcons_rule allu allv newrelat)).
 exact: pres_irrelevance.
-Qed.
+Defined.
 
 
 Section Tietze2.
@@ -1133,7 +1141,7 @@ Proof. by move => _; exact: T2invK. Qed.
 Definition isopres_Tietze2 : isopres R T2_pres :=
   IsoPres T2morK T2invK_in.
 
-Lemma isopres_Tietze2E : isopres_Tietze2 =1 id.
+Lemma isopres_Tietze2E : isopres_Tietze2 = id :> (_ -> _).
 Proof. by []. Qed.
 
 End Tietze2.
@@ -1145,7 +1153,7 @@ Proof.
 move=> eqgen eqrelat allw gok.
 apply: (isopres_trans (isopres_Tietze2 allw gok)).
 exact: pres_irrelevance.
-Qed.
+Defined.
 
 Lemma Tietze_add_gen_swap A (R1 R2 : pres A) (g : A) (w : word A) :
   pgen R2 = rcons (pgen R1) g -> prelat R2 = rcons (prelat R1) ([:: g], w) ->
@@ -1163,7 +1171,7 @@ rewrite !mem_rcons !inE.
 case: (_ \in prelat R1); rewrite ?orbT //.
 case: (_ \in prelat R1); rewrite ?orbT //= !orbF orbC.
 by rewrite !xpair_eqE ![_ && (y == _)]andbC.
-Qed.
+Defined.
 
 
 Lemma wf_impl (T : Type) (R : T -> T -> Prop) (S : T -> T -> Prop) :
