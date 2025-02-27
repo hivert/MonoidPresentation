@@ -1648,6 +1648,67 @@ Qed.
 End SizeLexi.
 
 
+(* we order the natural numbers as follows:
+  - numbers in the list are smaller than those that are not in the list
+  - numbers in the list are compared by their position
+  - numbers not in the list are compared by their values
+ *)
+Module NatOrderFromList.
+Section NatOrderFromList.
+
+Definition type of list nat := nat.
+
+Variable ord : list nat.
+
+Local Notation T := (type ord).
+
+(* We inject increassingly type in nat *)
+Definition nat_of_type (t : T) : nat :=
+  if t \in ord then index t ord else t + size ord.
+Definition type_of_nat (n : nat) : T :=
+  if n < size ord then nth 0 ord n else n - (size ord).
+
+Lemma nat_of_typeK : cancel nat_of_type type_of_nat.
+Proof.
+rewrite /type_of_nat /nat_of_type => t /=.
+case: (boolP (t \in ord)) => [tin | tout].
+  by rewrite index_mem tin nth_index.
+by rewrite ltnNge leq_addl /= addnK.
+Qed.
+
+HB.instance Definition _ := Countable.copy T (can_type nat_of_typeK).
+
+Fact d : Order.disp_t. Proof. by []. Qed.
+(* Non canonical instances *)
+Definition type_porder_axiom := Order.CancelPartial.Can d nat_of_typeK.
+Definition type_porder : porderType d := HB.pack T type_porder_axiom.
+#[local] Canonical type_porder.
+
+Definition type_total_axiom :=
+  Order.MonoTotal.Build d (can_type nat_of_typeK) (fun _ _ => erefl).
+Definition type_order : orderType d := HB.pack T type_total_axiom.
+
+Lemma order_from_list_leE (m n : type_order) :
+  (m <= n)%O = (nat_of_type m <= nat_of_type n).
+Proof. by []. Qed.
+Lemma order_from_list_ltE (m n : type_order) :
+  (m < n)%O = (nat_of_type m < nat_of_type n).
+Proof. by []. Qed.
+Lemma order_from_list_total : total (@Order.le _ type_order).
+Proof. exact: le_total. Qed.
+
+(* TODO: this is a general lemma about wf pull back along inj relation *)
+Lemma wf : well_founded (@Order.lt _ type_order).
+Proof.
+move=> n; move Hr : (nat_of_type n) => r.
+elim/ltn_ind: r n Hr => r IHr n nr; apply: Acc_intro => m.
+by rewrite order_from_list_ltE nr => /IHr/(_ _ erefl).
+Qed.
+
+End NatOrderFromList.
+End NatOrderFromList.
+
+
 Section SizelexiWF.
 Variables (disp : Order.disp_t) (T : orderType disp).
 Implicit Types (u v w : seq T).
@@ -1696,6 +1757,20 @@ Definition check_convergence_natP fuel R :
   is_Ok (check_convergence <%O fuel R) -> convergent R :=
   check_convergenceP (@lt_sizelexi_stable _ nat) sizelexi_nat_wf
     (fuel := fuel) (R := R).
+
+Section Check.
+
+Variable (R : pres nat).
+
+Let nat_order : orderType _ := (NatOrderFromList.type_order (pgen R)).
+Let rels : relat nat_order := prelat R.
+Definition check_convergence_presP fuel :
+  is_Ok (T := nat_order) (check_convergence <%O fuel rels) -> convergent rels :=
+    check_convergenceP (@lt_sizelexi_stable _ nat_order)
+      (sizelexi_wf (NatOrderFromList.wf (ord := _))) (fuel := fuel) (R := rels).
+
+End Check.
+
 (*
 Definition present_final :=
   [:: (*  c < e < d < a < b. *)
