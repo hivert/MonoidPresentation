@@ -1676,29 +1676,34 @@ case: (boolP (t \in ord)) => [tin | tout].
 by rewrite ltnNge leq_addl /= addnK.
 Qed.
 
+(*
 HB.instance Definition _ := Countable.copy T (can_type nat_of_typeK).
-
+*)
+HB.instance Definition _ := Countable.on T.
 Fact d : Order.disp_t. Proof. by []. Qed.
-(* Non canonical instances *)
-Definition type_porder_axiom := Order.CancelPartial.Can d nat_of_typeK.
-Definition type_porder : porderType d := HB.pack T type_porder_axiom.
-#[local] Canonical type_porder.
-
-Definition type_total_axiom :=
-  Order.MonoTotal.Build d (can_type nat_of_typeK) (fun _ _ => erefl).
-Definition type_order : orderType d := HB.pack T type_total_axiom.
-
-Lemma order_from_list_leE (m n : type_order) :
+HB.instance Definition _ : Order.isPOrder d T :=
+  Order.CanIsPartial d nat_of_typeK.
+Check T : porderType d.
+Check 2 : T.
+Lemma order_from_list_leE (m n : T) :
   (m <= n)%O = (nat_of_type m <= nat_of_type n).
 Proof. by []. Qed.
-Lemma order_from_list_ltE (m n : type_order) :
+Lemma order_from_list_ltE (m n : T) :
   (m < n)%O = (nat_of_type m < nat_of_type n).
 Proof. by []. Qed.
-Lemma order_from_list_total : total (@Order.le _ type_order).
+
+HB.instance Definition _ :=
+   Order.MonoTotal.Build d T (fun _ _ => erefl).
+
+Check T : porderType d.
+Check T : orderType d.
+
+Lemma order_from_list_total : total (T := T) <=%O.
 Proof. exact: le_total. Qed.
 
+
 (* TODO: this is a general lemma about wf pull back along inj relation *)
-Lemma wf : well_founded (@Order.lt _ type_order).
+Lemma wf : well_founded (A := T) <%O.
 Proof.
 move=> n; move Hr : (nat_of_type n) => r.
 elim/ltn_ind: r n Hr => r IHr n nr; apply: Acc_intro => m.
@@ -1762,14 +1767,57 @@ Section Check.
 
 Variable (R : pres nat).
 
-Let nat_order : orderType _ := (NatOrderFromList.type_order (pgen R)).
+Notation nat_order := (NatOrderFromList.type (pgen R) : orderType _).
 Let rels : relat nat_order := prelat R.
+Let blo : well_founded (A := nat_order) <%O := NatOrderFromList.wf (ord := pgen R).
+Let bla := sizelexi_wf (T := nat_order)
+             .
+
+
 Definition check_convergence_presP fuel :
   is_Ok (T := nat_order) (check_convergence <%O fuel rels) -> convergent rels :=
     check_convergenceP (@lt_sizelexi_stable _ nat_order)
-      (sizelexi_wf (NatOrderFromList.wf (ord := _))) (fuel := fuel) (R := rels).
+      (sizelexi_wf (T := nat_order) (NatOrderFromList.wf (ord := (pgen R : seq nat_order)))) (fuel := fuel) (R := rels).
 
 End Check.
+
+
+Section Cast.
+
+Definition type_cast (A B : Type) (eqAB : A = B) x := ecast T T eqAB x.
+
+Lemma type_castK A B (eqAB : A = B) :
+  cancel (type_cast eqAB) (type_cast (esym eqAB)).
+Proof. by move=> x; case:_/(eqAB). Qed.
+Lemma type_castKV A B (eqAB : A = B) :
+  cancel (type_cast (esym eqAB)) (type_cast eqAB).
+Proof. by rewrite -{2}(esymK eqAB); apply: type_castK. Qed.
+
+End Cast.
+
+
+Section cast.
+
+Implicit Types (T : choiceType).
+
+
+Lemma cast_relat T1 T2 (eqT : T1 = T2 :> Type) : relat T1 = relat T2.
+Proof. by rewrite eqT. Qed.
+
+Lemma convergent_eq T1 T2 (eqT : T1 = T2 :> Type) (rels : relat T1) :
+  confluent rels -> confluent (type_cast (cast_relat eqT) rels).
+Proof.
+rewrite /confluent /joinable => Heq.
+
+move: rels.
+subst T1.
+rewrite eqT.
+rewrite (cast_relat eqT).
+subst T2.
+move: T1 eqT rels.
+rewrite eqT.
+
+
 
 (*
 Definition present_final :=
