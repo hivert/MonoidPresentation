@@ -1174,20 +1174,28 @@ by rewrite !xpair_eqE ![_ && (y == _)]andbC.
 Defined.
 
 
-Lemma wf_impl (T : Type) (R : T -> T -> Prop) (S : T -> T -> Prop) :
-  (forall x y : T, R x y -> S x y) -> well_founded S -> well_founded R.
+Lemma wf_f (T1 T2 : Type) (R : T1 -> T1 -> Prop) (S : T2 -> T2 -> Prop)
+  (f : T1 -> T2) (f_inv : T2 -> T1) (fK : cancel f f_inv) :
+  (forall x y : T1, R x y -> S (f x) (f y))
+  -> well_founded S -> well_founded R.
 Proof.
 move=> RS WfS.
-suff impl x: Acc S x -> Acc R x by move=> y; apply/impl/WfS.
-move: x; apply: (well_founded_induction_type WfS) => x HAcc ASx.
-apply: Acc_intro => y Ryx; apply: HAcc; first exact: RS.
-by apply: (Acc_inv ASx); exact: RS.
+suff impl x : Acc S (f x) -> Acc R x.
+  by move=> x; apply/impl/WfS.
+rewrite -{2}(fK x). move eq_fxy : (f x) => y.
+move: y x eq_fxy; apply: (well_founded_induction_type WfS) => x HAcc y eq_fxy ASx.
+apply: Acc_intro => z Rzx; rewrite -(fK z); apply: HAcc.
+- rewrite -eq_fxy; apply RS.
+  by rewrite -(fK y) eq_fxy.
+- exact: erefl.
+- apply: (Acc_inv ASx).
+  by rewrite -eq_fxy; apply: RS; move: Rzx; rewrite -eq_fxy fK.
 Qed.
 
-Lemma wfP (T : Type) (R : T -> T -> Prop) (S : rel T) :
-  (forall x y : T, reflect (R x y) (S x y)) ->
-  (well_founded R <-> well_founded S).
-Proof. by move => refl; split; apply: wf_impl => x y /refl. Qed.
+
+Lemma wf_impl (T : Type) (R : T -> T -> Prop) (S : T -> T -> Prop) :
+  (forall x y : T, R x y -> S x y) -> well_founded S -> well_founded R.
+Proof. by move=> RS; apply: (wf_f (f := id) (f_inv := id)). Qed.
 
 
 Section RewritingTheory.
@@ -1563,6 +1571,167 @@ Proof. by rewrite check_convergenceE; apply: check_convergence_andP. Qed.
 End WellFounded.
 
 End RewritingTheory.
+
+
+Section RenameGenImpl.
+
+Context {A B : choiceType} {RA : relat A} {RB : relat B}.
+Variable (newg : A -> B).
+
+Definition rgen_rels := fun r => (map newg r.1, map newg r.2).
+
+Hypothesis rrelatE : RB = [seq rgen_rels i | i <- RA].
+
+Lemma rgen_rewrites_impl u v :
+  v \in rewrites RA u -> map newg v \in rewrites RB (map newg u).
+Proof.
+move/rewritesP => [pre suf /=[r1 r2] {u}-> {v}-> rin]; apply/rewritesP.
+exists (map newg pre) (map newg suf) (rgen_rels (r1, r2)) => /=.
+- by rewrite -!map_cat.
+- by rewrite -!map_cat.
+by rewrite rrelatE map_f.
+Qed.
+Lemma rgen_rewrites_to_impl u v :
+  rewrites_to RA u v -> rewrites_to RB (map newg u) (map newg v).
+Proof.
+move=> [pth Hpth {v}->].
+exists (map (map newg) pth); last by rewrite last_map.
+exact: (homo_path (f := map newg) rgen_rewrites_impl Hpth).
+Qed.
+
+Variable (newg_inv : B -> A).
+Hypothesis newgK : cancel newg newg_inv.
+Let newg_inj := can_inj newgK.
+
+Lemma rgen_rewritesE u (w : word B) :
+  w \in rewrites RB (map newg u) -> exists v, w = map newg v.
+Proof.
+move=> /rewritesP[pre suf [r1 r2] /= eq1 eq2].
+rewrite rrelatE => /mapP[/= [s1 s2] sin][eqr1 eqr2]; subst r1 r2.
+move Hpre : (size pre) eq2 => szpre.
+have eqpre : map newg ((take szpre) u) = pre.
+  move: eq1 => /(congr1 (take szpre)).
+  by rewrite -map_take take_size_cat.
+move: eq1; rewrite -eqpre !catA -!map_cat => eq1.
+have {Hpre eqpre} eqsuf : map newg (drop (szpre + size s1) u) = suf.
+  move: eq1 => /(congr1 (drop (szpre + size s1))).
+  rewrite -map_drop drop_size_cat // size_map size_cat.
+  by rewrite -{2}Hpre -eqpre size_map.
+move: eq1; rewrite -{}eqsuf -!map_cat.
+move=> /(inj_map newg_inj) equ {w}->; rewrite equ -!catA.
+by set v := (X in map newg X); exists v.
+Qed.
+Lemma rgen_rewrites_toE u (w : word B) :
+  rewrites_to RB (map newg u) w -> exists v, w = map newg v.
+Proof.
+move=> [pth Hpth {w}->].
+elim: pth u Hpth => [/= u _ | p0 pth IHpth u /=]; first by exists u.
+by case/andP => /rgen_rewritesE[v {p0}-> {}/IHpth].
+Qed.
+
+Lemma rgen_terminating : terminating RB -> terminating RA.
+Proof. by apply: (wf_f (mapK newgK)) => x y; apply: rgen_rewrites_impl. Qed.
+
+End RenameGenImpl.
+
+Lemma rgen_equiv_impl
+  {A B : choiceType} {RA : relat A} {RB : relat B} (newg : A -> B) :
+  RB = [seq rgen_rels newg i | i <- RA] ->
+  forall u v, u = v %[mod RA] -> (map newg u) = (map newg v) %[mod RB].
+Proof.
+move=> eqR u v /rgen_rewrites_to_impl; apply.
+rewrite /undirected map_cat {}eqR; congr cat.
+by rewrite -!map_comp; apply eq_map => {u v} [][r1 r2].
+Qed.
+
+
+Section RenameGenRelat.
+
+Context {A B : choiceType} {RA : relat A} {RB : relat B}.
+
+Variable (newg : A -> B) (newg_inv : B -> A).
+Hypothesis newgK : cancel newg newg_inv.
+Hypothesis rrelatE : RB = [seq rgen_rels newg i | i <- RA].
+
+Implicit Type u v : word A.
+
+Lemma rrelat_invE : RA = [seq rgen_rels newg_inv i | i <- RB].
+Proof.
+rewrite rrelatE -map_comp; apply/esym/map_id_in => [][/= r1 r2 _].
+by rewrite /rgen_rels /= -!map_comp !(eq_map newgK) !map_id.
+Qed.
+
+Lemma rgen_rewrites u v :
+  (v \in rewrites RA u) = (map newg v \in rewrites RB (map newg u)).
+Proof.
+apply/idP/idP => [/(rgen_rewrites_impl rrelatE) // |].
+move/(rgen_rewrites_impl rrelat_invE).
+by rewrite -!map_comp !(eq_map newgK) !map_id.
+Qed.
+Lemma rgen_rewrites_to u v :
+  rewrites_to RA u v <-> rewrites_to RB (map newg u) (map newg v).
+Proof.
+split; first exact: rgen_rewrites_to_impl.
+move/(rgen_rewrites_to_impl rrelat_invE).
+by rewrite -!map_comp !(eq_map newgK) !map_id.
+Qed.
+Lemma rgen_equiv u v :
+  u = v %[mod RA] <-> (map newg u) = (map newg v) %[mod RB].
+Proof.
+split; first exact: rgen_equiv_impl.
+move/(rgen_equiv_impl rrelat_invE).
+by rewrite -!map_comp !(eq_map newgK) !map_id.
+Qed.
+
+Lemma rgen_joinable u v :
+  joinable RB (map newg u) (map newg v) -> joinable RA u v.
+Proof.
+move=> [x /[dup]] /(rgen_rewrites_toE rrelatE newgK)[w {x}->].
+by rewrite -!rgen_rewrites_to => RAuw RAvW; exists w.
+Qed.
+Lemma rgen_confluent : confluent RB -> confluent RA.
+Proof.
+move=> conflRB u v1 v2.
+by rewrite !rgen_rewrites_to => /conflRB/[apply]/rgen_joinable.
+Qed.
+Lemma rgen_convergent : convergent RB -> convergent RA.
+Proof. by move=> [/rgen_confluent cRA /(rgen_terminating rrelatE newgK)]. Qed.
+
+End RenameGenRelat.
+
+
+Section RenameGenDefs.
+
+Context {A B : choiceType} (R : pres A).
+
+Variable (newg : A -> B) (newg_inv : B -> A).
+Hypothesis newgK : cancel newg newg_inv.
+
+Implicit Types (u v : word A).
+
+Let gens := map newg (pgen R).
+Let rels := map (rgen_rels newg) (prelat R).
+
+Fact gens_uniq: uniq gens.
+Proof. by rewrite (map_inj_uniq (can_inj newgK)) (uniq_pgen R). Qed.
+Fact wf_rels: correctrelat rels (mem gens).
+Proof.
+have ingens : preim newg (mem gens) =i mem (pgen R).
+  move=> u; rewrite /gens /preim unfold_in /= mem_map //.
+  exact: can_inj.
+apply/allP =>/=[[u0 v0]]/mapP/=[[u v] /(allP (wf_relat R))/= uvin][{u0}-> {v0}->].
+by rewrite !all_map !(eq_all ingens).
+Qed.
+Definition rgen_pres := Pres gens_uniq wf_rels.
+
+Lemma pgen_rgenE : pgen rgen_pres = gens. Proof. by []. Qed.
+Lemma prelat_rgenE : prelat rgen_pres = rels. Proof. by []. Qed.
+
+Definition rgen_pres_terminating := rgen_terminating prelat_rgenE newgK.
+Definition rgen_pres_confluent := rgen_confluent newgK prelat_rgenE.
+Definition rgen_pres_convergent := rgen_convergent newgK prelat_rgenE.
+
+End RenameGenDefs.
 
 
 Import Order.TTheory.

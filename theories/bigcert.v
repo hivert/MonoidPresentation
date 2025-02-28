@@ -81,6 +81,8 @@ Definition present_final := @Pres _ [::1;0;2]
       ([::0;0;0;0;1;0;0;1;0;1;0;0;2], [::2;0;0;0;1;0;0;2]);
       ([::2;0;0;0;1;0;0;1;0;1;0;0;2], [::1;0;1;0;0;2;0;0;0;1;0;0;2])] erefl erefl.
 
+Definition final_order := [::1;0;2].
+
 Definition cert : pres_cert nat := [::add_gen 2 [::0;0;0;0;1;0;0;0];
      add_rel [::0;0;0;0;1;2] [::1;0;1;2]
      [:: CQuad [::0;0;0;0;1] [::2] [::0;0;0;0;1;0;0;0] [::];
@@ -436,6 +438,7 @@ Qed.
 (* Proof that the presentation is terminating + confluent. *)
 Theorem final_ok : convergent (prelat present_final).
 Proof.
+apply: (rgen_convergent (rankK final_order) erefl).
 apply (check_convergence_natP (fuel := 5)).
 vm_compute.
 done.
