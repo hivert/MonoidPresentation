@@ -269,7 +269,9 @@ Qed.
 
 Definition rewrites_to_cat := stable_cat rewrites_to_trans rewrites_to_stable.
 
-Lemma rewrites_to_min CR :
+(* rewrites_to u v is the minimal reflexive, transitive and stable relation
+   which contains R. This could be taken as a definition. *)
+Theorem rewrites_to_min CR :
   (forall p, p \in R -> CR p.1 p.2) ->
   reflexivep CR -> transitivep CR -> stablep CR ->
   forall u v, rewrites_to u v -> CR u v.
@@ -316,7 +318,7 @@ Proof.
 split.
 - exact: rewrites_to_refl.
 - exact: rewrites_to_trans.
-- exact rewrites_to_stable.
+- exact: rewrites_to_stable.
 - exact: rewrites_to_sym.
 Qed.
 
@@ -381,7 +383,8 @@ Lemma equiv_sym : symmetricp equiv_to. Proof. by have [] := equiv_congr. Qed.
 Lemma equiv_refl : reflexivep equiv_to. Proof. by have [] := equiv_congr. Qed.
 Lemma equiv_trans : transitivep equiv_to. Proof. by have [] := equiv_congr. Qed.
 Lemma equiv_stable : stablep equiv_to. Proof. by have [] := equiv_congr. Qed.
-Lemma equiv_min CR :
+(* equiv is the minimal congruence which contains R. *)
+Theorem equiv_min CR :
   (forall p, p \in R -> CR p.1 p.2) -> congruencep CR ->
   forall u v, equiv_to u v -> CR u v.
 Proof.
@@ -467,6 +470,7 @@ Lemma flatten_prodE (s : seq (word A)) :
 Proof. by rewrite -{1}(map_id s) flatten_map_prodE. Qed.
 
 End FreeMonoidInterface.
+
 
 Section Morphism.
 
@@ -1571,6 +1575,97 @@ Proof. by rewrite check_convergenceE; apply: check_convergence_andP. Qed.
 End WellFounded.
 
 End RewritingTheory.
+
+
+Section DualRelat.
+
+Context {A : choiceType}.
+Implicit Type (R : relat A) (u v : word A).
+
+Definition dual_relat (r : word A * word A) := (rev r.1, rev r.2).
+Definition dual_relats R := map dual_relat R.
+
+Lemma dual_relatK : involutive dual_relat.
+Proof. by rewrite /dual_relat => [][r1 r2] /=; rewrite !revK. Qed.
+Lemma dual_relatsK : involutive dual_relats.
+Proof.
+rewrite /dual_relats => R; rewrite -map_comp map_id_in //= => r _.
+exact: dual_relatK.
+Qed.
+Lemma swap_revC : swap \o dual_relat =1 dual_relat \o swap.
+Proof. by move=> [r1 r2]; rewrite /swap /dual_relat /=. Qed.
+
+Lemma rev_rewrites_impl R u v :
+  v \in rewrites R u -> rev v \in rewrites (dual_relats R) (rev u).
+Proof.
+move/rewritesP => [pre suf /= r {u}-> {v}-> rin]; apply/rewritesP.
+exists (rev suf) (rev pre) (dual_relat r) => /=.
+- by rewrite -!rev_cat catA.
+- by rewrite -!rev_cat catA.
+exact: map_f.
+Qed.
+Lemma rev_rewritesE R u v :
+  (rev v \in rewrites (dual_relats R) (rev u)) = (v \in rewrites R u).
+Proof.
+by apply/idP/idP => /rev_rewrites_impl //; rewrite !revK dual_relatsK.
+Qed.
+
+Lemma rev_rewrites_to_impl R u v :
+  rewrites_to R u v -> rewrites_to (dual_relats R) (rev u) (rev v).
+Proof.
+move=> [pth Hpth {v}->].
+exists (map rev pth); last by rewrite last_map.
+apply: (homo_path (f := rev) _ Hpth) => {Hpth}u v.
+exact: rev_rewrites_impl.
+Qed.
+Lemma rev_rewrites_toE R u v :
+  rewrites_to (dual_relats R) (rev u) (rev v) <-> rewrites_to R u v.
+Proof.
+split; last exact: rev_rewrites_to_impl.
+by move/rev_rewrites_to_impl; rewrite !revK dual_relatsK.
+Qed.
+Lemma undirected_dual_relat R :
+  undirected (dual_relats R) = dual_relats (undirected R).
+Proof.
+rewrite /undirected /dual_relats map_cat; congr cat.
+by rewrite -!map_comp; apply eq_map; exact: swap_revC.
+Qed.
+Lemma rev_equivE R u v :
+  rev u = rev v %[mod dual_relats R] <-> u = v %[mod R].
+Proof.
+split => /rev_rewrites_toE //; rewrite undirected_dual_relat //.
+by rewrite dual_relatsK !revK.
+Qed.
+
+End DualRelat.
+
+Section DualPres.
+
+Context {A : choiceType}.
+Implicit Type (R : pres A) (u v : word A).
+
+Lemma dual_pres_subproof R :
+  correctrelat (dual_relats (prelat R)) (mem (pgen R)).
+Proof.
+have:= wf_relat R; rewrite /correctrelat /dual_relats => /allP /= H.
+apply/allP => /= [[s1 s2]] /mapP[/=[r1 r2 /H /andP[/= all1 all2]] [{s1}-> {s2}->]].
+by rewrite !all_rev all1 all2.
+Qed.
+Definition dual_pres R := Pres (uniq_pgen R) (dual_pres_subproof R).
+
+Lemma dual_pres_rewritesE R u v :
+  (rev v \in rewrites (prelat (dual_pres R)) (rev u)) =
+    (v \in rewrites (prelat R) u).
+Proof. exact: rev_rewritesE. Qed.
+Lemma dual_pres_rewrites_toE R u v :
+  rewrites_to (prelat (dual_pres R)) (rev u) (rev v)
+  <-> rewrites_to (prelat R) u v.
+Proof. exact: rev_rewrites_toE. Qed.
+Lemma dual_pres_equivE R u v :
+  rev u = rev v %[mod prelat (dual_pres R)] <-> u = v %[mod prelat R].
+Proof. exact: rev_equivE. Qed.
+
+End DualPres.
 
 
 Section RenameGenImpl.
