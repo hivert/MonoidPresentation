@@ -518,24 +518,23 @@ Lemma words_of_cat R u v :
   u ++ v \in words_of R = (u \in words_of R) && (v \in words_of R).
 Proof. by rewrite /words_of /= !inE all_cat. Qed.
 
-Lemma rewrites_word_of (R : pres A) u v :
-  u \in words_of R -> v \in rewrites (prelat R) u -> v \in words_of R.
+Lemma rewrites_words_ofE (R : pres A) u v :
+  v \in rewrites (prelat R) u -> (u \in words_of R) = (v \in words_of R).
 Proof.
-move=> hu /rewritesP[] pre suf [r1 r2] eu -> hr.
-move: hu; rewrite {}eu !words_of_cat /=.
-by case/and3P=> -> _ ->; case/andP: (words_of_prelat hr)=> _ ->.
+case/rewritesP => [pre suf [r1 r2]] /= {u}->{v}->.
+rewrite !words_of_cat.
+by move/words_of_prelat/andP => /=[-> ->].
+Qed.
+Lemma rewrites_to_words_ofE (R : pres A) u v :
+  rewrites_to (prelat R) u v -> (u \in words_of R) = (v \in words_of R).
+Proof.
+move=> [pathuv Huv {v}->].
+elim: pathuv u Huv => [| p0 pth IHpth] //= u.
+case/andP => /rewrites_words_ofE ->.
+exact: IHpth.
 Qed.
 
-Lemma rewrites_to_word_of (R : pres A) u v :
-  u \in words_of R -> rewrites_to (prelat R) u v -> v \in words_of R.
-Proof.
-move=> uinR [pathuv Huv {v}->].
-elim: pathuv u uinR Huv => [| p0 pth IHpth] //= u uinR.
-by case/andP => /(rewrites_word_of uinR) p0inR /(IHpth _ p0inR).
-Qed.
-
-
-Lemma wf_undirected_pres (R : pres A) :
+Fact wf_undirected_pres (R : pres A) :
   correctrelat (undirected (prelat R)) (mem (pgen R)).
 Proof.
 apply/allP=> /= [[x1 x2]] /=.
@@ -543,9 +542,19 @@ have /allP := wf_relat R => /= hwf.
 rewrite mem_undirected => /orP [] hx //=; last rewrite andbC.
 all: by rewrite (hwf _ hx).
 Qed.
-
 Definition undirected_pres (R : pres A) : pres A :=
   Pres (uniq_pgen R) (wf_undirected_pres R).
+
+Lemma words_of_undirected (R : pres A) :
+  words_of (undirected_pres R) =i words_of R.
+Proof. by []. Qed.
+
+Lemma equiv_words_ofE_bis (R : pres A) u v :
+  u = v %[mod prelat R] -> (u \in words_of R) = (v \in words_of R).
+Proof.
+rewrite -/(rewrites_to (prelat (undirected_pres R)) u v).
+by move/rewrites_to_words_ofE; rewrite !words_of_undirected.
+Qed.
 
 End Presentation.
 
@@ -574,9 +583,9 @@ split; last first.
 - move=> h u v wu wv [p hp ->].
   elim: p u hp wu => [u _ _ |p0 pth IHpth u] /=; first exact: rewrites_to_refl.
   move=> /andP[p0_u {}/IHpth] ihp hu.
-  have /ihp : p0 \in words_of R by apply: (rewrites_word_of hu p0_u).
+  have /ihp : p0 \in words_of R by rewrite -(rewrites_words_ofE p0_u).
   apply: rewrites_to_trans; apply: h => //.
-  exact: (rewrites_word_of hu).
+  by rewrite -(rewrites_words_ofE p0_u).
 Qed.
 
 HB.mixin Record isRewMorphism
@@ -612,7 +621,7 @@ Proof.
 move=> hu hv [p Hp ->].
 elim: p u Hp hu => [u _ _ |p0 pth IHpth u] /=; first exact: rewrites_to_refl.
 move=> /andP[p0_u {}/IHpth] ihp hu.
-have hp0 : p0 \in words_of R by apply: (rewrites_word_of hu p0_u).
+have hp0 : p0 \in words_of R by rewrite -(rewrites_words_ofE p0_u).
 apply: rewrites_to_trans (ihp hp0); exact: rewmorph_toP.
 Qed.
 
