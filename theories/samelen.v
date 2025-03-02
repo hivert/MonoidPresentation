@@ -2,8 +2,7 @@
    the equality is decidable since we are confined in a finite set *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect all_algebra.
-From mathcomp Require Import perm fingroup action gproduct.
-Require Import monoids present cert.
+Require Import monoids present.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
