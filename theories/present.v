@@ -545,15 +545,17 @@ Qed.
 Definition undirected_pres (R : pres A) : pres A :=
   Pres (uniq_pgen R) (wf_undirected_pres R).
 
-Lemma words_of_undirected (R : pres A) :
+Lemma words_of_undirected_pres (R : pres A) :
   words_of (undirected_pres R) =i words_of R.
 Proof. by []. Qed.
-
-Lemma equiv_words_ofE_bis (R : pres A) u v :
+Lemma rewrites_to_undirected_pres (R : pres A) u v :
+  rewrites_to (prelat (undirected_pres R)) u v <-> u = v %[mod prelat R].
+Proof. by []. Qed.
+Lemma equiv_words_ofE (R : pres A) u v :
   u = v %[mod prelat R] -> (u \in words_of R) = (v \in words_of R).
 Proof.
-rewrite -/(rewrites_to (prelat (undirected_pres R)) u v).
-by move/rewrites_to_words_ofE; rewrite !words_of_undirected.
+rewrite -rewrites_to_undirected_pres.
+by move/rewrites_to_words_ofE; rewrite !words_of_undirected_pres.
 Qed.
 
 End Presentation.

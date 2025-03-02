@@ -6,5 +6,6 @@
 -arg -w -arg -projection-no-head-constant
 theories/monoids.v
 theories/present.v
+theories/samelen.v
 theories/cert.v
 theories/entry_sample.v
