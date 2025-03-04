@@ -866,17 +866,13 @@ suff : [/\ u \in words_of R', u \in words_of R' & u = u %[mod prelat R']].
 split=> //; exact: rewrites_to_refl.
 Qed.
 
-Let morRR' : {presmorph R -> R'}.
-apply: idmorRR'.
-- exact: mor_subproof.
-- exact: mor_in_subproof.
-Defined.
+Let morRR' : {presmorph R -> R'} :=
+      idmorRR' (R := undirected_pres R) (R' := undirected_pres R')
+        mor_subproof mor_in_subproof.
 
-Let morR'R : {presmorph R' -> R}.
-apply: idmorRR'.
-- exact: inv_subproof.
-- exact: inv_in_subproof.
-Defined.
+Let morR'R : {presmorph R' -> R} :=
+      idmorRR' (R := undirected_pres R') (R' := undirected_pres R)
+        inv_subproof inv_in_subproof.
 
 Fact canmor_eq a : morR'R (morRR' a) = a %[mod prelat R].
 Proof. exact: equiv_refl. Qed.
@@ -891,21 +887,30 @@ Proof. by []. Qed.
 End PresEqEquivTheory.
 
 
-Lemma pres_irrelevance A (R1 R2 : pres A)  :
-  pgen R1 = pgen R2 -> prelat R1 = prelat R2 -> isopres R1 R2.
-Proof.
-move=> geneq releq; apply: isopres_eq => u v.
-by rewrite /words_of geneq releq.
-Defined.
-Lemma pres_irrelevanceE A (R1 R2 : pres A)
-  (eqgen : pgen R1 = pgen R2) (eqrel : prelat R1 = prelat R2) :
-  pres_irrelevance eqgen eqrel = id :> (_ -> _).
+Section Irrelevance.
+
+Variable (A : choiceType) (R1 R2 : pres A).
+Hypotheses (eqgen : pgen R1 = pgen R2) (eqrel : prelat R1 = prelat R2).
+
+Definition pres_irrelevance : isopres R1 R2.
+Proof. by apply: isopres_eq => u v; rewrite /words_of eqgen eqrel. Defined.
+Lemma pres_irrelevanceE : pres_irrelevance = id :> (_ -> _).
 Proof. by []. Qed.
 
-Lemma pres_irrelevance_perm_eq A (R1 R2 : pres A)  :
-  perm_eq (pgen R1) (pgen R2) -> perm_eq (prelat R1) (prelat R2) -> isopres R1 R2.
+End Irrelevance.
+
+
+Section PermIrrelevance.
+
+Variable (A : choiceType) (R1 R2 : pres A).
+Hypotheses (eqgen : perm_eq (pgen R1) (pgen R2))
+           (eqrel : perm_eq (prelat R1) (prelat R2)).
+
+Definition pres_irrelevance_perm_eq : isopres R1 R2.
 Proof.
-move=> /perm_mem geneq /perm_mem releq; apply: isopres_eq => u v.
+apply: isopres_eq => u v.
+move/perm_mem: eqgen => geneq.
+move/perm_mem: eqrel => releq.
 have eq_word_of : words_of R1 =i words_of R2.
   by move=> w; apply: eq_all.
 rewrite !eq_word_of.
@@ -916,10 +921,10 @@ suff /eq_equiv_undirected /(_ u v) Heq :
   by split => [][_ _ /Heq].
 by move=> [x y]; rewrite !mem_undirected !releq.
 Defined.
-Lemma pres_irrelevance_perm_eqE A (R1 R2 : pres A)
-  (eqgen : perm_eq (pgen R1) (pgen R2)) (eqrel : perm_eq (prelat R1) (prelat R2)) :
-  pres_irrelevance_perm_eq eqgen eqrel = id :> (_ -> _).
+Lemma pres_irrelevance_perm_eqE : pres_irrelevance_perm_eq = id :> (_ -> _).
 Proof. by []. Qed.
+
+End PermIrrelevance.
 
 
 Section Tietze1.
@@ -1514,8 +1519,18 @@ Variant check_convergence_result :=
   | NotDecreasing : check_convergence_result
   | HaveNpair : relat T -> check_convergence_result
   | HaveSpair : (word T * word T) -> check_convergence_result.
-
 Definition is_Ok r := if r is Ok then true else false.
+
+Definition spair_confluence_dec fuel R :=
+  if all (fun p => p.1 == p.2) (all_npairs R) then
+    let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
+    (* if normalisation fails by out of fuel but results agree *)
+    (* we do have confluence                                   *)
+    all (fun p => norfuel R fuel p.1 == norfuel R fuel p.2) spairs
+  else false.
+
+Definition check_convergence_and fuel R : bool :=
+  (decreasing R) && (spair_confluence_dec fuel R).
 
 Definition check_convergence fuel R : check_convergence_result :=
   if ~~ (decreasing R) then NotDecreasing
@@ -1527,30 +1542,15 @@ Definition check_convergence fuel R : check_convergence_result :=
   if pos < size spairs then HaveSpair (nth ([::], [::]) spairs pos)
   else Ok.
 
-Definition check_convergence_if fuel R : bool :=
-  if ~~ (decreasing R) then false
-  else if has (fun p => p.1 != p.2) (all_npairs R) then false
-  else let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
-      (* if normalisation fails by out of fuel but results agree *)
-      (* we do have confluence                                   *)
-  all (fun p => norfuel R fuel p.1 == norfuel R fuel p.2) spairs.
-
-Definition check_convergence_and fuel R : bool :=
-  [&& (decreasing R),
-    all (fun p => p.1 == p.2) (all_npairs R) &
-    all (fun p => norfuel R fuel p.1 == norfuel R fuel p.2)
-      (filter (fun p => p.1 != p.2) (all_spairs R))].
-
 Lemma check_convergenceE fuel R :
   is_Ok (check_convergence fuel R) = check_convergence_and fuel R.
 Proof.
-rewrite /check_convergence /check_convergence_and.
+rewrite /check_convergence /check_convergence_and /spair_confluence_dec.
 case: (decreasing R) => [/=|//].
 rewrite has_predC; case: (all _ _) => [/=|//].
 move: (filter _ _) => S; rewrite -[all _ _]negbK -has_predC has_find.
 by case: ltnP.
 Qed.
-
 
 Section WellFounded.
 
@@ -1563,20 +1563,27 @@ apply: (wf_impl _ C_wf) => x y /rewritesP[pre suf r {x}->{y}-> rinR].
 by apply: Cstable; apply: decr.
 Qed.
 
-Lemma check_convergence_andP fuel R :
-  check_convergence_and fuel R -> convergent R.
+Lemma spair_confluenceP fuel R :
+  spair_confluence_dec fuel R -> locconfluent R.
 Proof.
-rewrite /check_convergence_and => /=.
-case: (boolP (decreasing R)) => [/= dec | //].
+rewrite /spair_confluence_dec /=.
 case: allP => [/= nonpair | //].
 have {nonpair}/spair_confluence loc_confl : forall u v, npair R u v -> u = v.
   by move=> u v /all_npairsP /nonpair /= /eqP ->.
-move/allP => /= confl; apply: diamond; first exact: (decreasing_wf dec).
+move/allP => /= confl.
 apply: loc_confl => u v Suv.
 case: (altP (u =P v)) => [-> | nequv]; first by exists v; apply: rewrites_to_refl.
 have /confl/eqP/=eqnor : (u, v) \in filter (fun p => p.1 != p.2) (all_spairs R).
   by rewrite mem_filter /= {}nequv /=; apply/all_spairsP.
 by exists (norfuel R fuel u).1 => [|/[!eqnor]]; exact: rewrites_to_norfuel.
+Qed.
+
+Lemma check_convergence_andP fuel R :
+  check_convergence_and fuel R -> convergent R.
+Proof.
+rewrite /check_convergence_and => /=.
+case: (boolP (decreasing R)) => [/= dec /spair_confluenceP | //].
+exact: diamond (decreasing_wf dec).
 Qed.
 
 Lemma check_convergenceP fuel R :
