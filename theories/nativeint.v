@@ -90,37 +90,115 @@ apply: pres_irrelevance.
 by rewrite (prelat_final_pres wfc).
 Time Qed.
 
+Fixpoint eqseq_int (s1 s2 : seq int) {struct s2} :=
+  match s1, s2 with
+  | [::], [::] => true
+  | x1 :: s1', x2 :: s2' => if eqb x1 x2 then eqseq_int s1' s2' else false
+  | _, _ => false
+  end.
+Lemma eqseq_intE : @eq_op (seq int) = eqseq_int.
+Proof. by []. Qed.
+
+
+Fixpoint prefix_int s1 s2 {struct s2} :=
+  if s1 isn't x :: s1' then true else
+  if s2 isn't y :: s2' then false else
+    if eqb x y then prefix_int s1' s2' else false.
+Lemma prefixE : @prefix int = prefix_int.
+Proof. by []. Qed.
+
+Definition drop_int := Eval compute in @drop int.     (* 7%   speedup ?? *)
+Definition cat_int := Eval compute in @cat int.       (* 3.5% speedup ?? *)
+Definition size_int := Eval compute in @seq.size int. (* 4%   speedup ?? *)
+
+Fixpoint rewrites1_front_int (R : relat int) (u : seq int) :=
+  if R is (r1, r2) :: R' then
+    if prefix_int r1 u then Some (cat_int r2 (drop_int (size_int r1) u))
+    else rewrites1_front_int R' u
+  else None.
+Lemma rewrites1_front_intE : @rewrites1_front int = rewrites1_front_int.
+Proof. by []. Qed.
+Definition rewrites1_front_int_fast := Eval compute in rewrites1_front_int.
+
+Definition rewrites1_int  := (* Eval compute in 25% speedup ?? 25% slowdown ?? *)
+  fun R : relat int => (fix rec (u : seq int) :=
+                         if u is a :: u' then
+                           if rewrites1_front_int_fast R u is Some u as res then res
+                           else option_map (cons a) (rec u')
+                         else rewrites1_front_int_fast R [::]).
+Lemma rewrites1_intE : @rewrites1 int = rewrites1_int.
+Proof. by []. Qed.
+
+Fixpoint norfuel_int R fuel u :=
+  if fuel is fuel'.+1 then
+    if rewrites1_int R u is Some v then norfuel_int R fuel' v else (u, true)
+  else (u, false).
+Lemma norfuel_intE : @norfuel int = norfuel_int.
+Proof. by []. Qed.
+
+Definition all_spairs_rule_int (r1 r2 s1 s2 : seq int) :=
+  [seq (r2 ++ drop (seq.size r1 - shift) s1, take shift r1 ++ s2) |
+    shift <- iota 0 (seq.size r1) & prefix_int (drop shift r1) s1].
+Definition all_spairs_int R :=
+  flatten [seq all_spairs_rule_int r.1 r.2 s.1 s.2 | r <- R, s <- R].
+Definition all_npairs_rule_int (r1 r2 s1 s2 : seq int) :=
+  [seq (r2, take shift r1 ++ s2 ++ drop (shift + seq.size s1) r1) |
+    shift <- iota 0 (seq.size r1 - seq.size s1).+1 &
+      eqseq_int s1 (take (seq.size s1) (drop shift r1))].
+Definition all_npairs_int R :=
+  flatten [seq all_npairs_rule_int r.1 r.2 s.1 s.2 | r <- R, s <- R].
+Lemma all_spairs_intE : @all_spairs int = all_spairs_int.
+Proof. by []. Qed.
+Lemma all_npairs_intE : @all_npairs int = all_npairs_int.
+Proof. by []. Qed.
+
+Definition eqbool b1 b2 := Eval compute in addb (~~ b1) b2.
+Definition eqnor R fuel (p : word int * word int) :=
+  let x1 := norfuel_int R fuel p.1 in
+  let x2 := norfuel_int R fuel p.2 in
+  if eqseq_int x1.1 x2.1 then eqbool x1.2 x2.2 else false.
+
+Definition spair_confluence_dec_int fuel R :=
+  if all (fun p => eqseq_int p.1 p.2) (all_npairs_int R) then
+    let spairs := filter (fun p => ~~ eqseq_int p.1 p.2) (all_spairs_int R) in
+    (* all (fun p => norfuel_int R fuel p.1 == norfuel_int R fuel p.2) spairs *)
+    all (eqnor R fuel) spairs
+  else false.
+Lemma spair_confluence_dec_intE :
+  @spair_confluence_dec int = spair_confluence_dec_int.
+Proof. by []. Qed.
+
 
 Definition R := (prelat present_final).
-Definition foo := Eval compute in @spair_confluence_dec int.
-Lemma fooE : @spair_confluence_dec PrimInt63_int__canonical__choice_Choice = foo.
+Definition spair_confluence_fast := Eval compute in @spair_confluence_dec int.
+Lemma spair_confluence_dec_fastE :
+  @spair_confluence_dec int = spair_confluence_fast.
 Proof. by []. Qed.
 
 (*
-Time Eval native_compute in foo 5 R.
-
-Definition bla := let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
-  all (fun p => norfuel R 5 p.1 == norfuel R 5 p.2) spairs.
-
-Set NativeCompute Profiling.
-
-Time Eval native_compute in
-  let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
-  all (fun p => norfuel R 5 p.1 == norfuel R 5 p.2) spairs.
-
-Time Definition spairs := Eval vm_compute in filter (fun p => p.1 != p.2) (all_spairs R).
-Time Eval native_compute in
-  all (fun p => norfuel R 5 p.1 == norfuel R 5 p.2) spairs.
- *)
+Time Eval native_compute in all (spair_confluence_dec_int 5)
+                              (nseq 10 (prelat present_final)).
+(* Finished transaction in 7.328 secs (7.209u,0.s) (successful) *)
+Time Eval native_compute in all (spair_confluence_fast 5)
+                              (nseq 10 (prelat present_final)).
+(* Finished transaction in 13.338 secs (12.972u,0.003s) (successful) *)
+*)
 
 Theorem final_ok : convergent (prelat present_final).
 Proof.
-(* FIXME: renumbering is broken on int apply: (rgen_convergent int_to_natK erefl). *)
+(* FIXME: renumbering is broken on int 
+apply: (rgen_convergent int_to_natK erefl). *)
 apply: diamond.
   apply: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
   by native_cast_no_check (eq_refl true).
 apply: (spair_confluenceP (fuel := 5)).
-rewrite fooE.
+rewrite spair_confluence_dec_intE.
+
+(* Set NativeCompute Profiling.
+Time by native_compute. *)
 by native_cast_no_check (eq_refl true).
+Optimize Heap.
 Time Qed.
+(* Finished transaction in 1.456 secs (1.281u,0.004s) (successful) *)
+(* WAS : *)
 (* Finished transaction in 17.524 secs (17.357u,0.s) (successful) *)
