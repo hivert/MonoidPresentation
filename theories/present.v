@@ -504,13 +504,13 @@ Structure pres (A : choiceType) := Pres {
 Section Presentation.
 
 Variable (A : choiceType).
-Implicit Types (u v w x y : word A).
+Implicit Types (u v w x y : word A) (R : @pres A).
 
 
 (* TODO: improve this name *)
-Definition words_of (R : pres A) := [pred w | all (mem (pgen R)) w].
+Definition words_of R := [pred w | all (mem (pgen R)) w].
 
-Lemma words_of_prelat (R : pres A) r :
+Lemma words_of_prelat R r :
   r \in prelat R -> (r.1 \in words_of R) && (r.2 \in words_of R).
 Proof. by move=> Rr; move/allP: (wf_relat R) => /(_ r Rr). Qed.
 
@@ -518,14 +518,14 @@ Lemma words_of_cat R u v :
   u ++ v \in words_of R = (u \in words_of R) && (v \in words_of R).
 Proof. by rewrite /words_of /= !inE all_cat. Qed.
 
-Lemma rewrites_words_ofE (R : pres A) u v :
+Lemma rewrites_words_ofE R u v :
   v \in rewrites (prelat R) u -> (u \in words_of R) = (v \in words_of R).
 Proof.
 case/rewritesP => [pre suf [r1 r2]] /= {u}->{v}->.
 rewrite !words_of_cat.
 by move/words_of_prelat/andP => /=[-> ->].
 Qed.
-Lemma rewrites_to_words_ofE (R : pres A) u v :
+Lemma rewrites_to_words_ofE R u v :
   rewrites_to (prelat R) u v -> (u \in words_of R) = (v \in words_of R).
 Proof.
 move=> [pathuv Huv {v}->].
@@ -534,7 +534,7 @@ case/andP => /rewrites_words_ofE ->.
 exact: IHpth.
 Qed.
 
-Fact wf_undirected_pres (R : pres A) :
+Fact wf_undirected_pres R :
   correctrelat (undirected (prelat R)) (mem (pgen R)).
 Proof.
 apply/allP=> /= [[x1 x2]] /=.
@@ -542,16 +542,15 @@ have /allP := wf_relat R => /= hwf.
 rewrite mem_undirected => /orP [] hx //=; last rewrite andbC.
 all: by rewrite (hwf _ hx).
 Qed.
-Definition undirected_pres (R : pres A) : pres A :=
-  Pres (uniq_pgen R) (wf_undirected_pres R).
+Definition undirected_pres R := Pres (uniq_pgen R) (wf_undirected_pres R).
 
-Lemma words_of_undirected_pres (R : pres A) :
+Lemma words_of_undirected_pres R :
   words_of (undirected_pres R) =i words_of R.
 Proof. by []. Qed.
-Lemma rewrites_to_undirected_pres (R : pres A) u v :
+Lemma rewrites_to_undirected_pres R u v :
   rewrites_to (prelat (undirected_pres R)) u v <-> u = v %[mod prelat R].
 Proof. by []. Qed.
-Lemma equiv_words_ofE (R : pres A) u v :
+Lemma equiv_words_ofE R u v :
   u = v %[mod prelat R] -> (u \in words_of R) = (v \in words_of R).
 Proof.
 rewrite -rewrites_to_undirected_pres.
@@ -1978,71 +1977,7 @@ Definition check_convergence_natP fuel R :
   is_Ok (check_convergence <%O fuel R) -> convergent R :=
   check_convergenceP (@lt_sizelexi_stable _ nat) sizelexi_nat_wf
     (fuel := fuel) (R := R).
-(*
-Definition present_final :=
-  [:: (*  c < e < d < a < b. *)
-      (*  0 < 1 < 2 < 3 < 4. *)
-     ([:: 3; 4], [:: 0]);           (* ab → c *)
-     ([:: 4; 3], [:: 2]);           (* ba → d *)
-     ([:: 3; 0], [:: 1]);           (* ac → e *)
-     ([:: 3; 2], [:: 0; 3]);        (* ad → ca *)
-     ([:: 4; 0], [:: 2; 4]);        (* bc → db *)
-     ([:: 4; 1], [:: 1; 0]);        (* be → ec *)
-     ([:: 2; 3], [:: 1; 3]);        (* da → ea *)
-     ([:: 2; 0], [:: 1; 0]);        (* dc → ec *)
-     ([:: 2; 1], [:: 1; 1]);        (* de → ee *)
-     ([:: 3; 1; 3], [:: 0; 3; 3]);  (* aea → caa *)
-     ([:: 3; 1; 0], [:: 0; 1]);     (* aec → ce *)
-     ([:: 3; 1; 1], [:: 0; 3; 1])   (* aee → cae*)
-   ].
 
-Theorem final_ok : convergent present_final.
-Proof. exact: (check_convergence_natP (fuel := 5)). Qed.
+Arguments Pres {A}.
 
-
-
-Goal ([:: 1; 2; 2] < [:: 2; 2; 1])%O. by []. Qed.
-Goal ~~ ([:: 2; 2] < [:: 1])%O. by []. Qed.
-Goal ~~ ([:: 1; 2; 2] < [:: 2; 2])%O. by []. Qed.
-
-Eval vm_compute in rewrites [:: ([:: 2; 2], [:: 1]); ([:: 1], [:: 0])]
-                     [:: 1; 2; 1; 2; 2; 1; 2; 2].
-
-Eval vm_compute in rewrites [:: ([:: 2; 2], [:: 1]);
-                             ([:: 1], [:: 0]);
-                             ([:: 2; 1; 2], [::])]
-                     [:: 1; 2; 1; 2; 2; 1; 2; 2].
-
-Definition present_page_3_1 :=
-  [::
-   ([:: 2; 1; 1], [:: 1; 1; 2; 1]);
-   ([:: 1; 2], [:: 3]);
-   ([:: 2; 1], [:: 4]);
-   ([:: 1; 3], [:: 5]);
-   ([:: 1; 4], [:: 3; 1]);
-   ([:: 2; 3], [:: 4; 2]);
-   ([:: 2; 5], [:: 5; 3])].
-
-
-
-Goal not (correctrelat present_page_3_1 (geq 3)). by []. Qed.
-Goal not (correctrelat present_page_3_1 (geq 4)). by []. Qed.
-Goal correctrelat present_page_3_1 (geq 5). by []. Qed.
-Goal correctrelat present_page_3_1 (geq 6). by []. Qed.
-
-
-Lemma step_3_1 : [:: 2; 5] = [:: 5; 3] %[mod present_page_3_1].
-Proof.
-by exists [::
-        [:: 2; 1; 3];
-        [:: 2; 1; 1; 2];
-        [:: 1; 1; 2; 1; 2];
-        [:: 1; 3; 1; 2];
-        [:: 5; 1; 2];
-        [:: 5; 3]].
-Qed.
-
-Eval vm_compute in norfuel present_page_3_1 10 [:: 2; 5].
-
-Eval vm_compute in all_spairs present_page_3_1.
-Eval vm_compute in all_npairs present_page_3_1. *)
+Notation make_pres g r := (@Pres _ g r erefl erefl).

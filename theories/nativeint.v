@@ -79,7 +79,8 @@ Definition check_convergence_intP fuel R :
   check_convergenceP (@lt_sizelexi_stable _ int) sizelexi_int_wf
     (fuel := fuel) (R := R).
 
-Load "samples/largest.v".
+(* Load "samples/largest.v". *)
+Load "samples/baaabaaaba_ababa.v".
 
 Theorem isopres_final : isopres present_entry present_final.
 Proof.
@@ -175,6 +176,34 @@ Lemma spair_confluence_dec_fastE :
   @spair_confluence_dec int = spair_confluence_fast.
 Proof. by []. Qed.
 
+
+Section ListOrder.
+
+Variable (T : eqType).
+
+Definition pord (l1 l2 : list T) (t : T) : T := nth t l2 (index t l1).
+
+Lemma pordK (l1 l2 : list T) :
+  uniq l1 -> perm_eq l1 l2 -> cancel (pord l1 l2) (pord l2 l1).
+Proof.
+rewrite /pord => uniq1 Hperm t.
+have uniq2 : uniq l2 by rewrite -(perm_uniq Hperm).
+have eqsize : seq.size l1 = seq.size l2 by rewrite (perm_size Hperm).
+case (boolP (t \in l1)) => [tin | tout].
+  rewrite nthK ?nth_index // -eqsize.
+  by move: tin; rewrite -index_mem.
+rewrite (memNindex tout) eqsize (nth_default _ (s := l2)) //.
+move: tout; rewrite (perm_mem Hperm) => /memNindex ->.
+by rewrite nth_default ?eqsize.
+Qed.
+
+End ListOrder.
+
+Definition sorted_order := Eval compute in sort <%O final_order.
+
+Definition reorderK := @pordK _ final_order sorted_order
+                      is_true_true is_true_true.
+
 (*
 Time Eval native_compute in all (spair_confluence_dec_int 5)
                               (nseq 10 (prelat present_final)).
@@ -186,18 +215,17 @@ Time Eval native_compute in all (spair_confluence_fast 5)
 
 Theorem final_ok : convergent (prelat present_final).
 Proof.
-(* FIXME: renumbering is broken on int 
-apply: (rgen_convergent int_to_natK erefl). *)
+apply: (rgen_convergent reorderK erefl).
 apply: diamond.
   apply: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
   by native_cast_no_check (eq_refl true).
-apply: (spair_confluenceP (fuel := 5)).
+apply: (spair_confluenceP (fuel := 10)).
 rewrite spair_confluence_dec_intE.
 
-
+(*
 Set NativeCompute Timing.
 Set NativeCompute Profiling.
-Time by native_compute. 
+Time by native_compute. *)
 by native_cast_no_check (eq_refl true).
 Optimize Heap.
 Time Qed.
