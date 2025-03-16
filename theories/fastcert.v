@@ -3,6 +3,8 @@ From HB Require Import structures.
 From mathcomp Require Import all_ssreflect.
 From Coq Require Import Znat BinIntDef Uint63.
 
+Require Import present cert.
+
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -31,7 +33,7 @@ HB.instance Definition _ := CanIsCountable int_to_natK.
 Lemma int_to_nat_inj : injective int_to_nat.
 Proof. exact: can_inj int_to_natK. Qed.
 
-Check int : countType.
+(* Check int : countType. *)
 
 Fact int_disp : Order.disp_t. by []. Qed.
 
@@ -66,8 +68,6 @@ Fact le0int x : (0 <= x)%O.
 Proof. by rewrite leintE. Qed.
 HB.instance Definition _ := Order.hasBottom.Build int_disp int le0int.
 
-Require Import present cert.
-
 Lemma wf_ltint : well_founded (<%O : rel int).
 Proof.
 apply: (wf_f int_to_natK _ wf_ltnat) => x y.
@@ -78,8 +78,6 @@ Definition check_convergence_intP fuel R :
   is_Ok (check_convergence <%O fuel R) -> convergent R :=
   check_convergenceP (@lt_sizelexi_stable _ int) sizelexi_int_wf
     (fuel := fuel) (R := R).
-
-Load "samples/largest.v".
 
 Theorem isopres_final : isopres present_entry present_final.
 Proof.
@@ -167,40 +165,3 @@ Definition spair_confluence_dec_int fuel R :=
 Lemma spair_confluence_dec_intE :
   @spair_confluence_dec int = spair_confluence_dec_int.
 Proof. by []. Qed.
-
-
-Definition R := (prelat present_final).
-Definition spair_confluence_fast := Eval compute in @spair_confluence_dec int.
-Lemma spair_confluence_dec_fastE :
-  @spair_confluence_dec int = spair_confluence_fast.
-Proof. by []. Qed.
-
-(*
-Time Eval native_compute in all (spair_confluence_dec_int 5)
-                              (nseq 10 (prelat present_final)).
-(* Finished transaction in 7.328 secs (7.209u,0.s) (successful) *)
-Time Eval native_compute in all (spair_confluence_fast 5)
-                              (nseq 10 (prelat present_final)).
-(* Finished transaction in 13.338 secs (12.972u,0.003s) (successful) *)
-*)
-
-Theorem final_ok : convergent (prelat present_final).
-Proof.
-(* FIXME: renumbering is broken on int 
-apply: (rgen_convergent int_to_natK erefl). *)
-apply: diamond.
-  apply: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
-  by native_cast_no_check (eq_refl true).
-apply: (spair_confluenceP (fuel := 5)).
-rewrite spair_confluence_dec_intE.
-
-
-Set NativeCompute Timing.
-Set NativeCompute Profiling.
-Time by native_compute. 
-by native_cast_no_check (eq_refl true).
-Optimize Heap.
-Time Qed.
-(* Finished transaction in 1.456 secs (1.281u,0.004s) (successful) *)
-(* WAS : *)
-(* Finished transaction in 17.524 secs (17.357u,0.s) (successful) *)

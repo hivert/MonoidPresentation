@@ -9,3 +9,7 @@ theories/present.v
 theories/samelen.v
 theories/cert.v
 theories/entry_sample.v
+theories/fastcert.v
+theories/certcheck.v
+theories/certs/largestcert.v
+theories/certs/bbaaaabbba_abbbaa.v
