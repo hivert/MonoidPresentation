@@ -52,12 +52,12 @@ Qed.
 End Compl.
 
 
-Definition word (Alph : Type):= seq Alph.
-Definition relat Alph := seq (word Alph * word Alph).
+Definition word (Alph : Type) := seq Alph.
+Definition relat (Alph : Type) := seq (word Alph * word Alph).
 
 Section Defs.
 
-Variable (Alph : choiceType).
+Variable (Alph : choiceType).  (* monoidType inherits from choice *)
 
 Local Notation relat := (relat Alph).
 Local Notation word := (word Alph).
@@ -121,7 +121,7 @@ Proof. by move=> [pre suf r /= {u}->{v}-> rinR]; exists (a :: pre) suf r. Qed.
 
 (* Finds the first matching rule in R that matches a prefix of u and produces
    the rewriten v, or None. *)
-Fixpoint rewrites1_front R u :=
+Fixpoint rewrites1_front R u : option word :=
   if R is (r1, r2) :: R' then
     if prefix r1 u then Some (r2 ++ drop (size r1) u)
     else rewrites1_front R' u
@@ -129,7 +129,7 @@ Fixpoint rewrites1_front R u :=
 
 (* Produces the list of all words v than can be obtained by rewriting a prefix
    of u with a rule in R *)
-Fixpoint rewrites_front R u :=
+Fixpoint rewrites_front R u : seq word :=
   if R is (r1, r2) :: R' then
     if prefix r1 u then (r2 ++ drop (size r1) u) :: rewrites_front R' u
     else rewrites_front R' u
@@ -272,11 +272,10 @@ Definition rewrites_to_cat := stable_cat rewrites_to_trans rewrites_to_stable.
 (* rewrites_to u v is the minimal reflexive, transitive and stable relation
    which contains R. This could be taken as a definition. *)
 Theorem rewrites_to_min CR :
-  (forall p, p \in R -> CR p.1 p.2) ->
-  reflexivep CR -> transitivep CR -> stablep CR ->
+  (forall p, p \in R -> CR p.1 p.2) -> rewcongrp CR ->
   forall u v, rewrites_to u v -> CR u v.
 Proof.
-move=> incl CR_refl CR_trans CR_stable u v [p path_p {v}->].
+move=> incl [CR_refl CR_trans CR_stable] u v [p path_p {v}->].
 elim: p u path_p => [//=| p0 p IHp] u /= /andP[p0_u] {}/IHp; apply CR_trans.
 move/rewritesP : p0_u => [pre suf [r1 pr] {u}->{p0}-> rinR] /=.
 by apply: CR_stable; apply: (incl _ rinR).
@@ -1222,11 +1221,7 @@ Section RewritingTheory.
 Variable T : choiceType.
 Implicit Types (R : relat T) (u v w x y : word T).
 
-Variable C : rel (word T).
-Hypothesis Cstable : forall u v1 v2 w,
-    C v1 v2 -> C (u ++ v1 ++ w) (u ++ v2 ++ w).
-
-Definition decreasing R := all (fun r => C r.2 r.1) R.
+Definition decreasing (C : rel (word T)) R := all (fun r => C r.2 r.1) R.
 Definition terminating R := well_founded (fun v u => v \in rewrites R u).
 Definition joinable R u v :=
   exists2 w, rewrites_to R u w & rewrites_to R v w.
@@ -1528,11 +1523,11 @@ Definition spair_confluence_dec fuel R :=
     all (fun p => norfuel R fuel p.1 == norfuel R fuel p.2) spairs
   else false.
 
-Definition check_convergence_and fuel R : bool :=
-  (decreasing R) && (spair_confluence_dec fuel R).
+Definition check_convergence_and C fuel R : bool :=
+  (decreasing C R) && (spair_confluence_dec fuel R).
 
-Definition check_convergence fuel R : check_convergence_result :=
-  if ~~ (decreasing R) then NotDecreasing
+Definition check_convergence C fuel R : check_convergence_result :=
+  if ~~ (decreasing C R) then NotDecreasing
   else if has (fun p => p.1 != p.2) (all_npairs R) then HaveNpair (all_npairs R)
   else let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
       (* if normalisation fails by out of fuel but results agree *)
@@ -1541,11 +1536,11 @@ Definition check_convergence fuel R : check_convergence_result :=
   if pos < size spairs then HaveSpair (nth ([::], [::]) spairs pos)
   else Ok.
 
-Lemma check_convergenceE fuel R :
-  is_Ok (check_convergence fuel R) = check_convergence_and fuel R.
+Lemma check_convergenceE C fuel R :
+  is_Ok (check_convergence C fuel R) = check_convergence_and C fuel R.
 Proof.
 rewrite /check_convergence /check_convergence_and /spair_confluence_dec.
-case: (decreasing R) => [/=|//].
+case: (decreasing C R) => [/=|//].
 rewrite has_predC; case: (all _ _) => [/=|//].
 move: (filter _ _) => S; rewrite -[all _ _]negbK -has_predC has_find.
 by case: ltnP.
@@ -1553,9 +1548,12 @@ Qed.
 
 Section WellFounded.
 
+Variable C : rel (word T).
+Hypothesis Cstable : forall u v1 v2 w,
+    C v1 v2 -> C (u ++ v1 ++ w) (u ++ v2 ++ w).
 Hypothesis C_wf : well_founded C.
 
-Lemma decreasing_wf R : decreasing R -> terminating R.
+Lemma decreasing_wf R : decreasing C R -> terminating R.
 Proof.
 move=> /allP /= decr.
 apply: (wf_impl _ C_wf) => x y /rewritesP[pre suf r {x}->{y}-> rinR].
@@ -1578,18 +1576,37 @@ by exists (norfuel R fuel u).1 => [|/[!eqnor]]; exact: rewrites_to_norfuel.
 Qed.
 
 Lemma check_convergence_andP fuel R :
-  check_convergence_and fuel R -> convergent R.
+  check_convergence_and C fuel R -> convergent R.
 Proof.
 rewrite /check_convergence_and => /=.
-case: (boolP (decreasing R)) => [/= dec /spair_confluenceP | //].
+case: (boolP (decreasing C R)) => [/= dec /spair_confluenceP | //].
 exact: diamond (decreasing_wf dec).
 Qed.
 
 Lemma check_convergenceP fuel R :
-  is_Ok (check_convergence fuel R) -> convergent R.
+  is_Ok (check_convergence C fuel R) -> convergent R.
 Proof. by rewrite check_convergenceE; apply: check_convergence_andP. Qed.
 
 End WellFounded.
+
+Theorem convergent_normal R : terminating R -> forall u, {v | normalf R u v}.
+Proof.
+move/well_founded_induction_type=> ind; elim/ind => {ind} u IHu.
+case Hrew : (rewrites1 R u) => [u' | {IHu}].
+  move/rewrites1P: Hrew => /[dup]/rewrites_to1 ruu {}/IHu.
+  case => v [norv ruv]; exists v; split => //.
+  exact: (rewrites_to_trans ruu).
+exists u; split; first by move/eqP: Hrew; rewrite -rewrites0P.
+exact: rewrites_to_refl.
+Qed.
+
+Theorem convergent_dec R : convergent R -> forall u v, decidable (u = v %[mod R]).
+Proof.
+case=> Hconfl Hterm u v.
+case: (convergent_normal Hterm u) => un noru.
+case: (convergent_normal Hterm v) => vn norv.
+exact: decP (normalf_equivP Hconfl noru norv).
+Qed.
 
 End RewritingTheory.
 

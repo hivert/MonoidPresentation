@@ -95,10 +95,6 @@ HB.instance Definition _ := Countable.copy wsize (can_type wtuple_of_wsizeK).
 HB.instance Definition _ :=
   isFinite.Build wsize (pcan_enumP (can_pcan wtuple_of_wsizeK)).
 
-Definition rewclass (u : wsize) : seq wsize :=
-  dfs (fun v : wsize => pmap insub (rewrites (undirected (prelat R)) v))
-    #|(wsize : finType)| [::] u.
-
 Lemma wsize_rewrites_wsize (u : wsize) (v : seq A) :
   v \in rewrites (undirected (prelat R)) u -> {w : wsize | val w = v}.
 Proof.
@@ -108,6 +104,11 @@ rewrite (size_rewrites (homog_undirected Rhomog) Ruv) wsizeE eqxx andbT.
 move: Ruv => /rewrites_to1/equiv_words_ofE <-.
 exact: wsizeP.
 Qed.
+
+
+Definition rewclass (u : wsize) : seq wsize :=
+  dfs (fun v : wsize => pmap insub (rewrites (undirected (prelat R)) v))
+    #|(wsize : finType)| [::] u.
 
 Lemma rewclassP (u v : wsize) :
   reflect (u = v %[mod prelat R]) (v \in rewclass u).
