@@ -79,8 +79,8 @@ Definition check_convergence_intP fuel R :
   check_convergenceP (@lt_sizelexi_stable _ int) sizelexi_int_wf
     (fuel := fuel) (R := R).
 
-(* Load "samples/largest.v". *)
-Load "samples/baaabaaaba_ababa.v".
+Load "samples/largest.v".
+(* Load "samples/baaabaaaba_ababa.v". *)
 
 Theorem isopres_final : isopres present_entry present_final.
 Proof.
@@ -199,11 +199,6 @@ Qed.
 
 End ListOrder.
 
-Definition sorted_order := Eval compute in sort <%O final_order.
-
-Definition reorderK := @pordK _ final_order sorted_order
-                      is_true_true is_true_true.
-
 (*
 Time Eval native_compute in all (spair_confluence_dec_int 5)
                               (nseq 10 (prelat present_final)).
@@ -215,7 +210,7 @@ Time Eval native_compute in all (spair_confluence_fast 5)
 
 Theorem final_ok : convergent (prelat present_final).
 Proof.
-apply: (rgen_convergent reorderK erefl).
+apply: (rgen_convergent (reorderK (l := final_order) is_true_true) erefl).
 apply: diamond.
   apply: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
   by native_cast_no_check (eq_refl true).

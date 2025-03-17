@@ -165,26 +165,3 @@ Definition spair_confluence_dec_int fuel R :=
 Lemma spair_confluence_dec_intE :
   @spair_confluence_dec int = spair_confluence_dec_int.
 Proof. by []. Qed.
-
-
-Section ListOrder.
-
-Variable (T : eqType).
-
-Definition pord (l1 l2 : list T) (t : T) : T := nth t l2 (index t l1).
-
-Lemma pordK (l1 l2 : list T) :
-  uniq l1 -> perm_eq l1 l2 -> cancel (pord l1 l2) (pord l2 l1).
-Proof.
-rewrite /pord => uniq1 Hperm t.
-have uniq2 : uniq l2 by rewrite -(perm_uniq Hperm).
-have eqsize : seq.size l1 = seq.size l2 by rewrite (perm_size Hperm).
-case (boolP (t \in l1)) => [tin | tout].
-  rewrite nthK ?nth_index // -eqsize.
-  by move: tin; rewrite -index_mem.
-rewrite (memNindex tout) eqsize (nth_default _ (s := l2)) //.
-move: tout; rewrite (perm_mem Hperm) => /memNindex ->.
-by rewrite nth_default ?eqsize.
-Qed.
-
-End ListOrder.
