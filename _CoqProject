@@ -13,6 +13,7 @@ theories/certcheck.v
 theories/certs/largestcert.v
 theories/certs/bbaaaabbba_abbbaa.v
 
+theories/samples/notrennerB40.v
 
 theories/autocerts/aaaaaa_abaaba.v
 theories/autocerts/aaaaaaa_bbbabbb.v
