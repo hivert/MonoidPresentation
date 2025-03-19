@@ -1385,7 +1385,7 @@ Inductive npair R u v : Prop :=
       -> rw.1 = pre ++ mid ++ suf -> rmid.1 = mid
       -> u = rw.2 -> v = pre ++ rmid.2 ++ suf -> npair R u v.
 
-Definition all_spairs_rule (r1 r2 s1 s2 : seq T) :=
+Definition all_spairs_rule (r1 r2 s1 s2 : word T) :=
   [seq (r2 ++ drop (size r1 - shift) s1, take shift r1 ++ s2) |
     shift <- iota 0 (size r1) & prefix (drop shift r1) s1].
 Definition all_spairs R :=
@@ -1395,6 +1395,45 @@ Definition all_npairs_rule (r1 r2 s1 s2 : seq T) :=
     shift <- iota 0 (size r1 - size s1).+1 & s1 == take (size s1) (drop shift r1)].
 Definition all_npairs R :=
   flatten [seq all_npairs_rule r.1 r.2 s.1 s.2 | r <- R, s <- R].
+
+
+Definition all_pred_spairs_rule (p : pred (word T * word T)) (r1 r2 s1 s2 : seq T) :=
+  all (fun shift => (prefix (drop shift r1) s1)
+                  ==> p (r2 ++ drop (size r1 - shift) s1, take shift r1 ++ s2))
+      (iota 0 (size r1)).
+Definition all_pred_spairs p R :=
+  all (fun r => all (fun s => all_pred_spairs_rule p r.1 r.2 s.1 s.2) R) R.
+
+Lemma all_pred_spairsE p R : all_pred_spairs p R = all p (all_spairs R).
+Proof.
+rewrite /all_pred_spairs /all_spairs.
+elim: {2 4}R => [// | /= [r1 r2] R1 IHR1].
+rewrite flatten_cat all_cat; congr andb => //= {R1 IHR1}.
+elim: R => [// | [s1 s2] R IHR] /=.
+rewrite !(flatten_cat, all_cat); congr andb => //= {R IHR}.
+rewrite /all_pred_spairs_rule /all_spairs_rule.
+by rewrite all_map all_filter; apply: eq_all.
+Qed.
+
+
+Definition all_pred_npairs_rule (p : pred (word T * word T)) (r1 r2 s1 s2 : seq T) :=
+  all (fun shift => (s1 == take (size s1) (drop shift r1))
+                  ==> p (r2, take shift r1 ++ s2 ++ drop (shift + size s1) r1))
+      (iota 0 (size r1 - size s1).+1).
+Definition all_pred_npairs p R :=
+  all (fun r => all (fun s => all_pred_npairs_rule p r.1 r.2 s.1 s.2) R) R.
+
+Lemma all_pred_npairsE p R : all_pred_npairs p R = all p (all_npairs R).
+Proof.
+rewrite /all_pred_npairs /all_npairs.
+elim: {2 4}R => [// | /= [r1 r2] R1 IHR1].
+rewrite flatten_cat all_cat; congr andb => //= {R1 IHR1}.
+elim: R => [// | [s1 s2] R IHR] /=.
+rewrite !(flatten_cat, all_cat); congr andb => //= {R IHR}.
+rewrite /all_pred_npairs_rule /all_npairs_rule.
+by rewrite all_map all_filter; apply: eq_all.
+Qed.
+
 
 Lemma all_spairsP R u v : reflect (spair R u v) ((u, v) \in all_spairs R).
 Proof.
@@ -1511,7 +1550,7 @@ Qed.
 Variant check_convergence_result :=
   | Ok : check_convergence_result
   | NotDecreasing : check_convergence_result
-  | HaveNpair : relat T -> check_convergence_result
+  | HaveNpair : (word T * word T) -> check_convergence_result
   | HaveSpair : (word T * word T) -> check_convergence_result.
 Definition is_Ok r := if r is Ok then true else false.
 
@@ -1526,9 +1565,15 @@ Definition spair_confluence_dec fuel R :=
 Definition check_convergence_and C fuel R : bool :=
   (decreasing C R) && (spair_confluence_dec fuel R).
 
+Definition spair_confluence_loop fuel R :=
+  (all_pred_npairs (fun p => p.1 == p.2) R) &&
+    (all_pred_spairs (fun p => (p.1 == p.2) ||
+                                 (norfuel R fuel p.1 == norfuel R fuel p.2)) R).
+
 Definition check_convergence C fuel R : check_convergence_result :=
   if ~~ (decreasing C R) then NotDecreasing
-  else if has (fun p => p.1 != p.2) (all_npairs R) then HaveNpair (all_npairs R)
+  else if has (fun p => p.1 != p.2) (all_npairs R)
+       then HaveNpair (head ([::], [::]) (all_npairs R))
   else let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
       (* if normalisation fails by out of fuel but results agree *)
       (* we do have confluence                                   *)
@@ -1546,18 +1591,14 @@ move: (filter _ _) => S; rewrite -[all _ _]negbK -has_predC has_find.
 by case: ltnP.
 Qed.
 
-Section WellFounded.
-
-Variable C : rel (word T).
-Hypothesis Cstable : forall u v1 v2 w,
-    C v1 v2 -> C (u ++ v1 ++ w) (u ++ v2 ++ w).
-Hypothesis C_wf : well_founded C.
-
-Lemma decreasing_wf R : decreasing C R -> terminating R.
+Lemma spair_confluence_loopE fuel R :
+  spair_confluence_loop fuel R = spair_confluence_dec fuel R.
 Proof.
-move=> /allP /= decr.
-apply: (wf_impl _ C_wf) => x y /rewritesP[pre suf r {x}->{y}-> rinR].
-by apply: Cstable; apply: decr.
+rewrite /spair_confluence_loop /spair_confluence_dec /=.
+rewrite all_pred_npairsE all_pred_spairsE.
+case: all => //=.
+rewrite all_filter; apply eq_all => [[p1 p2]] /=.
+by rewrite implyNb.
 Qed.
 
 Lemma spair_confluenceP fuel R :
@@ -1570,9 +1611,27 @@ have {nonpair}/spair_confluence loc_confl : forall u v, npair R u v -> u = v.
 move/allP => /= confl.
 apply: loc_confl => u v Suv.
 case: (altP (u =P v)) => [-> | nequv]; first by exists v; apply: rewrites_to_refl.
-have /confl/eqP/=eqnor : (u, v) \in filter (fun p => p.1 != p.2) (all_spairs R).
+have /confl/eqP/= eqnor : (u, v) \in filter (fun p => p.1 != p.2) (all_spairs R).
   by rewrite mem_filter /= {}nequv /=; apply/all_spairsP.
 by exists (norfuel R fuel u).1 => [|/[!eqnor]]; exact: rewrites_to_norfuel.
+Qed.
+
+Lemma spair_confluence_loopP fuel R :
+  spair_confluence_loop fuel R -> locconfluent R.
+Proof. by rewrite spair_confluence_loopE => /spair_confluenceP. Qed.
+
+Section WellFounded.
+
+Variable C : rel (word T).
+Hypothesis Cstable : forall u v1 v2 w,
+    C v1 v2 -> C (u ++ v1 ++ w) (u ++ v2 ++ w).
+Hypothesis C_wf : well_founded C.
+
+Lemma decreasing_wf R : decreasing C R -> terminating R.
+Proof.
+move=> /allP /= decr.
+apply: (wf_impl _ C_wf) => x y /rewritesP[pre suf r {x}->{y}-> rinR].
+by apply: Cstable; apply: decr.
 Qed.
 
 Lemma check_convergence_andP fuel R :
