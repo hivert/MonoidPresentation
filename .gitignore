@@ -19,7 +19,9 @@ _minted*
 depend.d
 depend.dot
 .coqdeps.d
-Makefile.conf
+.coq-native
+Makefile.coq
+Makefile.coq.conf
 .CoqMakefile.d
 .Makefile.coq.d
 .Makefile.d
