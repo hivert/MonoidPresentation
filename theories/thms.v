@@ -90,7 +90,6 @@ Admitted.
 
 End Monogenic.
 
-
 Section DefLeftCycleFree1Rel.
 
 Context {Alph : choiceType} {x0 : Alph}.
@@ -120,7 +119,6 @@ Lemma left_cycle_free_1relP P :
 Proof.
 Admitted.
 
-
 Definition has_same_number_of_occ P a :=
   all (fun r => (count_mem a r.1 > 0)
                 && (count_mem a r.1 ==
@@ -131,11 +129,15 @@ Definition same_number_of_occ P a :=
                   (count_mem a r.1 > 0 /\
                      count_mem a r.1 = count_mem a r.2).
 
+(* Theorem 4.1 in https://github.com/james-d-mitchell/1-relation-paper *)
 Theorem left_cycle_free_1rel_same_number_occ_dec P a :
   left_cycle_free_1rel P -> (same_number_of_occ P a) ->
   WPdecidable P.
 Admitted.
 
+End DefLeftCycleFree1Rel.
+
+Section SmallOverlap.
 
 Inductive factor w u : Prop := (* u is an factor of w *)
   Factor : forall pre suf, w = pre ++ u ++ suf ->
@@ -201,8 +203,29 @@ Definition small_overlap (n : nat) P :=
      (forall w, w \in f -> piece P w) ->
        u = flatten f -> size f >= n.
 
+(* Section 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
+Theorem c3_monoid_dec P :
+  small_overlap 3 P -> WPdecidable P.
+Admitted.
 
-End DefLeftCycleFree1Rel.
+(* Section 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
+Theorem c4_monoid_dec P :
+  small_overlap 4 P -> WPdecidable P.
+Admitted.
+
+Eval compute in non_empty_factors [:: 3; 1; 2; 1].
+Eval compute in piece_pair
+                  [::] [::] (non_empty_factors [:: 3; 1; 2; 1]).
+
+Definition testpres :=
+  make_pres [:: 0; 1]
+            [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0],
+                 [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
+
+Eval compute in pieces testpres.
+
+End SmallOverlap.
+
 
 Eval compute in non_empty_factors [:: 3; 1; 2; 1].
 Eval compute in piece_pair
