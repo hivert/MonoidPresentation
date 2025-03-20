@@ -71,13 +71,12 @@ have : count out u = (count out u1).+1.
 rewrite {}cntu => -[] /esym {}/IHn/(_ v1) [eq1 | neq1]; first last.
   by right; rewrite equv => [[_ eq1]]; exact: neq1.
 by left; rewrite equv.
-Qed.
-
+Admitted.
 
 End AlphabetChange.
 
 
-Section DefLeftCycleFree1Rel.
+Section Monogenic.
 
 Context {Alph : choiceType} {x0 : Alph}.
 
@@ -88,6 +87,16 @@ Definition monogenic P : bool := size (pgen P) == 1.
 
 Theorem monogenic_WPdec P : monogenic P -> WPdecidable P.
 Admitted.
+
+End Monogenic.
+
+
+Section DefLeftCycleFree1Rel.
+
+Context {Alph : choiceType} {x0 : Alph}.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
 
 Definition two_letters P : bool := size (pgen P) == 2.
 
@@ -127,24 +136,15 @@ Theorem left_cycle_free_1rel_same_number_occ_dec P a :
   WPdecidable P.
 Admitted.
 
-Definition relwords P :=
-  [seq r.1 | r <- undirected (prelat P)].
 
 Inductive factor w u : Prop := (* u is an factor of w *)
   Factor : forall pre suf, w = pre ++ u ++ suf ->
                            factor w u.
 
-Fixpoint non_empty_factors u :=
-  if u is u0 :: u' then
-    let rec := non_empty_factors u' in
-    [:: [:: u0]] ++ rec ++ [seq u0 :: u | u <- rec]
-  else [::].
-
-(*
 Definition non_empty_factors u :=
   [seq drop i (take j u) | j <- iota 0 (size u).+1,
     i <- iota 0 j].
- *)
+
 
 Lemma non_empty_factorsP w u :
   reflect (u != [::] /\ factor w u)
@@ -156,6 +156,9 @@ apply (iffP idP).
   rewrite /non_empty_factors size_rcons.
   admit.
 Admitted.
+
+Definition relwords P :=
+  [seq r.1 | r <- undirected (prelat P)].
 
 Inductive piece P u : Prop :=
 | PieceSameWord :
@@ -192,11 +195,6 @@ Lemma piecesP P u :
 Proof.
 Admitted.
 
-(*
-Fixpoint pieces_pair (R : seq (word Alph)) :=
-  if R is r0 :: R' then
-    let once, twice := piece_pair R' in
-*)
 Definition small_overlap (n : nat) P :=
   forall u, u \in relwords P ->
      forall f : seq (word Alph),
