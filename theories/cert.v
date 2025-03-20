@@ -365,7 +365,7 @@ Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
 Local Notation word := (word Alph).
 
-Variant CertifiedPresentation P :=
+Variant PresentationCertificate :=
     (* rewriting certificate + final order *)
   | CompleteRewritingSystem of @pres_cert Alph & seq Alph
     (* a b u v k in < a b | b^k a u = a v > *)
@@ -376,14 +376,21 @@ Variant CertifiedPresentation P :=
     (* list of factorization of the relations words in the order of P *)
   | SmallOverlap of seq (seq word).
 
+Definition getRWScert C :=
+  if C is CompleteRewritingSystem cert _ then cert else [::].
+Definition getRWSorder C :=
+  if C is CompleteRewritingSystem _ order then order else [::].
+
+Definition CertifiedPresentation := (pres Alph * PresentationCertificate)%type.
+
 End Certificate.
 
 (* Examples *)
 
-Definition AB_AAAAAA_ABAABA :=
+Definition AB_AAAAAA_ABAABA : CertifiedPresentation :=
+  (make_pres [::0;1]
+     [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])],
   CompleteRewritingSystem
-    (make_pres [::0;1]
-       [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])])
     [::
        add_rel [::0;1;0;0;1;0] [::0;0;0;0;0;0]
          [:: RTriple 0 0 false];
@@ -392,25 +399,24 @@ Definition AB_AAAAAA_ABAABA :=
              RTriple 1 0 true];
        rm_rel 0
          [:: RTriple 0 0 false]]
-    [::0;1].
+    [::0;1]).
 
-Definition AB_AAAB_A :=
-  Watier
-    (make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])])
-    0 1 [:: 1; 1; 0] [::] 3.
+Definition AB_AAAB_A : CertifiedPresentation :=
+  (make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])],
+    Watier
+      0 1 [:: 1; 1; 0] [::] 3).
 
-Definition A_AAA_A :=
-  Monogenic
-    (make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])]).
+Definition A_AAA_A : CertifiedPresentation :=
+  (make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])],
+    Monogenic).
 
-Definition AB_ABB_BA :=
-  EqualNombreOfOccurence
-    (make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])])
-    0.
+Definition AB_ABB_BA : CertifiedPresentation :=
+  (make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])],
+    EqualNombreOfOccurence 0).
 
-Definition AB_BAAAABBAAA_ABBBAABA :=
-  SmallOverlap
-    (make_pres [:: 0; 1]
-       [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ])
-    [:: [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
-        [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ].
+Definition AB_BAAAABBAAA_ABBBAABA : CertifiedPresentation :=
+  (make_pres [:: 0; 1]
+       [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ],
+    SmallOverlap
+      [:: [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
+       [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ]).

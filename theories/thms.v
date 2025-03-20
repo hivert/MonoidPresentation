@@ -14,10 +14,6 @@ Context {Alph : choiceType} (P : pres Alph).
 Implicit Type (u v w : word Alph).
 
 
-Definition WPdecidable :=
-  forall u v, u \in words_of P -> v \in words_of P ->
-                                        decidable (u = v %[mod prelat P]).
-
 Variant first_occ_spec (p : pred Alph) u : Type :=
   FirstOcc a u0 u1 : all (predC p) u0 -> p a -> u = u0 ++ a :: u1
                      -> first_occ_spec p u.
@@ -38,7 +34,7 @@ by exists (nth x0 u i) (take i u) (drop i.+1 u).
 Qed.
 
 Theorem simpleWPdec :
-  WPdecidable -> forall u v : word Alph, decidable (u = v %[mod prelat P]).
+  WPdecidable P -> forall u v : word Alph, decidable (u = v %[mod prelat P]).
 Proof.
 pose out := predC (mem (pgen P)).
 have outwords w : (all (predC out) w) = (w \in words_of P).
@@ -178,20 +174,17 @@ Inductive piece P u : Prop :=
     factor w1 u -> factor w2 u
     -> piece P u.
 
-Fixpoint piece_pair
-  (once twice facts : seq (word Alph)) :=
+Fixpoint piece_pair (once twice facts : seq (word Alph)) :=
   if facts is f :: facts' then
-    let: (ronce, rtwice) :=
-      piece_pair once twice facts' in
-    if f \in rtwice then (ronce, rtwice)
-    else if f \in ronce then (ronce, f :: rtwice)
-         else (f :: ronce, rtwice)
+    if     f \in twice then piece_pair once twice facts'
+    else if f \in once then piece_pair once (f :: twice) facts'
+    else                    piece_pair (f :: once) twice facts'
   else (once, twice).
 
 Definition pieces P :=
-  (piece_pair [::] [::]
-     (flatten [seq non_empty_factors w | w <- relwords P])
-  ).2.
+  (foldl (fun once_twice w => piece_pair once_twice.1 once_twice.2
+                               (non_empty_factors w))
+    ([::], [::]) (relwords P)).2.
 
 Lemma piecesP P u :
   reflect (piece P u) (u \in pieces P).
@@ -203,6 +196,25 @@ Definition small_overlap (n : nat) P :=
      forall f : seq (word Alph),
      (forall w, w \in f -> piece P w) ->
        u = flatten f -> size f >= n.
+
+(** u is a greedy prefix of v for the pieces accepted by p *)
+Definition is_greedy_prefix (p : pred (word Alph)) u v :=
+  (u == v) || prefix u v && ~~ p (take (size u).+1 v).
+Fixpoint is_greedy_rec (p : pred (word Alph)) f :=
+  if f is f0 :: tl then
+    if ~~ (is_greedy_prefix p f0 (f0 ++ head [::] tl)) then false
+    else is_greedy_rec p tl
+  else true.
+Definition is_greedy_factorisation (p : pred (word Alph)) u f :=
+  ([::] \notin f) && (flatten f == u) && (is_greedy_rec p f).
+
+Definition check_small_overlap n P facts :=
+  let p := pieces P in
+  let rw := relwords P in
+  if has (fun f => size f < n) facts then false
+  else if size rw != size facts then false
+  else all (fun pair_w_f => is_greedy_factorisation (mem p) pair_w_f.1 pair_w_f.2)
+           (zip rw facts).
 
 (* Section 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
 Theorem c3_monoid_dec P :
@@ -226,8 +238,19 @@ Definition testpres :=
   make_pres [:: 0; 1]
             [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0],
                  [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
+Definition testpieces := pieces testpres.
 
-Eval compute in pieces testpres.
+Goal perm_eq testpieces
+  [:: [:: 1; 0; 0; 0]; [:: 0; 0; 0]; [:: 0; 0; 1]; [:: 0; 1; 1];
+   [:: 1; 1; 0]; [:: 1; 1; 0; 0]; [:: 1; 0; 0]; [:: 0; 0]; [:: 0; 1];
+   [:: 1; 1]; [:: 1]; [:: 1; 0]; [:: 0]].
+Proof. by []. Qed.
+
+Eval compute in testpieces.
+Eval compute in is_greedy_factorisation (mem testpieces)
+                  [:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0]
+                  [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ].
+
 
 
 Eval compute in pieces testpres.

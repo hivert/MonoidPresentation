@@ -19,7 +19,6 @@ Implicit Type (P : pres Alph).
 Fixpoint factor u w :=
   if w is w0 :: w' then prefix u w || factor u w' else u == [::].
 
-
 Lemma factor0w w : factor [::] w.
 Proof. by case: w. Qed.
 Lemma factor_catl u v : factor u (u ++ v).
@@ -44,6 +43,7 @@ apply (iffP idP).
 Qed.
 
 Definition prefixes u := [seq take i u | i <- iota 0 (size u).+1].
+Definition non_empty_prefixes u := behead (prefixes u).
 
 Lemma head_prefixes x0 u : head x0 (prefixes u) = [::].
 Proof. by rewrite -nth0 (nth_map 0) ?size_iota //= take0. Qed.
@@ -55,6 +55,15 @@ rewrite !mem_iota /= add0n !ltnS => lti ltj /(congr1 size).
 by rewrite !size_take_min (minn_idPl lti) (minn_idPl ltj) => ->.
 Qed.
 
+Lemma non_empty_prefixes0 u : [::] \notin (non_empty_prefixes u).
+Proof.
+case: u => [// | u0 u].
+rewrite /non_empty_prefixes /prefixes /=.
+by apply/negP=> /mapP[/= [|i]]; rewrite mem_iota.
+Qed.
+Lemma prefixes_non_emtpyE u : prefixes u = [::] :: (non_empty_prefixes u).
+Proof. by rewrite /non_empty_prefixes; case: u. Qed.
+
 Lemma prefixesP u v : (prefix u v) = (u \in prefixes v).
 Proof.
 rewrite /prefixes; apply/prefixP/idP => [[w {v}->] | /mapP[i]].
@@ -64,9 +73,16 @@ rewrite /prefixes; apply/prefixP/idP => [[w {v}->] | /mapP[i]].
 - rewrite mem_iota /= add0n ltnS => leisz {u}->.
   by exists (drop i v); rewrite cat_take_drop.
 Qed.
+Lemma non_empty_prefixesP u v :
+  ((u != [::]) && prefix u v) = (u \in non_empty_prefixes v).
+Proof.
+rewrite prefixesP prefixes_non_emtpyE.
+by case: u => //=; rewrite (negbTE (non_empty_prefixes0 _)).
+Qed.
 
 Fixpoint factors u :=
   prefixes u ++ if u is _ :: u' then behead (factors u') else [::].
+Definition non_empty_factors u := behead (factors u).
 
 Lemma factor0s u : [::] \in factors u.
 Proof. by case: u. Qed.
@@ -76,6 +92,16 @@ Lemma factors_cons (u0 : Alph) u :
   factors (u0 :: u) = prefixes (u0 :: u) ++ behead (factors u).
 Proof. by []. Qed.
 
+Lemma non_empty_factors0 u : [::] \notin non_empty_factors u.
+Proof.
+rewrite /non_empty_factors; elim: u => [|u0 u IHu] //.
+rewrite factors_cons prefixes_non_emtpyE [non_empty_prefixes _]lock /=.
+by unlock; rewrite mem_cat (negbTE (non_empty_prefixes0 _)) IHu.
+Qed.
+
+Lemma factors_non_emtpyE u : factors u = [::] :: (non_empty_factors u).
+Proof. by rewrite /non_empty_factors; case: u. Qed.
+
 Lemma factorsP u v : (factor u v) = (u \in factors v).
 Proof.
 apply/factorP/idP => [[pre][suf] {v}-> | ].
@@ -83,61 +109,25 @@ apply/factorP/idP => [[pre][suf] {v}-> | ].
     case: u => [| u0 u]; first exact: factor0s.
     rewrite cat0s [_ ++ _]/= factors_cons mem_cat /=.
     by rewrite -prefixesP /= eqxx /= prefix_prefix.
-  rewrite [_ ++ _]/= factors_cons mem_cat.
-(*    by rewrite [_ ++ _]/= factors_cons mem_cat IHp orbT.
+  rewrite [_ ++ _]/= factors_cons mem_cat;
+  move: IHp; rewrite factors_non_emtpyE /=.
+  by case: u => [|u0 u] //=; rewrite inE => /orP[/eqP// | ->] /[!orbT].
 - elim: v u => [| v0 v IHv] u.
     by rewrite /= inE => /eqP ->; exists [::]; exists [::].
   case: u => [_ | u0 u]; first by exists [::]; exists (v0 :: v).
-  rewrite factors_cons mem_cat => /orP[{IHv} | {}/IHv[pre][suf]{v}->].
+  rewrite factors_cons mem_cat => /orP[{IHv} |].
     rewrite -prefixesP => /= /andP[/eqP {v0}<-] /prefixP[w {v}->].
     by exists [::]; exists w.
+  move=> /mem_behead {}/IHv [pre][suf]{v}->.
   by exists (v0 :: pre); exists suf.
-*)
-Admitted.
+Qed.
 
-
-Definition non_empty_factors u :=
-  [seq drop i (take j u) | j <- iota 0 (size u).+1,
-    i <- iota 0 j].
-
-
-Lemma non_empty_factorsP w u :
-  reflect (u != [::] /\ factor w u)
-    (u \in non_empty_factors w).
+Lemma non_empty_factorsP u v :
+  ((u != [::]) && factor u v) = (u \in non_empty_factors v).
 Proof.
-apply (iffP idP).
-- elim/last_ind: w u => [| w wl IHw] u.
-    by rewrite /non_empty_factors //.
-  rewrite /non_empty_factors size_rcons.
-  admit.
-Admitted.
-
-(*
-Definition non_empty_factors u :=
-  [seq drop i (take j u) | j <- iota 0 (size u).+1,
-    i <- iota 0 j].
-
-
-Lemma non_empty_factorsP w u :
-  reflect (u != [::] /\ factor w u)
-    (u \in non_empty_factors w).
-Proof.
-apply (iffP idP).
-- elim: w u => [| w0 w IHw] //= u.
-    rewrite mem_cat inE => /or3P[].
-    + move/IHw => [un0 [pre suf ->]]; split => //.
-      by exists (w0 :: pre) suf.
-    + move/eqP ->; split => //.
-      by exists [::] w.
-    + case: u => [| u0 u] /mapP[] //= v {}/IHw[vn0 [pre suf {w}->]].
-      move=> [{u0}-> {u}->]; split => //.
-      exosts 
-
-      elim/last_ind: w u => [| w wl IHw] u.
-    by rewrite /non_empty_factors //.
-  rewrite /non_empty_factors size_rcons.
-  admit.
-Admitted.
-*)
+rewrite factorsP factors_non_emtpyE.
+by case: u => //=; rewrite (negbTE (non_empty_factors0 _)).
+Qed.
 
 End Factor.
+

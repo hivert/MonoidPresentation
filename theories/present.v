@@ -508,6 +508,9 @@ Implicit Types (u v w x y : word A) (R : @pres A).
 
 (* TODO: improve this name *)
 Definition words_of R := [pred w | all (mem (pgen R)) w].
+Definition WPdecidable R :=
+  forall u v, u \in words_of R -> v \in words_of R ->
+                                        decidable (u = v %[mod prelat R]).
 
 Lemma words_of_prelat R r :
   r \in prelat R -> (r.1 \in words_of R) && (r.2 \in words_of R).
@@ -776,6 +779,19 @@ Lemma isopres_invP A B (R : pres A) (S : pres B) (eq : isopres R S) u v :
   u \in words_of S -> v \in words_of S ->
   inv eq u = inv eq v %[mod (prelat R)] <-> u = v %[mod (prelat S)].
 Proof. move=> hu hv; exact: (isopresP (isopres_sym eq)). Qed.
+
+Lemma isopres_dec A B (R : pres A) (S : pres B) :
+  isopres R S -> WPdecidable S -> WPdecidable R.
+Proof.
+move=> iso decS u v uR vR.
+have uS : iso u \in words_of S.
+  by apply: rewmorph_inP; rewrite words_of_undirected_pres.
+have vS : iso v \in words_of S.
+  by apply: rewmorph_inP; rewrite words_of_undirected_pres.
+have [RS RSinv] := isopresP iso uR vR.
+case: (decS _ _ uS vS) => [/RS uv| uv]; first by left.
+by right => H; apply uv; apply: RSinv.
+Qed.
 
 
 Section IsopresTheory.
@@ -1659,13 +1675,16 @@ exists u; split; first by move/eqP: Hrew; rewrite -rewrites0P.
 exact: rewrites_to_refl.
 Qed.
 
-Theorem convergent_dec R : convergent R -> forall u v, decidable (u = v %[mod R]).
+Theorem convergentrel_dec R : convergent R -> forall u v, decidable (u = v %[mod R]).
 Proof.
 case=> Hconfl Hterm u v.
 case: (convergent_normal Hterm u) => un noru.
 case: (convergent_normal Hterm v) => vn norv.
 exact: decP (normalf_equivP Hconfl noru norv).
 Qed.
+
+Corollary convergent_dec (P : pres T) : convergent (prelat P) -> WPdecidable P.
+Proof. by move/convergentrel_dec => H u v. Qed.
 
 End RewritingTheory.
 
