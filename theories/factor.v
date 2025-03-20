@@ -83,9 +83,8 @@ apply/factorP/idP => [[pre][suf] {v}-> | ].
     case: u => [| u0 u]; first exact: factor0s.
     rewrite cat0s [_ ++ _]/= factors_cons mem_cat /=.
     by rewrite -prefixesP /= eqxx /= prefix_prefix.
-  rewrite [_ ++ _]/= factors_cons mem_cat. IHp orbT.
-
-    by rewrite [_ ++ _]/= factors_cons mem_cat IHp orbT.
+  rewrite [_ ++ _]/= factors_cons mem_cat.
+(*    by rewrite [_ ++ _]/= factors_cons mem_cat IHp orbT.
 - elim: v u => [| v0 v IHv] u.
     by rewrite /= inE => /eqP ->; exists [::]; exists [::].
   case: u => [_ | u0 u]; first by exists [::]; exists (v0 :: v).
@@ -93,15 +92,31 @@ apply/factorP/idP => [[pre][suf] {v}-> | ].
     rewrite -prefixesP => /= /andP[/eqP {v0}<-] /prefixP[w {v}->].
     by exists [::]; exists w.
   by exists (v0 :: pre); exists suf.
-Qed.
+*)
+Admitted.
 
 
+Definition non_empty_factors u :=
+  [seq drop i (take j u) | j <- iota 0 (size u).+1,
+    i <- iota 0 j].
+
+
+Lemma non_empty_factorsP w u :
+  reflect (u != [::] /\ factor w u)
+    (u \in non_empty_factors w).
+Proof.
+apply (iffP idP).
+- elim/last_ind: w u => [| w wl IHw] u.
+    by rewrite /non_empty_factors //.
+  rewrite /non_empty_factors size_rcons.
+  admit.
+Admitted.
 
 (*
 Definition non_empty_factors u :=
   [seq drop i (take j u) | j <- iota 0 (size u).+1,
     i <- iota 0 j].
- *)
+
 
 Lemma non_empty_factorsP w u :
   reflect (u != [::] /\ factor w u)
@@ -123,3 +138,6 @@ apply (iffP idP).
   rewrite /non_empty_factors size_rcons.
   admit.
 Admitted.
+*)
+
+End Factor.

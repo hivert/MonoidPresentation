@@ -5,6 +5,7 @@
 -arg -w -arg -deprecated-since-8.19
 -arg -w -arg -projection-no-head-constant
 theories/monoids.v
+theories/factor.v
 theories/present.v
 theories/samelen.v
 theories/cert.v

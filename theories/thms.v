@@ -1,7 +1,7 @@
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect.
 
-Require Import monoids present.
+Require Import monoids present factor.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -78,7 +78,7 @@ End AlphabetChange.
 
 Section Monogenic.
 
-Context {Alph : choiceType} {x0 : Alph}.
+Context {Alph : choiceType}.
 
 Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
@@ -138,10 +138,6 @@ Admitted.
 End DefLeftCycleFree1Rel.
 
 Section SmallOverlap.
-
-Inductive factor w u : Prop := (* u is an factor of w *)
-  Factor : forall pre suf, w = pre ++ u ++ suf ->
-                           factor w u.
 
 Definition non_empty_factors u :=
   [seq drop i (take j u) | j <- iota 0 (size u).+1,
@@ -237,3 +233,30 @@ Definition testpres :=
                  [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
 
 Eval compute in pieces testpres.
+
+
+Section Watier.
+
+Context {Alph : choiceType}.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
+
+Variant isWatier P :=
+  | IsWatier : forall (a b : Alph) (u v : word Alph) (k : nat),
+      a != b -> pgen P = [:: a; b] ->
+      prelat P = [:: (nseq k b ++ a :: u, a :: v)] ->
+      ~~ factor (nseq k b) u -> isWatier P.
+
+(* Theorem 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
+Theorem Watier_dec P : isWatier P -> WPdecidable P.
+Admitted.
+
+End Watier.
+
+Definition testWatier :=
+  make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])].
+
+Lemma testWatierP : isWatier testWatier.
+Proof. by exists 0 1 [:: 1; 1; 0] [::] 3. Qed.
+

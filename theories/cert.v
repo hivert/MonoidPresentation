@@ -355,3 +355,62 @@ Theorem morph_correct p1 p2 c (wfc : wf_cert p1 p2 c) :
   morph_of_cert wfc = isopres_of_cert wfc.
 Admitted.
 *)
+
+
+Section Certificate.
+
+Context {Alph : choiceType}.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
+Local Notation word := (word Alph).
+
+Variant CertifiedPresentation P :=
+    (* rewriting certificate + final order *)
+  | CompleteRewritingSystem of @pres_cert Alph & seq Alph
+    (* a b u v k in < a b | b^k a u = a v > *)
+  | Watier of Alph & Alph & word & word & nat
+  | Monogenic
+    (* repeted letter *)
+  | EqualNombreOfOccurence of Alph
+    (* list of factorization of the relations words in the order of P *)
+  | SmallOverlap of seq (seq word).
+
+End Certificate.
+
+(* Examples *)
+
+Definition AB_AAAAAA_ABAABA :=
+  CompleteRewritingSystem
+    (make_pres [::0;1]
+       [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])])
+    [::
+       add_rel [::0;1;0;0;1;0] [::0;0;0;0;0;0]
+         [:: RTriple 0 0 false];
+       add_rel [::0;1;0;0;0;0;0;0;0] [::0;0;0;0;0;0;0;1;0]
+         [:: RTriple 0 3 true;
+             RTriple 1 0 true];
+       rm_rel 0
+         [:: RTriple 0 0 false]]
+    [::0;1].
+
+Definition AB_AAAB_A :=
+  Watier
+    (make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])])
+    0 1 [:: 1; 1; 0] [::] 3.
+
+Definition A_AAA_A :=
+  Monogenic
+    (make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])]).
+
+Definition AB_ABB_BA :=
+  EqualNombreOfOccurence
+    (make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])])
+    0.
+
+Definition AB_BAAAABBAAA_ABBBAABA :=
+  SmallOverlap
+    (make_pres [:: 0; 1]
+       [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ])
+    [:: [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
+        [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ].
