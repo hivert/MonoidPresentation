@@ -137,12 +137,17 @@ Admitted.
 
 End DefLeftCycleFree1Rel.
 
+
 Section SmallOverlap.
+
+Context {Alph : choiceType}.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
 
 Definition non_empty_factors u :=
   [seq drop i (take j u) | j <- iota 0 (size u).+1,
     i <- iota 0 j].
-
 
 Lemma non_empty_factorsP w u :
   reflect (u != [::] /\ factor w u)
@@ -209,6 +214,10 @@ Theorem c4_monoid_dec P :
   small_overlap 4 P -> WPdecidable P.
 Admitted.
 
+End SmallOverlap.
+
+
+
 Eval compute in non_empty_factors [:: 3; 1; 2; 1].
 Eval compute in piece_pair
                   [::] [::] (non_empty_factors [:: 3; 1; 2; 1]).
@@ -220,17 +229,6 @@ Definition testpres :=
 
 Eval compute in pieces testpres.
 
-End SmallOverlap.
-
-
-Eval compute in non_empty_factors [:: 3; 1; 2; 1].
-Eval compute in piece_pair
-                  [::] [::] (non_empty_factors [:: 3; 1; 2; 1]).
-
-Definition testpres :=
-  make_pres [:: 0; 1]
-            [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0],
-                 [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
 
 Eval compute in pieces testpres.
 
