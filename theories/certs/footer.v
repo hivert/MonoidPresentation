@@ -14,7 +14,7 @@ apply: diamond.
   apply: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
   by native_cast_no_check is_true_true.
 apply: (spair_confluenceP (fuel := 100)).
-rewrite spair_confluence_dec_intE.
+rewrite -spair_confluence_loopE spair_confluence_loop_intE.
 (* Set NativeCompute Timing.
 Set NativeCompute Profiling.
 Time by native_compute.  *)

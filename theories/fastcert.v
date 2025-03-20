@@ -165,3 +165,54 @@ Definition spair_confluence_dec_int fuel R :=
 Lemma spair_confluence_dec_intE :
   @spair_confluence_dec int = spair_confluence_dec_int.
 Proof. by []. Qed.
+
+Definition all_pred_npairs_rule_int (p : seq int * seq int -> bool) (r1 r2 s1 s2 : seq int) :=
+  let ss1 := seq.size s1 in
+  all (fun shift =>
+      if eqseq_int s1 (take ss1 (drop shift r1)) then
+        p (r2, take shift r1 ++ s2 ++ drop (shift + ss1) r1)
+      else true)
+    (iota 0 (seq.size r1 - ss1).+1).
+
+Lemma all_pred_npairs_rule_intE :
+  @all_pred_npairs_rule int = all_pred_npairs_rule_int.
+Proof. by rewrite /all_pred_npairs_rule eqseq_intE. Qed.
+
+Definition all_pred_npairs_int (p : seq int * seq int -> bool) R :=
+  all (fun r =>
+    let r1 := r.1 in let r2 := r.2 in
+    all (fun s => all_pred_npairs_rule_int p r1 r2 s.1 s.2) R) R.
+
+Lemma all_pred_npairs_intE :
+  @all_pred_npairs int = all_pred_npairs_int.
+Proof. by rewrite /all_pred_npairs all_pred_npairs_rule_intE. Qed.
+
+Definition all_pred_spairs_rule_int (p : seq int * seq int -> bool) (r1 r2 s1 s2 : seq int) :=
+  let sr1 := seq.size r1 in
+  all (fun shift =>
+      if prefix_int (drop shift r1) s1 then
+        p (r2 ++ drop (sr1 - shift) s1, take shift r1 ++ s2)
+      else true)
+    (iota 0 sr1).
+
+Lemma all_pred_spairs_rule_intE :
+  @all_pred_spairs_rule int = all_pred_spairs_rule_int.
+Proof. by rewrite /all_pred_spairs_rule prefixE. Qed.
+
+Definition all_pred_spairs_int (p : seq int * seq int -> bool) R :=
+  all (fun r =>
+    let r1 := r.1 in let r2 := r.2 in
+    all (fun s => all_pred_spairs_rule_int p r1 r2 s.1 s.2) R) R.
+
+Lemma all_pred_spairs_intE :
+  @all_pred_spairs int = all_pred_spairs_int.
+Proof. by rewrite /all_pred_spairs all_pred_spairs_rule_intE. Qed.
+
+Definition spair_confluence_loop_int fuel R :=
+  (all_pred_npairs_int (fun p => eqseq_int p.1 p.2) R) &&
+  (all_pred_spairs_int (fun p =>
+     if eqseq_int p.1 p.2 then true else eqnor R fuel p) R).
+
+Lemma spair_confluence_loop_intE :
+  @spair_confluence_loop int = spair_confluence_loop_int.
+Proof. by rewrite /spair_confluence_loop all_pred_npairs_intE eqseq_intE /eq_op /= eqseq_intE norfuel_intE. Qed.
