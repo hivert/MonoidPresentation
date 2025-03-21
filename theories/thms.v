@@ -40,7 +40,13 @@ pose out := predC (mem (pgen P)).
 have outwords w : (all (predC out) w) = (w \in words_of P).
   by apply: eq_all => a; rewrite /= negbK.
 have cnteq r s : r = s %[mod prelat P] -> count out r = count out s.
-  admit.
+  case=> pth /[swap] {s}->; elim: pth r => [//| p0 pth IHpth] r /=.
+  case/andP => /[swap]{}/IHpth <- {pth}.
+  case/rewritesP => pre suf [r1 r2] /= {r}-> {p0}-> rinP.
+  rewrite !count_cat; congr (_ + (_ + _)) => {pre suf}.
+  
+
+  
 move=> Hdec u; move: {2}(count _ _) (erefl (count out u)) => n.
 elim: n u => [| n IHn] u.
   move/eqP; rewrite -leqn0 leqNgt -has_count has_predC negbK => Pu v.
@@ -96,38 +102,34 @@ Implicit Type (P : pres Alph).
 Definition two_letters P : bool := size (pgen P) == 2.
 
 Definition is_left_cycle_free_1rel P : bool :=
-  let rel := head ([::], [::]) (prelat P) in
-  [&& size (prelat P) == 1,
-    rel.1 != [::], rel.2 != [::] &
-    head x0 rel.1 != head x0 rel.2].
+  if (prelat P) is [:: (a :: _, b :: _)] then a != b else false.
 
-Inductive left_cycle_free_1rel
-  (P : pres Alph) : Prop :=
+Inductive left_cycle_free_1rel (P : pres Alph) : Prop :=
   LeftCycleFree1RelProp :
     forall (a b : Alph) (u v : word Alph),
-      a != b -> a \in pgen P -> b \in pgen P ->
-      prelat P = [:: (a :: u, b :: v)] ->
+      a != b -> prelat P = [:: (a :: u, b :: v)] ->
       left_cycle_free_1rel P.
 
 Lemma left_cycle_free_1relP P :
-  reflect (left_cycle_free_1rel P)
-          (is_left_cycle_free_1rel P).
+  reflect (left_cycle_free_1rel P) (is_left_cycle_free_1rel P).
 Proof.
-Admitted.
+rewrite /is_left_cycle_free_1rel.
+apply (iffP idP); case Hrel: (prelat P) => [|[[|a r1][|b r2]] [|rels]] //;
+  first 1 [by move=> neqab; exists a b r1 r2] || (try by move => []; rewrite Hrel).
+by case=> a' b' u' v' neq; rewrite Hrel => [[-> _ -> _]].
+Qed.
 
 Definition has_same_number_of_occ P a :=
-  all (fun r => (count_mem a r.1 > 0)
-                && (count_mem a r.1 ==
-                      count_mem a r.2)) (prelat P).
+  all (fun r => (count_mem a r.1 > 0) && (count_mem a r.1 == count_mem a r.2))
+    (prelat P).
 
 Definition same_number_of_occ P a :=
   forall r, r \in prelat P ->
-                  (count_mem a r.1 > 0 /\
-                     count_mem a r.1 = count_mem a r.2).
+                 count_mem a r.1 > 0 /\ count_mem a r.1 = count_mem a r.2.
 
 (* Theorem 4.1 in https://github.com/james-d-mitchell/1-relation-paper *)
 Theorem left_cycle_free_1rel_same_number_occ_dec P a :
-  left_cycle_free_1rel P -> (same_number_of_occ P a) ->
+  left_cycle_free_1rel P -> same_number_of_occ P a ->
   WPdecidable P.
 Admitted.
 
@@ -140,24 +142,6 @@ Context {Alph : choiceType}.
 
 Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
-
-Definition non_empty_factors u :=
-  [seq drop i (take j u) | j <- iota 0 (size u).+1,
-    i <- iota 0 j].
-
-Lemma non_empty_factorsP w u :
-  reflect (u != [::] /\ factor w u)
-    (u \in non_empty_factors w).
-Proof.
-apply (iffP idP).
-- elim/last_ind: w u => [| w wl IHw] u.
-    by rewrite /non_empty_factors //.
-  rewrite /non_empty_factors size_rcons.
-  admit.
-Admitted.
-
-Definition relwords P :=
-  [seq r.1 | r <- undirected (prelat P)].
 
 Inductive piece P u : Prop :=
 | PieceSameWord :

@@ -32,6 +32,7 @@ Reserved Notation "'{' 'presmorph' U '->' V '}'"
 Reserved Notation "x '~>' y" (at level 0, format "x '~>' y").
 Reserved Notation "x '~>*' y" (at level 0, format "x '~>*' y").
 
+#[warning="-postfix-notation-not-level-1"]
 Reserved Notation "x = y %[mod e ]" (at level 70, y at next level,
   no associativity,   format "'[hv ' x '/'  =  y '/'  %[mod  e ] ']'").
 
@@ -63,6 +64,43 @@ Local Notation relat := (relat Alph).
 Local Notation word := (word Alph).
 
 Implicit Types (R : relat) (u v w x y : word) (p : word * word).
+
+Fixpoint relatwords_rec accu R :=
+  if R is (r1, r2) :: R' then relatwords_rec (r1 :: r2 :: accu) R' else accu.
+Definition relatwords R := relatwords_rec [::] R.
+
+Lemma relatwords_recP accu R w :
+  reflect (w \in accu \/
+             exists2 r : word * word, r \in R & (w == r.1) || ((w == r.2)))
+    (w \in relatwords_rec accu R).
+Proof.
+apply (iffP idP).
+- elim: R accu => [|[r1 r2] R IHR] //= accu; first by left.
+  move=> {}/IHR [| [[s1 s2] sinR /= ws]].
+  + rewrite !inE => /or3P[/eqP {w}->|/eqP {w}->|].
+    * by right; exists (r1, r2); rewrite ?inE ?eqxx.
+    * by right; exists (r1, r2); rewrite ?inE ?eqxx ?orbT.
+    * by left.
+  + by right; exists (s1, s2); rewrite //= inE sinR orbT.
+- elim: R accu => [|[r1 r2] R IHR] //= accu; first by case=> // -[].
+  case=> [winaccu|].
+    by apply: IHR; left; rewrite !inE winaccu !orbT.
+  case=> -[s1 s2] /= sin ws; apply: IHR.
+  move: sin ws; rewrite inE => /orP[/eqP[-> ->] eqw| sinR eqw].
+    by left; rewrite !inE orbA eqw.
+  by right; exists (s1, s2).
+Qed.
+Lemma relatwordsP R w :
+  reflect (exists2 r : word * word, r \in R & (w == r.1) || ((w == r.2)))
+    (w \in relatwords R).
+Proof. by apply (iffP (relatwords_recP _ _ _)); [case | right]. Qed.
+Lemma mem_relatwords R u v :
+  (u, v) \in R -> (u \in relatwords R) && (v \in relatwords R).
+Proof.
+move=> inR; apply/andP.
+by split; apply/relatwordsP; exists (u, v); rewrite //= eqxx ?orbT.
+Qed.
+
 
 Section RelationsTerminology.
 
@@ -234,7 +272,7 @@ Proof. by move=> rew; exists [:: v]; rewrite //= andbT. Qed.
 
 Lemma rewrites_to_refl : reflexivep rewrites_to.
 Proof. by move=> x; exists [::]. Qed.
-Hint Resolve rewrites_to_refl.
+Hint Resolve rewrites_to_refl : core.
 
 Lemma rewrites_to_trans : transitivep rewrites_to.
 Proof.
@@ -486,9 +524,17 @@ Proof. by rewrite flatten_prodE mmorph_prod [RHS]flatten_map_prodE. Qed.
 
 End Morphism.
 
+
 (* TODO : change the name *)
-Definition correctrelat A (R : relat A) (P : pred A) :=
+Definition correctrelat (A : choiceType) (R : relat A) (P : pred A) :=
   all (fun p => all P p.1 && all P p.2) R.
+Lemma correctrelatE (A : choiceType) (R : relat A) (P : pred A) :
+  correctrelat R P = all (all P) (relatwords R).
+Proof.
+rewrite /correctrelat; apply/allP/allP => /= [inR w | inR [r1 r2] /= rinR].
+  by case/relatwordsP => -[r1 r2] /inR /= /andP[allr1 allr2] /orP[] /eqP->.
+by rewrite !{}inR //=; move/mem_relatwords : rinR => /andP[].
+Qed.
 
 Structure pres (A : choiceType) := Pres {
   pgen : seq A;
@@ -644,12 +690,13 @@ Proof. move=> u v wu wv /rewrites_to1/rewmorphism_to_subproof; exact. Qed.
 Lemma rewmorphism_to_inP : rewmorphism_in R S f.
 Proof. exact: rewmorphism_to_in_subproof. Qed.
 
+#[warning="-HB.no-new-instance"]
 HB.instance Definition _  :=
   isRewMorphism.Build A B R S f rewmorphism_toP rewmorphism_to_inP.
 HB.end.
 
 (* assia: builds the instance of morphism on symmetrized relations,
-from a morphism on the   undirected relations. *)
+from a morphism on the undirected relations. *)
 HB.factory Record isPresMorphism
   A B (R : pres A) (S : pres B) (f : {freemon A} -> {freemon B}) := {
     presmorphism_subproof : rewmorphism R S f;
@@ -672,6 +719,7 @@ Lemma rewmorphism_in_undirected :
   rewmorphism_in (undirected_pres R) (undirected_pres S) f.
 Proof. move=> u hu; exact: rewmorphism_in_subproof. Qed.
 
+#[warning="-HB.no-new-instance"]
 HB.instance Definition _  :=
   isRewMorphism.Build A B
   (undirected_pres R) (undirected_pres S) f
@@ -697,6 +745,7 @@ Lemma rewmorphism_in_undirected :
   rewmorphism_in (undirected_pres R) (undirected_pres S) f.
 Proof. move=> u hu; exact: presmorphism_in_subproof. Qed.
 
+#[warning="-HB.no-new-instance"]
 HB.instance Definition _  :=
   isPresMorphism.Build A B R S f
   rewmorphism_to_undirected rewmorphism_in_undirected.
