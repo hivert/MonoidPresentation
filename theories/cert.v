@@ -420,3 +420,9 @@ Definition AB_BAAAABBAAA_ABBBAABA : CertifiedPresentation :=
     SmallOverlap
       [:: [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
        [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ]).
+
+Definition all_pres := [:: AB_AAAAAA_ABAABA;
+                        AB_AAAB_A;
+                        A_AAA_A;
+                        AB_ABB_BA;
+                        AB_BAAAABBAAA_ABBBAABA].
