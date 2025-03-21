@@ -53,6 +53,9 @@ Qed.
 End Compl.
 
 
+Lemma expn_non2 n : 2 ^ n > 0.
+Admitted.
+
 Definition word (Alph : Type) := seq Alph.
 Definition relat (Alph : Type) := seq (word Alph * word Alph).
 
@@ -147,15 +150,15 @@ Inductive rewrites_spec R u v : Prop :=
 Lemma rewrite_front_spec_cons R u v r1 r2:
   rewrites_front_spec R u v -> rewrites_front_spec ((r1, r2) :: R) u v.
 Proof.
-move=> [suf [s1 s2] /= {u}->{v}-> sinR].
+case=> suf [s1 s2] /= {u}->{v}-> sinR.
 by exists suf (s1, s2) => //=; rewrite inE sinR orbT.
 Qed.
 Lemma rewrites_front_specP R u v pre :
   rewrites_front_spec R u v -> rewrites_spec R (pre ++ u) (pre ++ v).
-Proof. by move=> [suf r {u}->{v}-> rinR]; exists pre suf r. Qed.
+Proof. by case=> suf r {u}->{v}-> rinR; exists pre suf r. Qed.
 Lemma cons_rewrites_spec R a u v :
   rewrites_spec R u v -> rewrites_spec R (a :: u) (a :: v).
-Proof. by move=> [pre suf r /= {u}->{v}-> rinR]; exists (a :: pre) suf r. Qed.
+Proof. by case=> pre suf r /= {u}->{v}-> rinR; exists (a :: pre) suf r. Qed.
 
 (* Finds the first matching rule in R that matches a prefix of u and produces
    the rewriten v, or None. *)
@@ -182,12 +185,12 @@ Proof.
 apply (iffP idP); elim: R => [|[r1 r2] R IHR] //=.
 - case: prefixP => [| _ {}/IHR[suf [s1 s2]/= {u}->{v}-> sinR]]; first last.
     by exists suf (s1, s2) => //=; rewrite inE sinR orbT.
-  move=> [suf equ]; subst u => /=.
+  case=> suf equ; subst u => /=.
   rewrite inE => /orP[/eqP{v IHR}-> | {}/IHR].
     by exists suf (r1, r2); rewrite ?drop_size_cat // inE eqxx.
   exact: rewrite_front_spec_cons.
-- by move=> [].
-move=> [suf [s1 s2]/= equ eqv]; subst u v.
+- by case.
+case=> suf [s1 s2]/= equ eqv; subst u v.
 rewrite inE => /orP[/eqP[{r1}<-{r2}<-] | sinR].
   by rewrite prefix_prefix inE drop_size_cat // eqxx.
 have {}/IHR : rewrites_front_spec R (s1 ++ suf) (s2 ++ suf) by exists suf (s1, s2).
@@ -239,7 +242,7 @@ apply (iffP idP); elim: u v => [| a u IHu] v /=.
 - rewrite mem_cat => /orP[/rewrites_frontP/(rewrites_front_specP [::]) //|].
   move=> /mapP[/= w {}/IHu /[swap]{v}->].
   exact: cons_rewrites_spec.
-- move=> [] [|//] /[swap] [[/= [|//] b]] /= [|//] _ -> rinR /[!cats0].
+- case=> -[|//] /[swap] [[/= [|//] b]] /= [|//] _ -> rinR /[!cats0].
   by apply/rewrites_frontP; exists [::] ([::], b); rewrite // cats0.
 - rewrite mem_cat => -[pre suf [r1 r2] /= /[dup] equ-> {v}-> rinR].
   case: pre equ => [/=| b pre /= [{b}<-]] equ; apply/orP.
@@ -286,9 +289,9 @@ Lemma rewrites_toP u v :
   <-> ((u = v) \/ (exists2 w, w \in rewrites u & rewrites_to w v)).
 Proof.
 split.
-  move=> [[/= _ -> | w pth /= /andP[u_w Hpth] /= {v}->]]; first by left.
+  case=> -[/= _ -> | w pth /= /andP[u_w Hpth] /= {v}->]; first by left.
   by right; exists w; [exact: u_w | exists pth].
-move=> [-> | [w /rewrites_to1]]; first exact: rewrites_to_refl.
+case=> [-> | [w /rewrites_to1]]; first exact: rewrites_to_refl.
 exact: rewrites_to_trans.
 Qed.
 Lemma rewrites_stable u v1 v2 w :
@@ -369,7 +372,7 @@ Proof.
 move=> /= v; rewrite mem_cat; apply/idP/orP.
   move=> /rewritesP[pre suf r {u}->{v}-> ].
   by rewrite mem_cat => /orP[]; [left|right]; apply/rewritesP; exists pre suf r.
-by move=> []/rewritesP[pre suf r {u}->{v}-> rinR];
+by case=> /rewritesP[pre suf r {u}->{v}-> rinR];
        apply/rewritesP; exists pre suf r => //=; rewrite mem_cat rinR ?orbT.
 Qed.
 Lemma rewrites_cons p R u :
@@ -446,12 +449,12 @@ exact: sub_rule.
 Qed.
 Lemma sub_rewrites_to u v : rewrites_to R1 u v -> rewrites_to R2 u v.
 Proof.
-move=> [p p_path {v}->]; exists p => //.
+case=> p p_path {v}->; exists p => //.
 by move: p_path; apply (sub_path sub_rewrites).
 Qed.
 Lemma sub_undirected : {subset undirected R1 <= undirected R2}.
 Proof.
-move=> [u v]; rewrite !mem_cat => /orP[/sub_rule -> // |].
+case=> u v; rewrite !mem_cat => /orP[/sub_rule -> // |].
 move=> /mapP/=[[a b] /sub_rule /[swap]/=[][<-{b}<-{a}]] uvR.
 by apply/orP; right; apply/mapP; exists (v, u).
 Qed.
@@ -576,7 +579,7 @@ Qed.
 Lemma rewrites_to_words_ofE R u v :
   rewrites_to (prelat R) u v -> (u \in words_of R) = (v \in words_of R).
 Proof.
-move=> [pathuv Huv {v}->].
+case=> pathuv Huv {v}->.
 elim: pathuv u Huv => [| p0 pth IHpth] //= u.
 case/andP => /rewrites_words_ofE ->.
 exact: IHpth.
@@ -982,7 +985,7 @@ case: (v \in _); rewrite ?orbT //; last by split => [][].
 suff /eq_equiv_undirected /(_ u v) Heq :
     undirected (prelat R1) =i undirected (prelat R2).
   by split => [][_ _ /Heq].
-by move=> [x y]; rewrite !mem_undirected !releq.
+by case=> x y; rewrite !mem_undirected !releq.
 Defined.
 Lemma pres_irrelevance_perm_eqE : pres_irrelevance_perm_eq = id :> (_ -> _).
 Proof. by []. Qed.
@@ -1003,7 +1006,7 @@ Lemma rewrites_to_cons_rule R u v :
 Proof.
 move=> cuv x y.
 split; first by apply: sub_rewrites_to => p p_inR; rewrite inE p_inR orbT.
-move=> [p /[swap] {y}->]; elim: p x => [|p0 p IHp] x /=.
+case=> p /[swap] {y}->; elim: p x => [|p0 p IHp] x /=.
   by move=> _; exists [::].
 move=> /andP[p0_rew {}/IHp p0_p].
 suff {p0_p} x_p0 : rewrites_to R x p0 by apply: (rewrites_to_trans x_p0 p0_p).
@@ -1249,7 +1252,7 @@ rewrite /words_of /= /Tietze2_gen {}eqgen.
 suff /eq_equiv_undirected /(_ u v) Heq :
     undirected (Tietze2_relat R1 g w) =i undirected (prelat R2).
   by split => [][-> -> /Heq].
-move=> [x y]; rewrite !mem_undirected {}eqrelat /Tietze2_relat.
+case=> x y; rewrite !mem_undirected {}eqrelat /Tietze2_relat.
 rewrite !mem_rcons !inE.
 case: (_ \in prelat R1); rewrite ?orbT //.
 case: (_ \in prelat R1); rewrite ?orbT //= !orbF orbC.
@@ -1302,10 +1305,10 @@ Definition normalf R u v := normal R v /\ rewrites_to R u v.
 Lemma joinable_refl R u : joinable R u u.
 Proof. by exists u; apply: rewrites_to_refl. Qed.
 Lemma joinableC R u v : joinable R u v -> joinable R v u.
-Proof. by move=> [w uw vw]; exists w. Qed.
+Proof. by case=> w uw vw; exists w. Qed.
 Lemma joinable_stable R u v1 v2 w :
   joinable R v1 v2 -> joinable R (u ++ v1 ++ w) (u ++ v2 ++ w).
-Proof. by move=> [r r1 r2]; exists (u ++ r ++ w); apply: rewrites_to_stable. Qed.
+Proof. by case=> r r1 r2; exists (u ++ r ++ w); apply: rewrites_to_stable. Qed.
 
 
 Section Confluence.
@@ -1320,8 +1323,8 @@ by rewrite noru.
 Qed.
 Lemma confluentE u v1 v2 : normalf R u v1 -> normalf R u v2 -> v1 = v2.
 Proof.
-move=> [/normalE norv1 /Rconfl HC ] [/normalE norv2 {}/HC].
-by move=> [w /norv1-> /norv2->].
+case=> /normalE norv1 /Rconfl HC; case=> /normalE norv2 {}/HC.
+by case=> w /norv1-> /norv2->.
 Qed.
 Lemma confl_rewritesE u1 v1 u2 v2 :
   normalf R u1 v1 -> normalf R u2 v2 -> u2 \in rewrites R u1 -> v1 = v2.
@@ -1334,7 +1337,7 @@ Proof. by move=> H; split; last exact: rewrites_to_refl. Qed.
 Lemma normalf_rewrites u v w :
   normalf R u w -> v \in rewrites (undirected R) u -> normalf R v w.
 Proof.
-move=> [norw u_w]; rewrite rewrites_undirected orbC.
+case=> norw u_w; rewrite rewrites_undirected orbC.
 move=> /orP[/rewrites_to1 v_u | /rewrites_to1 u_v]; split; try exact: norw.
   exact: (rewrites_to_trans _ u_w).
 by have [w0 /(normalE norw) <-{w0}] := Rconfl u_w u_v.
@@ -1343,9 +1346,9 @@ Lemma normalf_equivE u w :
   normalf R u w -> forall v, normalf R v w <-> u = v %[mod R].
 Proof.
 move=> noruw v; split.
-  move=> [_ /rewrites_to_equiv/equiv_sym/(equiv_trans _)]; apply.
+  case=> _ /rewrites_to_equiv/equiv_sym/(equiv_trans _); apply.
   by move: noruw => [_ /rewrites_to_equiv].
-move=> [pth Hpth {v}->].
+case=> pth Hpth {v}->.
 elim: pth u noruw Hpth => // [p0 pth IHpth] u noruw /=.
 by move=> /andP[/(normalf_rewrites noruw)/IHpth].
 Qed.
@@ -1364,6 +1367,36 @@ Fixpoint norfuel R fuel u :=
     if rewrites1 R u is Some v then norfuel R fuel' v else (u, true)
   else (u, false).
 
+Fixpoint norfuel2 R fuel u :=
+  if fuel is fuel'.+1 then
+    if rewrites1 R u is Some u1 then
+      let rec := norfuel2 R fuel' u1 in
+      if rec is (u2, false) then norfuel2 R fuel' u2 else rec
+    else (u, true)
+  else (u, false).
+Definition expfuel fuel := (2 ^ fuel).-1.
+
+Lemma norfuelD R f1 f2 u :
+  norfuel R (f1 + f2) u =
+    let rec := norfuel R f1 u in
+    if rec is (u', false) then norfuel R f2 u' else rec.
+Proof.
+elim: f1 u => [|f1 IHf1]//= u; rewrite -/(f1 + f2).
+by case: rewrites1.
+Qed.
+Lemma norfuel2E R fuel : norfuel2 R fuel =1 norfuel R (expfuel fuel).
+Proof.
+rewrite /expfuel.
+elim: fuel => [| fuel IHfuel] u //=.
+rewrite expnSr muln2 -addnn.
+have -> : (2 ^ fuel + 2 ^ fuel).-1 = 1 + ((2 ^ fuel).-1 + (2 ^ fuel).-1).
+  case: (2 ^ fuel) (expn_non2 fuel) => // n _ /=.
+  by rewrite -/(addn _ _) !add1n addnS.
+rewrite norfuelD /=; case: rewrites1 => // {}u.
+rewrite IHfuel /= norfuelD /= -!IHfuel.
+by case: norfuel2 => v b /=; rewrite IHfuel.
+Qed.
+
 Lemma rewrites_to_norfuel R fuel u : rewrites_to R u (norfuel R fuel u).1.
 Proof.
 elim: fuel u => [|fuel IHfuel] u /=; first exact: rewrites_to_refl.
@@ -1380,6 +1413,9 @@ move: Hnor; elim: fuel u => //= fuel IHfuel u.
 case H : rewrites1 => [w |]; first exact: IHfuel.
 by rewrite /normal => [[<-]] {IHfuel}; move/eqP: H; rewrite -rewrites0P.
 Qed.
+Lemma norfuel2T R fuel u :
+  (norfuel2 R fuel u).2 -> normalf R u (norfuel2 R fuel u).1.
+Proof. rewrite norfuel2E; exact: norfuelT. Qed.
 Lemma norfuelF R fuel u :
   ~~ (norfuel R fuel u).2 ->
   exists pth, [/\ path (fun u v => v \in rewrites R u) u pth,
@@ -1395,14 +1431,14 @@ Qed.
 
 Lemma equivalence_fuelP R fuel :
   confluent R -> forall u v,
-      let (un, uok) := norfuel R fuel u in
-      let (vn, vok) := norfuel R fuel v in
+      let (un, uok) := norfuel2 R fuel u in
+      let (vn, vok) := norfuel2 R fuel v in
       uok && vok -> reflect (u = v %[mod R]) (un == vn).
 Proof.
 move=> confl u v.
-case: norfuel (@norfuelT R fuel u) => /= un [/(_ is_true_true) uok /=| _];
-  last by case: norfuel.
-case: norfuel (@norfuelT R fuel v) => /= vn [/(_ is_true_true) vok /= _|//].
+case: norfuel2 (@norfuel2T R fuel u) => /= un [/(_ is_true_true) uok /=| _];
+  last by case: norfuel2.
+case: norfuel2 (@norfuel2T R fuel v) => /= vn [/(_ is_true_true) vok /= _|//].
 exact: normalf_equivP.
 Qed.
 
@@ -1412,7 +1448,7 @@ Lemma terminatingP R : terminating R ->
 Proof.
 move=> wf; elim/(well_founded_ind wf) => u IHu.
 apply: Acc_intro => v [/= w {}/IHu Accw /rewrites_toP[<- // |]].
-move=> [/= w1 w_w1 w1_v].
+case=> /= w1 w_w1 w1_v.
 by apply: (Acc_inv Accw); exists w1.
 Qed.
 
@@ -1503,7 +1539,7 @@ Qed.
 Lemma all_spairsP R u v : reflect (spair R u v) ((u, v) \in all_spairs R).
 Proof.
 apply (iffP flattenP) => /=.
-  move=> [seqp /allpairsP/=[[[r1 r2] [s1 s2] /= [rinR sinR] {seqp}->]]].
+  case=> seqp /allpairsP/=[[[r1 r2] [s1 s2] /= [rinR sinR] {seqp}->]].
   rewrite /all_spairs_rule => /mapP[/= shift].
   rewrite mem_filter mem_iota leq0n add0n /= => /andP[].
   move=> /prefixP[suf eqs1] ltshift [{u}->{v}->].
@@ -1516,7 +1552,7 @@ apply (iffP flattenP) => /=.
     by move: ltshift; rewrite -eq -/mid eqmid /= addn0 ltnn.
   - by rewrite /pre /mid cat_take_drop.
   - by congr cat; rewrite eqs1 drop_cat size_drop ltnn subnn drop0.
-move=> [pre mid suf [r1 r2] [s1 s2] rinR sinR /=] midn0 eqr1 eqs1 {u}->{v}->.
+case=> pre mid suf [r1 r2] [s1 s2] rinR sinR /= midn0 eqr1 eqs1 {u}->{v}->.
 have eqmid : mid = drop (size pre) r1 by rewrite eqr1 drop_size_cat.
 exists (all_spairs_rule r1 r2 s1 s2).
   by apply/allpairsP => /=; exists (r1, r2, (s1, s2)).
@@ -1530,7 +1566,7 @@ Qed.
 Lemma all_npairsP R u v : reflect (npair R u v) ((u, v) \in all_npairs R).
 Proof.
 apply (iffP flattenP) => /=.
-  move=> [seqp /allpairsP/=[[[r1 r2] [s1 s2] /= [rinR sinR] {seqp}->]]].
+  case=> seqp /allpairsP/=[[[r1 r2] [s1 s2] /= [rinR sinR] {seqp}->]].
   rewrite /all_npairs_rule => /mapP[shift].
   rewrite mem_filter mem_iota leq0n add0n /= => /andP[].
   rewrite ltnS => /eqP eqs1 ltshift [{u}->{v}->].
@@ -1541,7 +1577,7 @@ apply (iffP flattenP) => /=.
   have -> : take shift r1 = take shift (take (size s1 + shift) r1).
     by rewrite take_takel ?leq_addl.
   by rewrite catA addnC !cat_take_drop.
-move=> [pre mid suf [r1 r2] [s1 s2] rinR sinR /= eqr1 eqs1 {u}->{v}->].
+case=> pre mid suf [r1 r2] [s1 s2] rinR sinR /= eqr1 eqs1 {u}->{v}->.
 exists (all_npairs_rule r1 r2 s1 s2).
   by apply/allpairsP => /=; exists (r1, r2, (s1, s2)).
 apply/mapP; exists (size pre).
@@ -1624,7 +1660,7 @@ Definition spair_confluence_dec fuel R :=
     let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
     (* if normalisation fails by out of fuel but results agree *)
     (* we do have confluence                                   *)
-    all (fun p => norfuel R fuel p.1 == norfuel R fuel p.2) spairs
+    all (fun p => norfuel2 R fuel p.1 == norfuel2 R fuel p.2) spairs
   else false.
 
 Definition check_convergence_and C fuel R : bool :=
@@ -1633,7 +1669,7 @@ Definition check_convergence_and C fuel R : bool :=
 Definition spair_confluence_loop fuel R :=
   (all_pred_npairs (fun p => p.1 == p.2) R) &&
     (all_pred_spairs (fun p => (p.1 == p.2) ||
-                                 (norfuel R fuel p.1 == norfuel R fuel p.2)) R).
+                                 (norfuel2 R fuel p.1 == norfuel2 R fuel p.2)) R).
 
 Definition check_convergence C fuel R : check_convergence_result :=
   if ~~ (decreasing C R) then NotDecreasing
@@ -1642,7 +1678,7 @@ Definition check_convergence C fuel R : check_convergence_result :=
   else let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
       (* if normalisation fails by out of fuel but results agree *)
       (* we do have confluence                                   *)
-  let pos := find (fun p => norfuel R fuel p.1 != norfuel R fuel p.2) spairs in
+  let pos := find (fun p => norfuel2 R fuel p.1 != norfuel2 R fuel p.2) spairs in
   if pos < size spairs then HaveSpair (nth ([::], [::]) spairs pos)
   else Ok.
 
@@ -1671,6 +1707,9 @@ Lemma spair_confluenceP fuel R :
 Proof.
 rewrite /spair_confluence_dec /=.
 case: allP => [/= nonpair | //].
+rewrite (eq_all (a2 := fun p => norfuel R (expfuel fuel) p.1
+                                == norfuel R (expfuel fuel) p.2)); first last.
+  by move=> u; rewrite !norfuel2E.
 have {nonpair}/spair_confluence loc_confl : forall u v, npair R u v -> u = v.
   by move=> u v /all_npairsP /nonpair /= /eqP ->.
 move/allP => /= confl.
@@ -1678,7 +1717,7 @@ apply: loc_confl => u v Suv.
 case: (altP (u =P v)) => [-> | nequv]; first by exists v; apply: rewrites_to_refl.
 have /confl/eqP/= eqnor : (u, v) \in filter (fun p => p.1 != p.2) (all_spairs R).
   by rewrite mem_filter /= {}nequv /=; apply/all_spairsP.
-by exists (norfuel R fuel u).1 => [|/[!eqnor]]; exact: rewrites_to_norfuel.
+by exists (norfuel R (expfuel fuel) u).1 => [|/[!eqnor]]; exact: rewrites_to_norfuel.
 Qed.
 
 Lemma spair_confluence_loopP fuel R :
@@ -1754,7 +1793,7 @@ rewrite /dual_relats => R; rewrite -map_comp map_id_in //= => r _.
 exact: dual_relatK.
 Qed.
 Lemma swap_revC : swap \o dual_relat =1 dual_relat \o swap.
-Proof. by move=> [r1 r2]; rewrite /swap /dual_relat /=. Qed.
+Proof. by case=> r1 r2; rewrite /swap /dual_relat /=. Qed.
 
 Lemma rev_rewrites_impl R u v :
   v \in rewrites R u -> rev v \in rewrites (dual_relats R) (rev u).
@@ -1774,7 +1813,7 @@ Qed.
 Lemma rev_rewrites_to_impl R u v :
   rewrites_to R u v -> rewrites_to (dual_relats R) (rev u) (rev v).
 Proof.
-move=> [pth Hpth {v}->].
+case=> pth Hpth {v}->.
 exists (map rev pth); last by rewrite last_map.
 apply: (homo_path (f := rev) _ Hpth) => {Hpth}u v.
 exact: rev_rewrites_impl.
@@ -1850,7 +1889,7 @@ Qed.
 Lemma rgen_rewrites_to_impl u v :
   rewrites_to RA u v -> rewrites_to RB (map newg u) (map newg v).
 Proof.
-move=> [pth Hpth {v}->].
+case=> pth Hpth {v}->.
 exists (map (map newg) pth); last by rewrite last_map.
 exact: (homo_path (f := map newg) rgen_rewrites_impl Hpth).
 Qed.
@@ -1880,7 +1919,7 @@ Qed.
 Lemma rgen_rewrites_toE u (w : word B) :
   rewrites_to RB (map newg u) w -> exists v, w = map newg v.
 Proof.
-move=> [pth Hpth {w}->].
+case=> pth Hpth {w}->.
 elim: pth u Hpth => [/= u _ | p0 pth IHpth u /=]; first by exists u.
 by case/andP => /rgen_rewritesE[v {p0}-> {}/IHpth].
 Qed.
@@ -1942,7 +1981,7 @@ Qed.
 Lemma rgen_joinable u v :
   joinable RB (map newg u) (map newg v) -> joinable RA u v.
 Proof.
-move=> [x /[dup]] /(rgen_rewrites_toE rrelatE newgK)[w {x}->].
+case=> x /[dup] /(rgen_rewrites_toE rrelatE newgK)[w {x}->].
 by rewrite -!rgen_rewrites_to => RAuw RAvW; exists w.
 Qed.
 Lemma rgen_confluent : confluent RB -> confluent RA.
@@ -1951,7 +1990,7 @@ move=> conflRB u v1 v2.
 by rewrite !rgen_rewrites_to => /conflRB/[apply]/rgen_joinable.
 Qed.
 Lemma rgen_convergent : convergent RB -> convergent RA.
-Proof. by move=> [/rgen_confluent cRA /(rgen_terminating rrelatE newgK)]. Qed.
+Proof. by case=> /rgen_confluent cRA /(rgen_terminating rrelatE newgK). Qed.
 
 End RenameGenRelat.
 

@@ -127,11 +127,15 @@ Definition rewrites1_int  := (* Eval compute in 25% speedup ?? 25% slowdown ?? *
 Lemma rewrites1_intE : @rewrites1 int = rewrites1_int.
 Proof. by []. Qed.
 
-Fixpoint norfuel_int R fuel u :=
+Fixpoint norfuel2_int R fuel u :=
   if fuel is fuel'.+1 then
-    if rewrites1_int R u is Some v then norfuel_int R fuel' v else (u, true)
+    if rewrites1_int R u is Some u1 then
+      let rec := norfuel2_int R fuel' u1 in
+      if rec is (u2, false) then norfuel2_int R fuel' u2 else rec
+    else (u, true)
   else (u, false).
-Lemma norfuel_intE : @norfuel int = norfuel_int.
+
+Lemma norfuel2_intE : @norfuel2 int = norfuel2_int.
 Proof. by []. Qed.
 
 Definition all_spairs_rule_int (r1 r2 s1 s2 : seq int) :=
@@ -152,8 +156,8 @@ Proof. by []. Qed.
 
 Definition eqbool b1 b2 := Eval compute in addb (~~ b1) b2.
 Definition eqnor R fuel (p : word int * word int) :=
-  let x1 := norfuel_int R fuel p.1 in
-  let x2 := norfuel_int R fuel p.2 in
+  let x1 := norfuel2_int R fuel p.1 in
+  let x2 := norfuel2_int R fuel p.2 in
   if eqseq_int x1.1 x2.1 then eqbool x1.2 x2.2 else false.
 
 Definition spair_confluence_dec_int fuel R :=
@@ -215,4 +219,7 @@ Definition spair_confluence_loop_int fuel R :=
 
 Lemma spair_confluence_loop_intE :
   @spair_confluence_loop int = spair_confluence_loop_int.
-Proof. by rewrite /spair_confluence_loop all_pred_npairs_intE eqseq_intE /eq_op /= eqseq_intE norfuel_intE. Qed.
+Proof.
+rewrite /spair_confluence_loop all_pred_npairs_intE eqseq_intE.
+by rewrite /eq_op /= eqseq_intE norfuel2_intE.
+Qed.
