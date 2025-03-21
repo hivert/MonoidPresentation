@@ -160,8 +160,18 @@ Definition eqnor R fuel (p1 p2 : word int) :=
   let x2 := norfuel2_int R fuel p2 in
   if eqseq_int x1.1 x2.1 then eqbool x1.2 x2.2 else false.
 
+Definition all_tr {T} (p : T -> bool) :=
+  fix aux (s : seq T) :=
+    match s with
+    | nil => true
+    | cons x s' => if p x then aux s' else false
+    end.
+
+Lemma all_trE : @all = @all_tr.
+Proof. by []. Qed.
+
 Definition spair_confluence_dec_int fuel R :=
-  if all (fun p => eqseq_int p.1 p.2) (all_npairs_int R) then
+  if all_tr (fun p => eqseq_int p.1 p.2) (all_npairs_int R) then
     let spairs := filter (fun p => ~~ eqseq_int p.1 p.2) (all_spairs_int R) in
     (* all (fun p => norfuel_int R fuel p.1 == norfuel_int R fuel p.2) spairs *)
     all (fun p => eqnor R fuel p.1 p.2) spairs
@@ -172,29 +182,29 @@ Proof. by []. Qed.
 
 Definition all_pred_npairs_rule_int (p : seq int -> seq int -> bool) (r1 r2 s1 s2 : seq int) :=
   let ss1 := seq.size s1 in
-  all (fun shift =>
+  all_tr (fun shift =>
       if prefix_int s1 (drop shift r1) then
         p r2 (take shift r1 ++ s2 ++ drop (shift + ss1) r1)
       else true)
     (iota 0 (seq.size r1 - ss1).+1).
 
 Definition all_pred_npairs_int (p : seq int -> seq int -> bool) R :=
-  all (fun r =>
+  all_tr (fun r =>
     let r1 := r.1 in let r2 := r.2 in
-    all (fun s => all_pred_npairs_rule_int p r1 r2 s.1 s.2) R) R.
+    all_tr (fun s => all_pred_npairs_rule_int p r1 r2 s.1 s.2) R) R.
 
 Definition all_pred_spairs_rule_int (p : seq int -> seq int -> bool) (r1 r2 s1 s2 : seq int) :=
   let sr1 := seq.size r1 in
-  all (fun shift =>
+  all_tr (fun shift =>
       if prefix_int (drop shift r1) s1 then
         p (r2 ++ drop (sr1 - shift) s1) (take shift r1 ++ s2)
       else true)
     (iota 0 sr1).
 
 Definition all_pred_spairs_int (p : seq int -> seq int -> bool) R :=
-  all (fun r =>
+  all_tr (fun r =>
     let r1 := r.1 in let r2 := r.2 in
-    all (fun s => all_pred_spairs_rule_int p r1 r2 s.1 s.2) R) R.
+    all_tr (fun s => all_pred_spairs_rule_int p r1 r2 s.1 s.2) R) R.
 
 Definition spair_confluence_loop_int fuel R :=
   (all_pred_npairs_int eqseq_int R) &&
