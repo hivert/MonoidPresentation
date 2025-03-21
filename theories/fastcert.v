@@ -155,71 +155,55 @@ Lemma all_npairs_intE : @all_npairs int = all_npairs_int.
 Proof. by []. Qed.
 
 Definition eqbool b1 b2 := Eval compute in addb (~~ b1) b2.
-Definition eqnor R fuel (p : word int * word int) :=
-  let x1 := norfuel2_int R fuel p.1 in
-  let x2 := norfuel2_int R fuel p.2 in
+Definition eqnor R fuel (p1 p2 : word int) :=
+  let x1 := norfuel2_int R fuel p1 in
+  let x2 := norfuel2_int R fuel p2 in
   if eqseq_int x1.1 x2.1 then eqbool x1.2 x2.2 else false.
 
 Definition spair_confluence_dec_int fuel R :=
   if all (fun p => eqseq_int p.1 p.2) (all_npairs_int R) then
     let spairs := filter (fun p => ~~ eqseq_int p.1 p.2) (all_spairs_int R) in
     (* all (fun p => norfuel_int R fuel p.1 == norfuel_int R fuel p.2) spairs *)
-    all (eqnor R fuel) spairs
+    all (fun p => eqnor R fuel p.1 p.2) spairs
   else false.
 Lemma spair_confluence_dec_intE :
   @spair_confluence_dec int = spair_confluence_dec_int.
 Proof. by []. Qed.
 
-Definition all_pred_npairs_rule_int (p : seq int * seq int -> bool) (r1 r2 s1 s2 : seq int) :=
+Definition all_pred_npairs_rule_int (p : seq int -> seq int -> bool) (r1 r2 s1 s2 : seq int) :=
   let ss1 := seq.size s1 in
   all (fun shift =>
       if prefix_int s1 (drop shift r1) then
-        p (r2, take shift r1 ++ s2 ++ drop (shift + ss1) r1)
+        p r2 (take shift r1 ++ s2 ++ drop (shift + ss1) r1)
       else true)
     (iota 0 (seq.size r1 - ss1).+1).
 
-Lemma all_pred_npairs_rule_intE :
-  @all_pred_npairs_rule int = all_pred_npairs_rule_int.
-Proof. by rewrite /all_pred_npairs_rule prefix_intE. Qed.
-
-Definition all_pred_npairs_int (p : seq int * seq int -> bool) R :=
+Definition all_pred_npairs_int (p : seq int -> seq int -> bool) R :=
   all (fun r =>
     let r1 := r.1 in let r2 := r.2 in
     all (fun s => all_pred_npairs_rule_int p r1 r2 s.1 s.2) R) R.
 
-Lemma all_pred_npairs_intE :
-  @all_pred_npairs int = all_pred_npairs_int.
-Proof. by rewrite /all_pred_npairs all_pred_npairs_rule_intE. Qed.
-
-Definition all_pred_spairs_rule_int (p : seq int * seq int -> bool) (r1 r2 s1 s2 : seq int) :=
+Definition all_pred_spairs_rule_int (p : seq int -> seq int -> bool) (r1 r2 s1 s2 : seq int) :=
   let sr1 := seq.size r1 in
   all (fun shift =>
       if prefix_int (drop shift r1) s1 then
-        p (r2 ++ drop (sr1 - shift) s1, take shift r1 ++ s2)
+        p (r2 ++ drop (sr1 - shift) s1) (take shift r1 ++ s2)
       else true)
     (iota 0 sr1).
 
-Lemma all_pred_spairs_rule_intE :
-  @all_pred_spairs_rule int = all_pred_spairs_rule_int.
-Proof. by rewrite /all_pred_spairs_rule prefix_intE. Qed.
-
-Definition all_pred_spairs_int (p : seq int * seq int -> bool) R :=
+Definition all_pred_spairs_int (p : seq int -> seq int -> bool) R :=
   all (fun r =>
     let r1 := r.1 in let r2 := r.2 in
     all (fun s => all_pred_spairs_rule_int p r1 r2 s.1 s.2) R) R.
 
-Lemma all_pred_spairs_intE :
-  @all_pred_spairs int = all_pred_spairs_int.
-Proof. by rewrite /all_pred_spairs all_pred_spairs_rule_intE. Qed.
-
 Definition spair_confluence_loop_int fuel R :=
-  (all_pred_npairs_int (fun p => eqseq_int p.1 p.2) R) &&
-  (all_pred_spairs_int (fun p =>
-     if eqseq_int p.1 p.2 then true else eqnor R fuel p) R).
+  (all_pred_npairs_int eqseq_int R) &&
+  (all_pred_spairs_int (fun p1 p2 =>
+     if eqseq_int p1 p2 then true else eqnor R fuel p1 p2) R).
 
 Lemma spair_confluence_loop_intE :
   @spair_confluence_loop int = spair_confluence_loop_int.
 Proof.
-rewrite /spair_confluence_loop all_pred_npairs_intE eqseq_intE.
+rewrite /spair_confluence_loop eqseq_intE.
 by rewrite /eq_op /= eqseq_intE norfuel2_intE.
 Qed.
