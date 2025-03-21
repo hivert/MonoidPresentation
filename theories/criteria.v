@@ -290,10 +290,18 @@ Variant isWatier P :=
       a != b -> pgen P = [:: a; b] ->
       prelat P = [:: (nseq k b ++ a :: u, a :: v)] ->
       ~~ factor (nseq k b) u -> isWatier P.
+Definition check_Watier P (a b : Alph) (u v : word Alph) (k : nat) :=
+  [&& a != b, pgen P == [:: a; b],
+    prelat P == [:: (nseq k b ++ a :: u, a :: v)] &
+      ~~ factor (nseq k b) u].
+Lemma check_WatierP P a b u v k : check_Watier P a b u v k -> isWatier P.
+Proof. by case/and4P => H1 /eqP H2 /eqP H3 H4; exists a b u v k. Qed.
 
 (* Theorem 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
-Theorem Watier_dec P : isWatier P -> WPdecidable P.
+Theorem is_Watier_dec P : isWatier P -> WPdecidable P.
 Admitted.
+Corollary check_Watier_dec P a b u v k : check_Watier P a b u v k -> WPdecidable P.
+Proof. move/check_WatierP; exact: is_Watier_dec. Qed.
 
 End Watier.
 
@@ -318,8 +326,9 @@ Variant PresentationCertificate :=
     (* a b u v k in < a b | b^k a u = a v > *)
   | Watier of Alph & Alph & word & word & nat
   | Monogenic
+  | FreeProductMonogenicAndFree
     (* repeted letter *)
-  | EqualNombreOfOccurence of Alph
+  | EqualNumberOfOccurences of Alph
     (* list of factorization of the relations words in the order of P *)
   | SmallOverlap of seq (seq word).
 
@@ -350,6 +359,8 @@ Definition AB_AAAAAA_ABAABA : CertifiedPresentation :=
 Lemma AB_AAAAAA_ABAABA_dec : WPdecidable AB_AAAAAA_ABAABA.1.
 Proof.
 apply: convergent_dec.
+apply: (check_convergence_natP (fuel := 10)).
+compute.
 Fail by apply: (check_convergence_natP (fuel := 10)). (* TODO : fixme *)
 Admitted.
 
@@ -358,7 +369,7 @@ Definition AB_AAAB_A : CertifiedPresentation :=
     Watier
       0 1 [:: 1; 1; 0] [::] 3).
 Lemma AB_AAAB_A_dec : WPdecidable AB_AAAB_A.1.
-Proof. by apply: Watier_dec; exists 0 1 [:: 1; 1; 0] [::] 3. Qed.
+Proof. exact: (@check_Watier_dec _ _ 0 1 [:: 1; 1; 0] [::] 3). Qed.
 
 Definition A_AAA_A : CertifiedPresentation :=
   (make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])],
@@ -368,7 +379,7 @@ Proof. exact: monogenic_dec. Qed.
 
 Definition AB_ABB_BA : CertifiedPresentation :=
   (make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])],
-    EqualNombreOfOccurence 0).
+    EqualNumberOfOccurences 0).
 Lemma AB_ABB_BA_dec : WPdecidable AB_ABB_BA.1.
 Proof. exact: (check_same_number_occ_dec (a := 0)). Qed.
 

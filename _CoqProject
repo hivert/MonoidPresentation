@@ -12,8 +12,10 @@ theories/rewcert.v
 theories/fastcert.v
 theories/criteria.v
 theories/certcheck.v
+theories/batchchecker.v
 theories/certs/largestcert.v
-# theories/certs/bbaaaabbba_abbbaa.v
+
+theories/certs/bbaaaabbba_abbbaa.v
 
 # theories/samples/notrennerB40.v
 
