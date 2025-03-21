@@ -557,6 +557,15 @@ Section Presentation.
 Variable (A : choiceType).
 Implicit Types (u v w x y : word A) (R : @pres A).
 
+Definition eq_pres R1 R2 := (pgen R1 == pgen R2) && (prelat R1 == prelat R2).
+Lemma eq_presP : Equality.axiom eq_pres.
+Proof.
+rewrite /eq_pres => -[p1 r1 g1 l1][p2 r2 g2 l2] /=.
+apply (iffP idP) => [/andP[/eqP eqp /eqP eqr] | [-> ->]]; last by rewrite !eqxx.
+by subst r2 p2; rewrite (bool_irrelevance g2 g1) (bool_irrelevance l2 l1).
+Qed.
+HB.instance Definition _ := hasDecEq.Build (@pres A) eq_presP.
+
 
 (* TODO: improve this name *)
 Definition words_of R := [pred w | all (mem (pgen R)) w].
