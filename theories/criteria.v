@@ -90,14 +90,14 @@ Implicit Type (P : pres Alph).
 
 Definition monogenic P : bool := size (pgen P) == 1.
 
-Theorem monogenic_WPdec P : monogenic P -> WPdecidable P.
+Theorem monogenic_dec P : monogenic P -> WPdecidable P.
 Admitted.
 
 End Monogenic.
 
 Section DefLeftCycleFree1Rel.
 
-Context {Alph : choiceType} {x0 : Alph}.
+Context {Alph : choiceType}.
 
 Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
@@ -241,14 +241,23 @@ End SmallOverlap.
 
 
 
+Definition sotestpres :=
+  make_pres [:: 0; 1]
+            [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0],
+                 [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
+
+Lemma sotestpres_dec : WPdecidable sotestpres.
+Proof. exact: (check_c3_monoid_dec (facts := [::
+                     [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
+                     [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ]
+                  ])).
+Qed.
+
+(*
 Eval compute in non_empty_factors [:: 3; 1; 2; 1].
 Eval compute in piece_pair
                   [::] [::] (non_empty_factors [:: 3; 1; 2; 1]).
 
-Definition testpres :=
-  make_pres [:: 0; 1]
-            [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0],
-                 [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
 Definition testpieces := pieces testpres.
 
 Goal perm_eq testpieces
@@ -262,10 +271,12 @@ Eval compute in is_greedy_factorisation (mem testpieces)
                   [:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0]
                   [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ].
 
-
-
-Eval compute in pieces testpres.
-
+Eval compute in check_small_overlap 3 testpres
+                  [::
+                     [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
+                     [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ]
+                  ].
+*)
 
 Section Watier.
 
@@ -336,19 +347,30 @@ Definition AB_AAAAAA_ABAABA : CertifiedPresentation :=
        rm_rel 0
          [:: RTriple 0 0 false]]
     [::0;1]).
+Lemma AB_AAAAAA_ABAABA_dec : WPdecidable AB_AAAAAA_ABAABA.1.
+Proof.
+apply: convergent_dec.
+Fail by apply: (check_convergence_natP (fuel := 10)). (* TODO : fixme *)
+Admitted.
 
 Definition AB_AAAB_A : CertifiedPresentation :=
   (make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])],
     Watier
       0 1 [:: 1; 1; 0] [::] 3).
+Lemma AB_AAAB_A_dec : WPdecidable AB_AAAB_A.1.
+Proof. by apply: Watier_dec; exists 0 1 [:: 1; 1; 0] [::] 3. Qed.
 
 Definition A_AAA_A : CertifiedPresentation :=
   (make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])],
     Monogenic).
+Lemma A_AAA_A_dec : WPdecidable A_AAA_A.1.
+Proof. exact: monogenic_dec. Qed.
 
 Definition AB_ABB_BA : CertifiedPresentation :=
   (make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])],
     EqualNombreOfOccurence 0).
+Lemma AB_ABB_BA_dec : WPdecidable AB_ABB_BA.1.
+Proof. exact: (check_same_number_occ_dec (a := 0)). Qed.
 
 Definition AB_BAAAABBAAA_ABBBAABA : CertifiedPresentation :=
   (make_pres [:: 0; 1]
@@ -356,6 +378,14 @@ Definition AB_BAAAABBAAA_ABBBAABA : CertifiedPresentation :=
     SmallOverlap
       [:: [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
        [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ]).
+Lemma AB_BAAAABBAAA_ABBBAABA_dec : WPdecidable AB_BAAAABBAAA_ABBBAABA.1.
+Proof. exact: (check_c3_monoid_dec (facts := [::
+                     [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
+                     [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ]
+                  ])).
+Qed.
+
+
 
 Definition all_pres := [:: AB_AAAAAA_ABAABA;
                         AB_AAAB_A;
