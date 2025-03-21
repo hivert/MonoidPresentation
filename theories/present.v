@@ -213,10 +213,9 @@ Variable (R : relat).
 (* Finds the first matching rule in R that matches a subword of u and produces
    the rewritten v, or None. *)
 Fixpoint rewrites1 u :=
-  if u is a :: u' then
-    if rewrites1_front R u is Some u as res then res
-    else option_map (cons a) (rewrites1 u')
-  else rewrites1_front R [::].
+  if rewrites1_front R u is Some u as res then res
+  else if u is a :: u' then option_map (cons a) (rewrites1 u')
+  else None.
 
 (* Produces the list of all words v than can be obtained by rewriting
    u with a (single) rule in R *)
@@ -228,8 +227,12 @@ Fixpoint rewrites u :=
 Lemma rewrite1E u :
   rewrites1 u = head None [seq Some v | v <- rewrites u].
 Proof.
-elim: u => /= [| a u ->]; rewrite rewrite1_frontE //.
-by case: rewrites_front => //=; case: rewrites.
+elim: u => [|a u]; rewrite /= rewrite1_frontE.
+by case: head.
+move => H /=.
+case: rewrites_front => //=.
+rewrite {}H /=.
+by case: rewrites.
 Qed.
 Lemma rewrite1_in u v : rewrites1 u = Some v -> v \in rewrites u.
 Proof.

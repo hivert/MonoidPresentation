@@ -118,12 +118,12 @@ Lemma rewrites1_front_intE : @rewrites1_front int = rewrites1_front_int.
 Proof. by []. Qed.
 Definition rewrites1_front_int_fast := Eval compute in rewrites1_front_int.
 
-Definition rewrites1_int  := (* Eval compute in 25% speedup ?? 25% slowdown ?? *)
-  fun R : relat int => (fix rec (u : seq int) :=
-                         if u is a :: u' then
-                           if rewrites1_front_int_fast R u is Some u as res then res
-                           else option_map (cons a) (rec u')
-                         else rewrites1_front_int_fast R [::]).
+Definition rewrites1_int (R : relat int) :=
+  fix aux (u : seq int) :=
+    if rewrites1_front_int_fast R u is Some u as res then res
+    else if u is a :: u' then
+      match aux u' with Some v => Some (cons a v) | None => None end
+    else None.
 Lemma rewrites1_intE : @rewrites1 int = rewrites1_int.
 Proof. by []. Qed.
 
