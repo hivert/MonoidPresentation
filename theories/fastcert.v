@@ -102,7 +102,7 @@ Fixpoint prefix_int s1 s2 {struct s2} :=
   if s1 isn't x :: s1' then true else
   if s2 isn't y :: s2' then false else
     if eqb x y then prefix_int s1' s2' else false.
-Lemma prefixE : @prefix int = prefix_int.
+Lemma prefix_intE : @prefix int = prefix_int.
 Proof. by []. Qed.
 
 Definition drop_int := Eval compute in @drop int.     (* 7%   speedup ?? *)
@@ -173,14 +173,14 @@ Proof. by []. Qed.
 Definition all_pred_npairs_rule_int (p : seq int * seq int -> bool) (r1 r2 s1 s2 : seq int) :=
   let ss1 := seq.size s1 in
   all (fun shift =>
-      if eqseq_int s1 (take ss1 (drop shift r1)) then
+      if prefix_int s1 (drop shift r1) then
         p (r2, take shift r1 ++ s2 ++ drop (shift + ss1) r1)
       else true)
     (iota 0 (seq.size r1 - ss1).+1).
 
 Lemma all_pred_npairs_rule_intE :
   @all_pred_npairs_rule int = all_pred_npairs_rule_int.
-Proof. by rewrite /all_pred_npairs_rule eqseq_intE. Qed.
+Proof. by rewrite /all_pred_npairs_rule prefix_intE. Qed.
 
 Definition all_pred_npairs_int (p : seq int * seq int -> bool) R :=
   all (fun r =>
@@ -201,7 +201,7 @@ Definition all_pred_spairs_rule_int (p : seq int * seq int -> bool) (r1 r2 s1 s2
 
 Lemma all_pred_spairs_rule_intE :
   @all_pred_spairs_rule int = all_pred_spairs_rule_int.
-Proof. by rewrite /all_pred_spairs_rule prefixE. Qed.
+Proof. by rewrite /all_pred_spairs_rule prefix_intE. Qed.
 
 Definition all_pred_spairs_int (p : seq int * seq int -> bool) R :=
   all (fun r =>

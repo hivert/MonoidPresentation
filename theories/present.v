@@ -1523,9 +1523,8 @@ rewrite /all_pred_spairs_rule /all_spairs_rule.
 by rewrite all_map all_filter; apply: eq_all.
 Qed.
 
-
 Definition all_pred_npairs_rule (p : pred (word T * word T)) (r1 r2 s1 s2 : seq T) :=
-  all (fun shift => (s1 == take (size s1) (drop shift r1))
+  all (fun shift => (prefix s1 (drop shift r1))
                   ==> p (r2, take shift r1 ++ s2 ++ drop (shift + size s1) r1))
       (iota 0 (size r1 - size s1).+1).
 Definition all_pred_npairs p R :=
@@ -1539,7 +1538,8 @@ rewrite flatten_cat all_cat; congr andb => //= {R1 IHR1}.
 elim: R => [// | [s1 s2] R IHR] /=.
 rewrite !(flatten_cat, all_cat); congr andb => //= {R IHR}.
 rewrite /all_pred_npairs_rule /all_npairs_rule.
-by rewrite all_map all_filter; apply: eq_all.
+rewrite all_map all_filter; apply: eq_all => i /=.
+by rewrite prefixE eq_sym.
 Qed.
 
 
