@@ -54,7 +54,7 @@ End Compl.
 
 
 Lemma expn_non2 n : 2 ^ n > 0.
-Admitted.
+Proof. by case: n => // n; apply: (leq_trans _ (ltn_expl _ _)). Qed.
 
 Definition word (Alph : Type) := seq Alph.
 Definition relat (Alph : Type) := seq (word Alph * word Alph).
