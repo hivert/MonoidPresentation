@@ -24,10 +24,13 @@ Variant CheckCertifiedPresentationError :=
   | CPNotDecreasing
   | CPWatierError
   | CPMonogenicError
+  | CPFreeProductMonogenicAndFreeError
   | CPLeftCycleFree1RelError
   | CPOccError
   | CPSmallOverlapError
   | CPNotImplemented.
+
+Definition certpres_Ok r := if r is CPOk then true else false.
 
 Definition check_certpres (CP : @CertifiedPresentation int) :=
   let (P, PC) := CP in match PC with
@@ -46,14 +49,16 @@ Definition check_certpres (CP : @CertifiedPresentation int) :=
       if ~~ check_Watier P a b u v k then CPWatierError else CPOk
   | Monogenic =>
       if ~~ monogenic P then CPMonogenicError else CPOk
-  | FreeProductMonogenicAndFree => CPNotImplemented
+  | FreeProductMonogenicAndFree =>
+      if ~~ free_product_monogenic_free P then
+        CPFreeProductMonogenicAndFreeError
+      else CPOk
   | EqualNumberOfOccurences l =>
       if ~~ is_left_cycle_free_1rel P then CPLeftCycleFree1RelError else
       if ~~ has_same_number_of_occ P l then CPOccError else CPOk
   | SmallOverlap facts =>
       if ~~ check_small_overlap 3 P facts then CPSmallOverlapError else CPOk
   end.
-Definition certpres_Ok r := if r is CPOk then true else false.
 
 Lemma check_certpresP P : certpres_Ok (check_certpres P) -> WPdecidable P.1.
 Proof.
@@ -76,6 +81,8 @@ rewrite /check_certpres; case: P => pres [] //.
   exact: (check_Watier_dec cW).
 - case: (boolP (monogenic _)) => //= mono _.
   exact: monogenic_dec.
+- case: (boolP (_ pres)) => //= fp _.
+  exact: free_product_monogenic_free_dec.
 - move=> l.
   case: (boolP (is_left_cycle_free_1rel _)) => //= free.
   case: (boolP (has_same_number_of_occ _ _)) => //= nbocc _.
@@ -83,4 +90,12 @@ rewrite /check_certpres; case: P => pres [] //.
 - move=> facts.
   case: (boolP (check_small_overlap 3 _ _)) => //= c3 _.
   exact: (check_c3_monoid_dec c3).
+Qed.
+
+Lemma check_seq_certpresP (l : seq (@CertifiedPresentation int)) :
+  all (certpres_Ok \o check_certpres) l ->
+  forall (P : pres int), P \in [seq CP.1 | CP <- l] -> WPdecidable P.
+Proof.
+elim: l => // l0 l IHl /= /andP[/check_certpresP dec0 {}/IHl Hl] P.
+by rewrite inE; case: eqP => [-> //|_ /=]; apply: Hl.
 Qed.

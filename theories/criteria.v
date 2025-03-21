@@ -80,6 +80,10 @@ Admitted.
 
 End AlphabetChange.
 
+Corollary eqrelat_dec (A : choiceType) (P1 P2 : pres A) :
+  prelat P1 = prelat P2 -> WPdecidable P1 -> WPdecidable P2.
+Proof. by move=> eq /simpleWPdec dec u v _ _; rewrite -eq. Qed.
+
 
 Section Monogenic.
 
@@ -94,6 +98,58 @@ Theorem monogenic_dec P : monogenic P -> WPdecidable P.
 Admitted.
 
 End Monogenic.
+
+
+Lemma flatten0 (T : eqType) (s : seq (seq T)) :
+  flatten s = [::] -> all (@nilp _) s.
+Proof.
+move=> /(congr1 size); rewrite size_flatten /= => /eqP/natnseq0P shape0.
+apply/(all_nthP [::]) => i _; apply/eqP.
+by rewrite -nth_shape shape0 nth_nseq if_same.
+Qed.
+
+Section FreeProductMonogenicFree.
+
+Context {Alph : choiceType}.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
+
+Definition free_product_monogenic_free P :=
+  size (undup (flatten (relwords P))) <= 1.
+
+Theorem free_product_monogenic_free_dec P :
+  free_product_monogenic_free P -> WPdecidable P.
+Proof.
+rewrite /free_product_monogenic_free.
+case Hgs : (undup (flatten (relwords P))) => [|g [|//]] _.
+- move/undup_nil/flatten0/allP=> /= in Hgs.
+  move=> u v _ _; case: (altP (u =P v)) => [-> | /negP nequv].
+  + left; exact: equiv_refl.
+  + right=> [eq]; apply: nequv.
+    case: eq  => pth /[swap] {v}->.
+    elim: pth u => [| p0 pth IHpth] //= u /andP[Hp0 {}/IHpth /eqP <-].
+    case/rewritesP: Hp0 => pre suf [r1 r2] /= {u}-> {p0}-> rinP.
+    suff : (r1 \in relwords P) && (r2 \in relwords P).
+      by case/andP => /Hgs/nilP-> /Hgs/nilP->.
+    move: rinP; rewrite mem_undirected => /orP[] /mem_relatwords //.
+    by rewrite andbC.
+- have gsrel : correctrelat (prelat P) (mem [:: g]).
+    apply/allP => /= -[r1 r2] /= /mem_relatwords.
+    suff rnseq r : r \in relwords P -> exists n, r = nseq n g.
+      case/andP => /rnseq [n1] {r1}-> /rnseq [n2] {r2}->.
+      by rewrite !all_nseq !inE eqxx !orbT.
+    move=> H; exists (size r).
+    apply/all_pred1P/allP => x xinr /=.
+    suff : x \in [:: g] by rewrite inE => ->.
+    by rewrite -Hgs mem_undup; apply/flattenP => /=; exists r.
+  pose Q := Pres [:: g] _ is_true_true gsrel.
+  apply: (eqrelat_dec (P1 := Q)) => //.
+  exact: monogenic_dec.
+Qed.
+
+End FreeProductMonogenicFree.
+
 
 Section DefLeftCycleFree1Rel.
 
@@ -340,6 +396,9 @@ Definition getRWSorder C :=
 Definition CertifiedPresentation := (pres Alph * PresentationCertificate)%type.
 
 End Certificate.
+
+Record decidable_presentation (Alph : choiceType) : Type :=
+ DecPres { decpres : pres Alph; _ : WPdecidable decpres }.
 
 (* Examples *)
 
