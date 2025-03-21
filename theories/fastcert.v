@@ -3,7 +3,7 @@ From HB Require Import structures.
 From mathcomp Require Import all_ssreflect.
 From Coq Require Import Znat BinIntDef Uint63.
 
-Require Import present cert.
+Require Import present rewcert.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

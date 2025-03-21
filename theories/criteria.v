@@ -1,7 +1,7 @@
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect.
 
-Require Import monoids present factor.
+Require Import monoids present factor rewcert.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -44,9 +44,12 @@ have cnteq r s : r = s %[mod prelat P] -> count out r = count out s.
   case/andP => /[swap]{}/IHpth <- {pth}.
   case/rewritesP => pre suf [r1 r2] /= {r}-> {p0}-> rinP.
   rewrite !count_cat; congr (_ + (_ + _)) => {pre suf}.
-  
-
-  
+  have count0 r : r \in words_of P -> count out r = 0.
+    rewrite /out unfold_in /= => Hall.
+    by apply/eqP; rewrite -leqn0 leqNgt -has_count has_predC negbK.
+  have {rinP} :(r1 \in words_of P) && (r2 \in words_of P).
+    by move: rinP; rewrite mem_undirected => /orP[] /words_of_prelat/andP[/= -> ->].
+  by case/andP=> /count0-> /count0->.
 move=> Hdec u; move: {2}(count _ _) (erefl (count out u)) => n.
 elim: n u => [| n IHn] u.
   move/eqP; rewrite -leqn0 leqNgt -has_count has_predC negbK => Pu v.
@@ -101,37 +104,48 @@ Implicit Type (P : pres Alph).
 
 Definition two_letters P : bool := size (pgen P) == 2.
 
+Definition left_cycle_free_1rel (P : pres Alph) : Prop :=
+  exists (a b : Alph) (u v : word Alph),
+      a != b /\ prelat P = [:: (a :: u, b :: v)].
 Definition is_left_cycle_free_1rel P : bool :=
   if (prelat P) is [:: (a :: _, b :: _)] then a != b else false.
-
-Inductive left_cycle_free_1rel (P : pres Alph) : Prop :=
-  LeftCycleFree1RelProp :
-    forall (a b : Alph) (u v : word Alph),
-      a != b -> prelat P = [:: (a :: u, b :: v)] ->
-      left_cycle_free_1rel P.
 
 Lemma left_cycle_free_1relP P :
   reflect (left_cycle_free_1rel P) (is_left_cycle_free_1rel P).
 Proof.
 rewrite /is_left_cycle_free_1rel.
 apply (iffP idP); case Hrel: (prelat P) => [|[[|a r1][|b r2]] [|rels]] //;
-  first 1 [by move=> neqab; exists a b r1 r2] || (try by move => []; rewrite Hrel).
-by case=> a' b' u' v' neq; rewrite Hrel => [[-> _ -> _]].
+  first 1 [by move=> neqab; exists a; exists  b; exists r1; exists r2]
+        || (try by move=> [a'][b'][u'][v']; rewrite Hrel => [[]]).
+by case=> [a'][b'][u'][v'][neq]; rewrite Hrel => [[-> _ -> _]].
 Qed.
-
-Definition has_same_number_of_occ P a :=
-  all (fun r => (count_mem a r.1 > 0) && (count_mem a r.1 == count_mem a r.2))
-    (prelat P).
 
 Definition same_number_of_occ P a :=
   forall r, r \in prelat P ->
                  count_mem a r.1 > 0 /\ count_mem a r.1 = count_mem a r.2.
+Definition has_same_number_of_occ P a :=
+  all (fun r => (count_mem a r.1 > 0) && (count_mem a r.1 == count_mem a r.2))
+    (prelat P).
+Lemma has_same_number_of_occP P a :
+  reflect (same_number_of_occ P a) (has_same_number_of_occ P a).
+Proof.
+rewrite /has_same_number_of_occ /same_number_of_occ.
+by apply (iffP allP) => /= H r {}/H => [/andP[-> /eqP ->]// | [-> /= ->]].
+Qed.
 
 (* Theorem 4.1 in https://github.com/james-d-mitchell/1-relation-paper *)
 Theorem left_cycle_free_1rel_same_number_occ_dec P a :
   left_cycle_free_1rel P -> same_number_of_occ P a ->
   WPdecidable P.
 Admitted.
+
+Corollary check_same_number_occ_dec P a :
+  is_left_cycle_free_1rel P -> has_same_number_of_occ P a ->
+  WPdecidable P.
+Proof.
+move=> /left_cycle_free_1relP H1 /has_same_number_of_occP.
+exact: left_cycle_free_1rel_same_number_occ_dec.
+Qed.
 
 End DefLeftCycleFree1Rel.
 
@@ -200,6 +214,12 @@ Definition check_small_overlap n P facts :=
   else all (fun pair_w_f => is_greedy_factorisation (mem p) pair_w_f.1 pair_w_f.2)
            (zip rw facts).
 
+Lemma check_small_overlapP n P facts :
+  check_small_overlap n P facts -> small_overlap n P.
+Proof.
+Admitted.
+
+
 (* Section 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
 Theorem c3_monoid_dec P :
   small_overlap 3 P -> WPdecidable P.
@@ -209,6 +229,13 @@ Admitted.
 Theorem c4_monoid_dec P :
   small_overlap 4 P -> WPdecidable P.
 Admitted.
+
+Corollary check_c3_monoid_dec P facts :
+  check_small_overlap 3 P facts -> WPdecidable P.
+Proof. by move/check_small_overlapP/c3_monoid_dec. Qed.
+Corollary check_c4_monoid_dec P facts :
+  check_small_overlap 4 P facts -> WPdecidable P.
+Proof. by move/check_small_overlapP/c4_monoid_dec. Qed.
 
 End SmallOverlap.
 
@@ -264,4 +291,75 @@ Definition testWatier :=
 
 Lemma testWatierP : isWatier testWatier.
 Proof. by exists 0 1 [:: 1; 1; 0] [::] 3. Qed.
+
+
+Section Certificate.
+
+Context {Alph : choiceType}.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
+Local Notation word := (word Alph).
+
+Variant PresentationCertificate :=
+    (* rewriting certificate + final order *)
+  | CompleteRewritingSystem of @pres_cert Alph & seq Alph
+    (* a b u v k in < a b | b^k a u = a v > *)
+  | Watier of Alph & Alph & word & word & nat
+  | Monogenic
+    (* repeted letter *)
+  | EqualNombreOfOccurence of Alph
+    (* list of factorization of the relations words in the order of P *)
+  | SmallOverlap of seq (seq word).
+
+Definition getRWScert C :=
+  if C is CompleteRewritingSystem cert _ then cert else [::].
+Definition getRWSorder C :=
+  if C is CompleteRewritingSystem _ order then order else [::].
+
+Definition CertifiedPresentation := (pres Alph * PresentationCertificate)%type.
+
+End Certificate.
+
+(* Examples *)
+
+Definition AB_AAAAAA_ABAABA : CertifiedPresentation :=
+  (make_pres [::0;1]
+     [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])],
+  CompleteRewritingSystem
+    [::
+       add_rel [::0;1;0;0;1;0] [::0;0;0;0;0;0]
+         [:: RTriple 0 0 false];
+       add_rel [::0;1;0;0;0;0;0;0;0] [::0;0;0;0;0;0;0;1;0]
+         [:: RTriple 0 3 true;
+             RTriple 1 0 true];
+       rm_rel 0
+         [:: RTriple 0 0 false]]
+    [::0;1]).
+
+Definition AB_AAAB_A : CertifiedPresentation :=
+  (make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])],
+    Watier
+      0 1 [:: 1; 1; 0] [::] 3).
+
+Definition A_AAA_A : CertifiedPresentation :=
+  (make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])],
+    Monogenic).
+
+Definition AB_ABB_BA : CertifiedPresentation :=
+  (make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])],
+    EqualNombreOfOccurence 0).
+
+Definition AB_BAAAABBAAA_ABBBAABA : CertifiedPresentation :=
+  (make_pres [:: 0; 1]
+       [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ],
+    SmallOverlap
+      [:: [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
+       [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ]).
+
+Definition all_pres := [:: AB_AAAAAA_ABAABA;
+                        AB_AAAB_A;
+                        A_AAA_A;
+                        AB_ABB_BA;
+                        AB_BAAAABBAAA_ABBBAABA].
 

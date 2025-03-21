@@ -557,6 +557,7 @@ Implicit Types (u v w x y : word A) (R : @pres A).
 
 (* TODO: improve this name *)
 Definition words_of R := [pred w | all (mem (pgen R)) w].
+Definition relwords R := relatwords (prelat R).
 Definition WPdecidable R :=
   forall u v, u \in words_of R -> v \in words_of R ->
                                         decidable (u = v %[mod prelat R]).
@@ -564,6 +565,12 @@ Definition WPdecidable R :=
 Lemma words_of_prelat R r :
   r \in prelat R -> (r.1 \in words_of R) && (r.2 \in words_of R).
 Proof. by move=> Rr; move/allP: (wf_relat R) => /(_ r Rr). Qed.
+
+Lemma relwords_of R w : w \in relwords R -> w \in words_of R.
+Proof.
+case/relatwordsP=> -[r1 r2] /words_of_prelat /= /andP[r1in r2in].
+by move=> /orP[]/eqP ->.
+Qed.
 
 Lemma words_of_cat R u v :
   u ++ v \in words_of R = (u \in words_of R) && (v \in words_of R).
