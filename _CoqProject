@@ -7,13 +7,13 @@
 theories/monoids.v
 theories/factor.v
 theories/present.v
-theories/samelen.v
+theories/homogeneous.v
 theories/rewcert.v
 theories/fastcert.v
 theories/criteria.v
 theories/batchchecker.v
-theories/certs/largestcert.v
 
+theories/certs/largestcert.v
 theories/certs/bbaaaabbba_abbbaa.v
 
 theories/batch/batch0.v

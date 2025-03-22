@@ -395,7 +395,8 @@ Variant PresentationCertificate :=
     (* repeted letter *)
   | EqualNumberOfOccurences of Alph
     (* list of factorization of the relations words in the order of P *)
-  | SmallOverlap of seq (seq word).
+  | SmallOverlap of seq (seq word)
+  | Homogeneous. (* Not used in the database *)
 
 Definition getRWScert C :=
   if C is CompleteRewritingSystem cert _ then cert else [::].

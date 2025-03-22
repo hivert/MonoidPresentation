@@ -8,7 +8,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import present rewcert fastcert criteria.
+Require Import present rewcert fastcert criteria homogeneous.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -28,7 +28,9 @@ Variant CheckCertifiedPresentationError :=
   | CPLeftCycleFree1RelError
   | CPOccError
   | CPSmallOverlapError
+  | CPHomogeneousError  (* Not used in the database *)
   | CPNotImplemented.
+
 
 Definition certpres_Ok r := if r is CPOk then true else false.
 
@@ -58,6 +60,8 @@ Definition check_certpres (CP : @CertifiedPresentation int) :=
       if ~~ has_same_number_of_occ P l then CPOccError else CPOk
   | SmallOverlap facts =>
       if ~~ check_small_overlap 3 P facts then CPSmallOverlapError else CPOk
+  | Homogeneous =>
+      if ~~ is_homogeneous (prelat P) then CPHomogeneousError else CPOk
   end.
 
 Lemma check_certpresP P : certpres_Ok (check_certpres P) -> WPdecidable P.1.
@@ -90,6 +94,8 @@ rewrite /check_certpres; case: P => pres [] //.
 - move=> facts.
   case: (boolP (check_small_overlap 3 _ _)) => //= c3 _.
   exact: (check_c3_monoid_dec c3).
+- case: (boolP (is_homogeneous _)) => //= homog _.
+  exact: (homog_dec homog).
 Qed.
 
 Record checked_presentation : Type :=

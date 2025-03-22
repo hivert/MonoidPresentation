@@ -15,12 +15,12 @@ Section Homogeneous.
 Context {A : choiceType}.
 Implicit Type (u v : word A) (R : relat A).
 
-Definition is_homog R := all (fun r => size r.1 == size r.2) R.
+Definition is_homogeneous R := all (fun r => size r.1 == size r.2) R.
 
 Section Rewrite.
 
 Variable R : relat A.
-Hypothesis Rhomog : is_homog R.
+Hypothesis Rhomog : is_homogeneous R.
 
 Lemma size_rewrites u v : v \in rewrites R u -> size v = size u.
 Proof.
@@ -35,20 +35,20 @@ Qed.
 
 End Rewrite.
 
-Lemma homog_undirected R : is_homog R -> is_homog (undirected R).
+Lemma homog_undirected R : is_homogeneous R -> is_homogeneous (undirected R).
 Proof.
 move/allP => /= hom; apply/allP => /= [[r1 r2]].
 by rewrite mem_undirected => /orP[] /hom/= /eqP ->.
 Qed.
 
-Lemma size_equiv R u v : is_homog R -> u = v %[mod R] -> size v = size u.
+Lemma size_equiv R u v : is_homogeneous R -> u = v %[mod R] -> size v = size u.
 Proof. by move/homog_undirected => /[swap] /size_rewrites_to. Qed.
 
 
 Section WordOfSize.
 
 Variable R : pres A.
-Hypothesis Rhomog : is_homog (prelat R).
+Hypothesis Rhomog : is_homogeneous (prelat R).
 
 Variable n : nat.
 
@@ -129,10 +129,7 @@ Qed.
 
 End WordOfSize.
 
-Theorem homog_dec (R : pres A) :
-  is_homog (prelat R) ->
-  forall u v, u \in words_of R -> v \in words_of R ->
-                                        decidable (u = v %[mod prelat R]).
+Theorem homog_dec (R : pres A) : is_homogeneous (prelat R) -> WPdecidable R.
 Proof.
 move=> homog u v uin vin.
 case: (boolP (size v == size u)) => [eqsz|neqsz].
