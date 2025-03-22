@@ -6,6 +6,7 @@ Require batch0.
 Lemma all_pres_correct : all (certpres_Ok \o check_certpres) batch0.all_pres.
 Proof. by native_cast_no_check is_true_true. Qed.
 
+Goal seq.size batch0.all_pres = (100 : nat). by []. Qed.
 Lemma all_pres_dec (P : pres int) :
   P \in [seq CP.1 | CP <- batch0.all_pres] -> WPdecidable P.
 Proof. exact: (check_seq_certpresP all_pres_correct). Qed.

@@ -180,31 +180,36 @@ Lemma spair_confluence_dec_intE :
   @spair_confluence_dec int = spair_confluence_dec_int.
 Proof. by []. Qed.
 
-Definition all_pred_npairs_rule_int (p : seq int -> seq int -> bool) (r1 r2 s1 s2 : seq int) :=
+Section WordRel.
+
+Implicit Types r s : seq int.
+Variable wrel : seq int -> seq int -> bool.
+
+Definition all_pred_npairs_rule_int r1 r2 s1 s2 :=
   let ss1 := seq.size s1 in
   all_tr (fun shift =>
       if prefix_int s1 (drop shift r1) then
-        p r2 (take shift r1 ++ s2 ++ drop (shift + ss1) r1)
+        wrel r2 (take shift r1 ++ s2 ++ drop (shift + ss1) r1)
       else true)
     (iota 0 (seq.size r1 - ss1).+1).
 
-Definition all_pred_npairs_int (p : seq int -> seq int -> bool) R :=
-  all_tr (fun r =>
-    let r1 := r.1 in let r2 := r.2 in
-    all_tr (fun s => all_pred_npairs_rule_int p r1 r2 s.1 s.2) R) R.
+Definition all_pred_npairs_int R :=
+  all_tr (fun pa => let r1 := pa.1 in let r2 := pa.2 in
+    all_tr (fun pb => all_pred_npairs_rule_int r1 r2 pb.1 pb.2) R) R.
 
-Definition all_pred_spairs_rule_int (p : seq int -> seq int -> bool) (r1 r2 s1 s2 : seq int) :=
+Definition all_pred_spairs_rule_int r1 r2 s1 s2 :=
   let sr1 := seq.size r1 in
   all_tr (fun shift =>
       if prefix_int (drop shift r1) s1 then
-        p (r2 ++ drop (sr1 - shift) s1) (take shift r1 ++ s2)
+        wrel (r2 ++ drop (sr1 - shift) s1) (take shift r1 ++ s2)
       else true)
     (iota 0 sr1).
 
-Definition all_pred_spairs_int (p : seq int -> seq int -> bool) R :=
-  all_tr (fun r =>
-    let r1 := r.1 in let r2 := r.2 in
-    all_tr (fun s => all_pred_spairs_rule_int p r1 r2 s.1 s.2) R) R.
+Definition all_pred_spairs_int R :=
+  all_tr (fun pa => let r1 := pa.1 in let r2 := pa.2 in
+    all_tr (fun pb => all_pred_spairs_rule_int r1 r2 pb.1 pb.2) R) R.
+
+End WordRel.
 
 Definition spair_confluence_loop_int fuel R :=
   (all_pred_npairs_int eqseq_int R) &&
