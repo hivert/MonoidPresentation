@@ -8,11 +8,19 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 
+
+Lemma flatten0 (T : eqType) (s : seq (seq T)) :
+  flatten s = [::] -> all (@nilp _) s.
+Proof.
+move=> /(congr1 size); rewrite size_flatten /= => /eqP/natnseq0P shape0.
+apply/(all_nthP [::]) => i _; apply/eqP.
+by rewrite -nth_shape shape0 nth_nseq if_same.
+Qed.
+
 Section AlphabetChange.
 
-Context {Alph : choiceType} (P : pres Alph).
-Implicit Type (u v w : word Alph).
-
+Context {Alph : choiceType}.
+Implicit Type (P : pres Alph) (u v w : word Alph).
 
 Variant first_occ_spec (p : pred Alph) u : Type :=
   FirstOcc a u0 u1 : all (predC p) u0 -> p a -> u = u0 ++ a :: u1
@@ -33,7 +41,7 @@ have {}before : all (predC p) (take i u).
 by exists (nth x0 u i) (take i u) (drop i.+1 u).
 Qed.
 
-Theorem simpleWPdec :
+Theorem simpleWPdec P :
   WPdecidable P -> forall u v : word Alph, decidable (u = v %[mod prelat P]).
 Proof.
 pose out := predC (mem (pgen P)).
@@ -65,10 +73,19 @@ rewrite cntu => cntv.
 have {cntv} /first_occP[b v0 v1] : has out v by rewrite has_count cntv.
 rewrite {}outwords => Pv0 /= outb eqv.
 have {outb} equv : u = v %[mod prelat P] <->
-              u0 = v0 %[mod prelat P] /\ u1 = v1 %[mod prelat P].
+                 [/\ a = b, u0 = v0 %[mod prelat P] & u1 = v1 %[mod prelat P] ].
+  rewrite {IHn u cntu}equ {v}eqv.
+  split=> [|[eqab eq0 eq1]]; first last.
+    apply: (stable_cat (@equiv_trans _ _) (@equiv_stable _ _)) => //.
+    rewrite -{}eqab -(cat1s a u1) -(cat1s a v1).
+    apply: (stable_cat (@equiv_trans _ _) (@equiv_stable _ _)) => //.
+    exact: equiv_refl.
   admit.
+case: (altP (a =P b)) => [eqab | /negbTE neqab]; first last.
+  by right; rewrite {}equv => [[/eqP]]; rewrite neqab.
+subst b.
 case: (Hdec u0 v0 Pu0 Pv0) => {Pv0} [eq0 | neq0]; first last.
-  by right; rewrite equv => [[eq0 _]]; exact: neq0.
+  by right; rewrite equv => [[_ eq0 _]]; exact: neq0.
 have : count out u = (count out u1).+1.
   move: outa; rewrite equ count_cat /= => ->; rewrite add1n.
   suff -> : count out u0 = 0 by [].
@@ -78,11 +95,11 @@ rewrite {}cntu => -[] /esym {}/IHn/(_ v1) [eq1 | neq1]; first last.
 by left; rewrite equv.
 Admitted.
 
-End AlphabetChange.
-
-Corollary eqrelat_dec (A : choiceType) (P1 P2 : pres A) :
+Corollary eqrelat_dec (P1 P2 : pres Alph) :
   prelat P1 = prelat P2 -> WPdecidable P1 -> WPdecidable P2.
 Proof. by move=> eq /simpleWPdec dec u v _ _; rewrite -eq. Qed.
+
+End AlphabetChange.
 
 
 Section Monogenic.
@@ -99,14 +116,6 @@ Admitted.
 
 End Monogenic.
 
-
-Lemma flatten0 (T : eqType) (s : seq (seq T)) :
-  flatten s = [::] -> all (@nilp _) s.
-Proof.
-move=> /(congr1 size); rewrite size_flatten /= => /eqP/natnseq0P shape0.
-apply/(all_nthP [::]) => i _; apply/eqP.
-by rewrite -nth_shape shape0 nth_nseq if_same.
-Qed.
 
 Section FreeProductMonogenicFree.
 
@@ -213,7 +222,7 @@ Context {Alph : choiceType}.
 Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
 
-Inductive piece P u : Prop :=
+Variant piece P u : Prop :=
 | PieceSameWord :
   forall p1 q1 p2 q2,
     u != p1 ++ u ++ q1 ->
@@ -397,9 +406,6 @@ Definition CertifiedPresentation := (pres Alph * PresentationCertificate)%type.
 
 End Certificate.
 
-Record decidable_presentation (Alph : choiceType) : Type :=
- DecPres { decpres : pres Alph; _ : WPdecidable decpres }.
-
 (* Examples *)
 
 Definition AB_AAAAAA_ABAABA : CertifiedPresentation :=
@@ -417,11 +423,18 @@ Definition AB_AAAAAA_ABAABA : CertifiedPresentation :=
     [::0;1]).
 Lemma AB_AAAAAA_ABAABA_dec : WPdecidable AB_AAAAAA_ABAABA.1.
 Proof.
-apply: convergent_dec.
-apply: (check_convergence_natP (fuel := 10)).
-compute.
-Fail by apply: (check_convergence_natP (fuel := 10)). (* TODO : fixme *)
-Admitted.
+set pres := AB_AAAAAA_ABAABA.1.
+pose p := if AB_AAAAAA_ABAABA.2 is CompleteRewritingSystem cert order then
+            (cert, order) else ([::], [::]).
+pose cert := p.1; pose order := p.2.
+have wfc : wfpres_cert pres cert by compute.
+apply: (isopres_dec (@iso_final_pres _ pres cert wfc)).
+apply: convergent_dec; rewrite prelat_final_pres.
+apply: (rgen_convergent (@reorderK _ _ order is_true_true) erefl).
+apply: diamond.
+  exact: (decreasing_wf (@lt_sizelexi_stable _ nat) sizelexi_nat_wf).
+exact: (spair_confluence_loopP (fuel := 10)).
+Qed.
 
 Definition AB_AAAB_A : CertifiedPresentation :=
   (make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])],
@@ -454,8 +467,6 @@ Proof. exact: (check_c3_monoid_dec (facts := [::
                      [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ]
                   ])).
 Qed.
-
-
 
 Definition all_pres := [:: AB_AAAAAA_ABAABA;
                         AB_AAAB_A;

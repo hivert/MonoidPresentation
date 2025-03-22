@@ -135,14 +135,14 @@ End RelationsTerminology.
    a rewrite system is a list of rewrite rules.
    rewrites_front_spec R u v holds when u rewrites into v by applying a rw rule
     in R to a prefix of u. *)
-Inductive rewrites_front_spec R u v : Prop :=
+Variant rewrites_front_spec R u v : Prop :=
   RewritesFront : forall (suf : word) (rule : word * word),
       u = rule.1 ++ suf -> v = rule.2 ++ suf -> rule \in R
                -> rewrites_front_spec R u v.
 
 (* rewrites_spec R u v when a rw rule in R applies rewrite u into v by applying
    a rule in R to an arbitrary subword of u *)
-Inductive rewrites_spec R u v : Prop :=
+Variant rewrites_spec R u v : Prop :=
   Rewrites : forall (pre suf : word) (rule : word * word),
       u = pre ++ rule.1 ++ suf -> v = pre ++ rule.2 ++ suf -> rule \in R
                -> rewrites_spec R u v.
@@ -268,7 +268,7 @@ Qed.
 
 (* rewrites_to u v holds when a sequence of rewriting with rules from R turns
   u into v. The sequence can be empty, i.e., the relation is reflexive *)
-Inductive rewrites_to u v : Prop :=
+Variant rewrites_to u v : Prop :=
   RewritesTo : forall pth, path (fun u v => v \in rewrites u) u pth ->
                   v = last u pth -> rewrites_to u v.
 Arguments RewritesTo {u v} (pth).
@@ -1494,12 +1494,12 @@ exists z.
 Qed.
 
 (** * Note : I include trivial spairs and npairs where u = v *)
-Inductive spair R u v : Prop :=
+Variant spair R u v : Prop :=
   SPair: forall (pre mid suf: word T) (rpre rsuf : word T * word T),
       rpre \in R -> rsuf \in R
       -> mid != [::] -> rpre.1 = pre ++ mid -> rsuf.1 = mid ++ suf
       -> u = rpre.2 ++ suf -> v = pre ++ rsuf.2 -> spair R u v.
-Inductive npair R u v : Prop :=
+Variant npair R u v : Prop :=
   NPair: forall (pre mid suf: word T) (rw rmid : word T * word T),
       rw \in R -> rmid \in R
       -> rw.1 = pre ++ mid ++ suf -> rmid.1 = mid

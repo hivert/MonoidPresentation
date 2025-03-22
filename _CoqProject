@@ -17,6 +17,9 @@ theories/certs/largestcert.v
 
 theories/certs/bbaaaabbba_abbbaa.v
 
+theories/batch/batch0.v
+theories/batch/check_batch0.v
+
 # theories/samples/notrennerB40.v
 
 # theories/autocerts/aaaaaa_abaaba.v

@@ -91,7 +91,7 @@ Qed.
 End Rewrites.
 
 
-Inductive transfo : Type :=
+Variant transfo : Type :=
   | add_gen : A -> word A -> transfo
   | add_rel : word A -> word A -> rew_cert -> transfo
   | rm_rel : nat -> rew_cert -> transfo.

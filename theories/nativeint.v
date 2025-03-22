@@ -66,7 +66,7 @@ Fact le0int x : (0 <= x)%O.
 Proof. by rewrite leintE. Qed.
 HB.instance Definition _ := Order.hasBottom.Build int_disp int le0int.
 
-Require Import present cert.
+Require Import present rewcert.
 
 Lemma wf_ltint : well_founded (<%O : rel int).
 Proof.
@@ -155,8 +155,8 @@ Proof. by []. Qed.
 
 Definition eqbool b1 b2 := Eval compute in addb (~~ b1) b2.
 Definition eqnor R fuel (p : word int * word int) :=
-  let x1 := norfuel_int R fuel p.1 in
-  let x2 := norfuel_int R fuel p.2 in
+  let x1 := norfuel2_int R fuel p.1 in
+  let x2 := norfuel2_int R fuel p.2 in
   if eqseq_int x1.1 x2.1 then eqbool x1.2 x2.2 else false.
 
 Definition spair_confluence_dec_int fuel R :=
