@@ -14,7 +14,10 @@
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
 From HB Require Import structures.
-From mathcomp Require Import all_ssreflect.
+From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat seq eqtype
+  choice path bigop.
+(*From mathcomp Require Import order.
+From mathcomp Require Import all_ssreflect. *)
 
 Require Import monoids.
 
@@ -565,7 +568,9 @@ apply (iffP idP) => [/andP[/eqP eqp /eqP eqr] | [-> ->]]; last by rewrite !eqxx.
 by subst r2 p2; rewrite (bool_irrelevance g2 g1) (bool_irrelevance l2 l1).
 Qed.
 HB.instance Definition _ := hasDecEq.Build (@pres A) eq_presP.
-
+Lemma eqpresE R1 R2 :
+  (pgen R1 == pgen R2) && (prelat R1 == prelat R2) = (R1 == R2).
+Proof. by []. Qed.
 
 (* TODO: improve this name *)
 Definition words_of R := [pred w | all (mem (pgen R)) w].
@@ -1872,6 +1877,13 @@ by rewrite !all_rev all1 all2.
 Qed.
 Definition dual_pres R := Pres (uniq_pgen R) (dual_pres_subproof R).
 
+Lemma dual_presK R : dual_pres (dual_pres R) = R.
+Proof.
+apply/eqP; rewrite -eqpresE /= eqxx /= /dual_relats -map_comp.
+rewrite (eq_map (g := id)) ?map_id // => [[x1 x2]].
+by rewrite /dual_relat /= !revK.
+Qed.
+
 Lemma dual_pres_rewritesE R u v :
   (rev v \in rewrites (prelat (dual_pres R)) (rev u)) =
     (v \in rewrites (prelat R) u).
@@ -1883,6 +1895,23 @@ Proof. exact: rev_rewrites_toE. Qed.
 Lemma dual_pres_equivE R u v :
   rev u = rev v %[mod prelat (dual_pres R)] <-> u = v %[mod prelat R].
 Proof. exact: rev_equivE. Qed.
+Lemma dual_pres_equiv_impl R u v :
+  rev u = rev v %[mod prelat (dual_pres R)] -> u = v %[mod prelat R].
+Proof. by rewrite dual_pres_equivE. Qed.
+Lemma dual_pres_equiv_implK R u v :
+  u = v %[mod prelat R] -> rev u = rev v %[mod prelat (dual_pres R)].
+Proof. by rewrite dual_pres_equivE. Qed.
+
+Lemma dual_decK R : WPdecidable (dual_pres R) -> WPdecidable R.
+Proof.
+have revw w : w \in words_of R -> rev w \in words_of R.
+  by rewrite /words_of !unfold_in /= => H /[!all_rev].
+move=> dec u v /revw/dec+/revw => /[apply].
+case => [|Hrev]; first by move/dual_pres_equiv_impl; left. (* Univ inconsistency *)
+by right=> H; apply: Hrev; rewrite dual_pres_equivE.
+Qed.
+Lemma dual_dec R : WPdecidable R -> WPdecidable (dual_pres R).
+Proof. rewrite -{1}(dual_presK R); exact: dual_decK. Qed.
 
 End DualPres.
 
@@ -2047,6 +2076,8 @@ Definition rgen_pres_convergent := rgen_convergent newgK prelat_rgenE.
 
 End RenameGenDefs.
 
+
+From mathcomp Require Import order.
 
 Import Order.TTheory.
 Import Order.LexiSyntax.
