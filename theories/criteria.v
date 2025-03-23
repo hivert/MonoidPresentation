@@ -112,6 +112,7 @@ Implicit Type (P : pres Alph).
 Definition monogenic P : bool := size (pgen P) == 1.
 
 Theorem monogenic_dec P : monogenic P -> WPdecidable P.
+(* TODO : Confined in a^m where m is the size of the largest relation word *)
 Admitted.
 
 End Monogenic.
@@ -252,6 +253,7 @@ Definition pieces P :=
 Lemma piecesP P u :
   reflect (piece P u) (u \in pieces P).
 Proof.
+(* TODO *)
 Admitted.
 
 Definition small_overlap (n : nat) P :=
@@ -259,6 +261,12 @@ Definition small_overlap (n : nat) P :=
      forall f : seq (word Alph),
      (forall w, w \in f -> piece P w) ->
        u = flatten f -> size f >= n.
+
+Lemma small_overlapW P n1 n2 :
+  n1 >= n2 -> small_overlap n1 P -> small_overlap n2 P.
+Proof.
+by move=> leqn12 Hso u /[swap] f {}/Hso/[apply]/[apply]/(leq_trans leqn12).
+Qed.
 
 (** u is a greedy prefix of v for the pieces accepted by p *)
 Definition is_greedy_prefix (p : pred (word Alph)) u v :=
@@ -282,25 +290,17 @@ Definition check_small_overlap n P facts :=
 Lemma check_small_overlapP n P facts :
   check_small_overlap n P facts -> small_overlap n P.
 Proof.
+(* TODO: greedy factorization is shorter than any other one *)
 Admitted.
 
 
 (* Section 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
-Theorem c3_monoid_dec P :
-  small_overlap 3 P -> WPdecidable P.
-Admitted.
-
-(* Section 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
-Theorem c4_monoid_dec P :
-  small_overlap 4 P -> WPdecidable P.
+Theorem c3_monoid_dec P : small_overlap 3 P -> WPdecidable P.
 Admitted.
 
 Corollary check_c3_monoid_dec P facts :
   check_small_overlap 3 P facts -> WPdecidable P.
 Proof. by move/check_small_overlapP/c3_monoid_dec. Qed.
-Corollary check_c4_monoid_dec P facts :
-  check_small_overlap 4 P facts -> WPdecidable P.
-Proof. by move/check_small_overlapP/c4_monoid_dec. Qed.
 
 End SmallOverlap.
 
@@ -394,7 +394,7 @@ Variant PresentationCertificate :=
   | FreeProductMonogenicAndFree
     (* repeted letter *)
   | EqualNumberOfOccurences of Alph
-    (* list of factorization of the relations words in the order of P *)
+    (* list of factorization of the relations words in the order of relwords P *)
   | SmallOverlap of seq (seq word)
   | Homogeneous. (* Not used in the database *)
 
