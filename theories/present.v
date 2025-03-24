@@ -868,7 +868,9 @@ have [RS RSinv] := isopresP iso uR vR.
 case: (decS _ _ uS vS) => [/RS uv| uv]; first by left.
 by right => H; apply uv; apply: RSinv.
 Qed.
-
+Lemma isopres_decK A B (R : pres A) (S : pres B) :
+  isopres R S -> WPdecidable R -> WPdecidable S.
+Proof. by move/isopres_sym/isopres_dec. Qed.
 
 Section IsopresTheory.
 
