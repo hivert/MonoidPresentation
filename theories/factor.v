@@ -8,6 +8,57 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 
+Section LongestPrefix.
+
+Context {Alph : choiceType}.
+
+Implicit Type (u v w : word Alph).
+
+Fixpoint long_cprefix u v :=
+  if (u, v) is (u0 :: u', v0 :: v') then
+    if u0 == v0 then u0 :: long_cprefix u' v'
+    else [::]
+  else [::].
+Definition long_csuffix u v :=
+  rev (long_cprefix (rev u) (rev v)).
+
+Lemma long_cprefixC u v : long_cprefix u v = long_cprefix v u.
+Proof.
+elim: u v => [|u0 u IHu] [|v0 v] //=; rewrite {}IHu eq_sym.
+by case: eqP => [->|].
+Qed.
+
+Lemma long_cprefixl u v : prefix (long_cprefix u v) u.
+Proof.
+elim: u v => [|u0 u IHu] [|v0 v] //=.
+by case: eqP => [->|//]; rewrite eqxx IHu.
+Qed.
+Lemma long_cprefixr u v : prefix (long_cprefix u v) v.
+Proof. by rewrite long_cprefixC long_cprefixl. Qed.
+Lemma long_cprefixP u v w :
+  prefix w u -> prefix w v -> prefix w (long_cprefix u v).
+Proof.
+elim: u v w => [|u0 u IHu] [|v0 v] [|w0 w] //=.
+  by move=> _ _; exact: prefix0s.
+case/andP => /eqP -> {}/IHu IH; case/andP => /eqP -> {}/IH /=.
+by rewrite eqxx /= eqxx /=.
+Qed.
+
+Lemma long_csuffixC u v : long_csuffix u v = long_csuffix v u.
+Proof. by rewrite /long_csuffix long_cprefixC. Qed.
+Lemma long_csuffixl u v : suffix (long_csuffix u v) u.
+Proof. by rewrite /long_csuffix suffix_revLR long_cprefixl. Qed.
+Lemma long_csuffixr u v : suffix (long_csuffix u v) v.
+Proof. by rewrite /long_csuffix suffix_revLR long_cprefixr. Qed.
+Lemma long_csuffixP u v w :
+  suffix w u -> suffix w v -> suffix w (long_csuffix u v).
+Proof.
+rewrite /long_csuffix -prefix_revLR => pru prv.
+by apply: long_cprefixP; rewrite prefix_rev.
+Qed.
+
+End LongestPrefix.
+
 Section Factor.
 
 Context {Alph : choiceType}.
