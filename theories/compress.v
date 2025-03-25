@@ -73,29 +73,58 @@ move/Hall => /= /andP[allr1 allr2].
 by rewrite !strong_compress_in.
 Qed.
 Definition strong_compress_pres P k : pres (word Alph) :=
-  Pres (allwords (pgen P) k) _ (allwords_uniq k (uniq_pgen P))
+  Pres
+    (allwords (pgen P) k)
+    [seq (strong_compress k r.1, strong_compress k r.2) | r <- prelat P]
+    (allwords_uniq k (uniq_pgen P))
     (correctrelat_strong_compress P k).
 
 Theorem StrongCompress_dec (P : pres Alph) :
   forall a b u v,
     pgen P = [:: a; b] -> prelat P = [:: (a :: u, a :: v)] ->
-    let k := seq.size (long_cprefix (a :: u) (a :: v)) in
-    k <= seq.size (long_csuffix (a :: u) (a :: v)) ->
-    WPdecidable (strong_compress_pres P k) -> WPdecidable P.
+    let l := seq.size (long_cprefix (a :: u) (a :: v)) in
+    l <= seq.size (long_csuffix (a :: u) (a :: v)) ->
+    WPdecidable (strong_compress_pres P l.+1) -> WPdecidable P.
 Admitted.
-
-
-(* strong compress and subtitute *)
-Fixpoint StCS k w u :=
-  if u is u0 :: u' then
-    if seq.size u < k then [::]
-    else (take k u == w) :: StCS k w u'
-  else [::].
-
-Definition StCSubs k w (subs : bool -> Alph) u :=
-  [seq subs i | i <- StCS k w u].
 
 End StrongCompress.
 
-Eval compute in StCSubs 3 [:: 1; 0; 1] (fun x => if x then 1 else 0)
-                  [:: 1; 1; 0; 1; 0; 1; 1; 1; 0; 0; 1; 0].
+
+Section ReduceTo2letters.
+
+Context {Alph Beta : choiceType}.
+
+Implicit Type (u v w : word Alph).
+
+(* map w to a and all other to b *)
+Variables (P : pres Alph) (w : Alph) (a b : Beta).
+Hypothesis neqab : a != b.
+
+
+Definition word_to2letters u :=
+  [seq if l == w then a else b | l <- u].
+Definition rel2letters :=
+  [seq (word_to2letters r.1, word_to2letters r.2) | r <- prelat P].
+
+Fact uniq_ab : uniq [:: a; b].
+Proof. by rewrite /= inE neqab. Qed.
+Fact correct_rel2letters : correctrelat rel2letters (mem [:: a; b]).
+Proof.
+apply/allP => /= -[s1 s2] /= /mapP[/= [r1 r2] _ [{s1}-> {s2}->]].
+by apply/andP; split; apply/allP => y /mapP[x _] /=; case: eqP => _ ->;
+  rewrite !inE eqxx //= orbT.
+Qed.
+Definition reduce2letters :=
+  Pres [:: a; b] rel2letters uniq_ab correct_rel2letters.
+
+End ReduceTo2letters.
+
+
+Definition testpres :=
+  make_pres [:: 1; 0] [:: ([:: 0;0;1;1;1], [:: 0;1;0;1;1;1])].
+Definition compressed := strong_compress_pres testpres 2.
+
+Definition reduced := @reduce2letters _ _ compressed [:: 0; 0] 0 1 is_true_true.
+
+Eval compute in prelat compressed.
+Eval compute in prelat reduced.

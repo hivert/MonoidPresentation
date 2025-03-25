@@ -29,6 +29,9 @@ Variant CheckCertifiedPresentationError :=
   | CPOccError
   | CPSmallOverlapError
   | CPHomogeneousError  (* Not used in the database *)
+      (* Recursive cases *)
+  | CPGeneratorMissmatchError
+  | CPRelationMissmatchError
   | CPNotImplemented.
 
 
@@ -111,13 +114,6 @@ Notation make_chkpres G R C :=
 Lemma chkpres_dec (cp : checked_presentation) : WPdecidable cp.
 Proof. case: cp => P C H; exact: (check_certpresP H). Qed.
 
-Record decidable_presentation (Alph : choiceType) : Type :=
-  DecPres { decpres : pres Alph; _ : WPdecidable decpres }.
-Definition make_decidable_presentation P (H : certpres_Ok (check_certpres P))
-  : decidable_presentation _ := DecPres (check_certpresP H).
-Notation make_decpres G R C :=
-  (make_decidable_presentation (P := (make_pres G R, C)) is_true_true).
-
 Lemma check_seq_certpresP (l : seq (@CertifiedPresentation int)) :
   all (certpres_Ok \o check_certpres) l ->
   forall (P : pres int), P \in [seq CP.1 | CP <- l] -> WPdecidable P.
@@ -126,10 +122,63 @@ elim: l => // l0 l IHl /= /andP[/check_certpresP dec0 {}/IHl Hl] P.
 by rewrite inE; case: eqP => [-> //|_ /=]; apply: Hl.
 Qed.
 
+
+Record decidable_presentation (Alph : choiceType) : Type :=
+  DecPres { decpres :> pres Alph; _ : WPdecidable decpres }.
+Definition make_decidable_presentation P (H : certpres_Ok (check_certpres P))
+  : decidable_presentation _ := DecPres (check_certpresP H).
+Notation make_decpres PC := (make_decidable_presentation (P := PC) is_true_true).
+
+
+Variant recursive_certificate (Alph : choiceType) :=
+  (* apply rev to all relation words keeping the gens and relation order *)
+  | Reverse
+  (* reorder the generator and relation -- WARNING : very slow if needed *)
+  | Reorder
+  (* params : the word which is kept and sent to a which letter among 0 and 1 *)
+  | StronglyCompressAndReduced of word Alph & Alph.
+
+Definition RecursivelyCertifiedPresentation (Alph : choiceType) : Type :=
+  (pres Alph * (decidable_presentation Alph * recursive_certificate Alph)).
+
+
+Definition check_reccertpres (CP : @RecursivelyCertifiedPresentation int) :=
+  let: (P, (recP, PC)) := CP in match PC with
+  | Reverse =>
+     if pgen P != (pgen recP) then CPGeneratorMissmatchError
+     else if prelat P != dual_relats (prelat recP) then CPRelationMissmatchError
+          else CPOk
+  | Reorder =>
+     if ~~ perm_eq (pgen P) (pgen recP) then CPGeneratorMissmatchError
+     else if ~~ perm_eq (prelat P) (prelat recP) then CPRelationMissmatchError
+          else CPOk
+  | StronglyCompressAndReduced w l =>
+      CPNotImplemented
+  end.
+
+Lemma check_reccertpresP P :
+  certpres_Ok (check_reccertpres P) -> WPdecidable P.1.
+Proof.
+rewrite /check_reccertpres; case: P => pres [prec []] //.
+- case: eqP => eqgen //=; case: eqP => eqrel //= _.
+  suff -> : pres = dual_pres prec by apply: dual_dec; case prec.
+  by apply/eqP; rewrite -eqpresE eqgen /= -eqrel !eqxx.
+- case: (boolP (perm_eq _ _)) => permgen //=.
+  case: (boolP (perm_eq _ _)) => permrel //= _.
+  apply: (isopres_dec (pres_irrelevance_perm_eq permgen permrel)).
+  by case prec.
+Qed.
+
+Definition make_recursively_decidable_presentation P
+  (H : certpres_Ok (check_reccertpres P))
+  : decidable_presentation _ := DecPres (check_reccertpresP H).
+Notation make_recdecpres PC :=
+  (make_recursively_decidable_presentation (P := PC) is_true_true).
+
+
 Definition AB_AAAAAA_ABAABA :=
-  make_decpres [::0;1]
-     [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])]
-  (CompleteRewritingSystem
+  (make_pres [::0;1] [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])],
+  CompleteRewritingSystem
     [::
        add_rel [::0;1;0;0;1;0] [::0;0;0;0;0;0]
          [:: RTriple 0 0 false];
@@ -139,3 +188,11 @@ Definition AB_AAAAAA_ABAABA :=
        rm_rel 0
          [:: RTriple 0 0 false]]
     [::0;1]).
+
+Definition AB_AAAAAA_ABAABA_dec := @make_decpres AB_AAAAAA_ABAABA.
+
+Definition AB_AAAAAA_ABAABA_rec :=
+  (make_pres [::0;1] [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])],
+    (AB_AAAAAA_ABAABA_dec, @Reverse int)).
+Definition AB_AAAAAA_ABAABA_dec_rec := @make_recdecpres AB_AAAAAA_ABAABA_rec.
+
