@@ -235,7 +235,7 @@ Variant piece P u : Prop :=
     w1 != w2 ->
     w1 \in relwords P ->
     w2 \in relwords P ->
-    factor w1 u -> factor w2 u
+    infix w1 u -> infix w2 u
     -> piece P u.
 
 Fixpoint piece_pair (once twice facts : seq (word Alph)) :=
@@ -247,7 +247,7 @@ Fixpoint piece_pair (once twice facts : seq (word Alph)) :=
 
 Definition pieces P :=
   (foldl (fun once_twice w => piece_pair once_twice.1 once_twice.2
-                               (non_empty_factors w))
+                               (non_empty_infixes w))
     ([::], [::]) (relwords P)).2.
 
 Lemma piecesP P u :
@@ -354,11 +354,11 @@ Variant isWatier P :=
   | IsWatier : forall (a b : Alph) (u v : word Alph) (k : nat),
       a != b -> pgen P = [:: a; b] ->
       prelat P = [:: (nseq k b ++ a :: u, a :: v)] ->
-      ~~ factor (nseq k b) u -> isWatier P.
+      ~~ infix (nseq k b) u -> isWatier P.
 Definition check_Watier P (a b : Alph) (u v : word Alph) (k : nat) :=
   [&& a != b, pgen P == [:: a; b],
     prelat P == [:: (nseq k b ++ a :: u, a :: v)] &
-      ~~ factor (nseq k b) u].
+      ~~ infix (nseq k b) u].
 Lemma check_WatierP P a b u v k : check_Watier P a b u v k -> isWatier P.
 Proof. by case/and4P => H1 /eqP H2 /eqP H3 H4; exists a b u v k. Qed.
 

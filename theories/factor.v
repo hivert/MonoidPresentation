@@ -14,6 +14,9 @@ Context {Alph : choiceType}.
 
 Implicit Type (u v w : word Alph).
 
+Lemma prefix_sizeE u v : prefix u v -> size u >= size v -> u = v.
+Proof. by rewrite prefixE => /eqP {2}<- /take_oversize. Qed.
+
 Fixpoint long_cprefix u v :=
   if (u, v) is (u0 :: u', v0 :: v') then
     if u0 == v0 then u0 :: long_cprefix u' v'
@@ -59,39 +62,13 @@ Qed.
 
 End LongestPrefix.
 
-Section Factor.
+
+Section Infixes.
 
 Context {Alph : choiceType}.
 
 Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
-
-(* u is an factor of w *)
-Fixpoint factor u w :=
-  if w is w0 :: w' then prefix u w || factor u w' else u == [::].
-
-Lemma factor0w w : factor [::] w.
-Proof. by case: w. Qed.
-Lemma factor_catl u v : factor u (u ++ v).
-Proof.
-elim: u => [|u0 u IHu] /=; first exact: factor0w.
-by rewrite eqxx prefix_prefix.
-Qed.
-Lemma factorP u w :
-  reflect (exists pre suf, w = pre ++ u ++ suf) (factor u w).
-Proof.
-apply (iffP idP).
-- elim: w u => [| w0 w IHw] u.
-    by case: u => [| u0 u] //= _; exists [::]; exists [::].
-  move=>/orP[/prefixP[v ->] |]; first by exists [::]; exists v.
-  move/IHw => [pre][suf] eq; exists (w0 :: pre); exists suf.
-  by rewrite eq.
-- elim: w u => [| w0 w IHw] u [pre][suf].
-    move/(congr1 size); rewrite /= !size_cat addnC -addnA => /esym eq.
-    by apply/eqP/nilP; rewrite /nilp -leqn0 -eq leq_addr.
-  case: pre => [-> | p0 pre /= [_ eq]]; first by rewrite factor_catl.
-  by apply/orP; right; apply IHw; exists pre; exists suf.
-Qed.
 
 Definition prefixes u := [seq take i u | i <- iota 0 (size u).+1].
 Definition non_empty_prefixes u := behead (prefixes u).
@@ -131,54 +108,54 @@ rewrite prefixesP prefixes_non_emtpyE.
 by case: u => //=; rewrite (negbTE (non_empty_prefixes0 _)).
 Qed.
 
-Fixpoint factors u :=
-  prefixes u ++ if u is _ :: u' then behead (factors u') else [::].
-Definition non_empty_factors u := behead (factors u).
+Fixpoint infixes u :=
+  prefixes u ++ if u is _ :: u' then behead (infixes u') else [::].
+Definition non_empty_infixes u := behead (infixes u).
 
-Lemma factor0s u : [::] \in factors u.
+Lemma infixe0s u : [::] \in infixes u.
 Proof. by case: u. Qed.
-Lemma head_factors x0 u : head x0 (factors u) = [::].
+Lemma head_infixes x0 u : head x0 (infixes u) = [::].
 Proof. by case: u. Qed.
-Lemma factors_cons (u0 : Alph) u :
-  factors (u0 :: u) = prefixes (u0 :: u) ++ behead (factors u).
+Lemma infixes_cons (u0 : Alph) u :
+  infixes (u0 :: u) = prefixes (u0 :: u) ++ behead (infixes u).
 Proof. by []. Qed.
 
-Lemma non_empty_factors0 u : [::] \notin non_empty_factors u.
+Lemma non_empty_infixes0 u : [::] \notin non_empty_infixes u.
 Proof.
-rewrite /non_empty_factors; elim: u => [|u0 u IHu] //.
-rewrite factors_cons prefixes_non_emtpyE [non_empty_prefixes _]lock /=.
+rewrite /non_empty_infixes; elim: u => [|u0 u IHu] //.
+rewrite infixes_cons prefixes_non_emtpyE [non_empty_prefixes _]lock /=.
 by unlock; rewrite mem_cat (negbTE (non_empty_prefixes0 _)) IHu.
 Qed.
 
-Lemma factors_non_emtpyE u : factors u = [::] :: (non_empty_factors u).
-Proof. by rewrite /non_empty_factors; case: u. Qed.
+Lemma infixes_non_emtpyE u : infixes u = [::] :: (non_empty_infixes u).
+Proof. by rewrite /non_empty_infixes; case: u. Qed.
 
-Lemma factorsP u v : (factor u v) = (u \in factors v).
+Lemma infixesP u v : (infix u v) = (u \in infixes v).
 Proof.
-apply/factorP/idP => [[pre][suf] {v}-> | ].
+apply/infixP/idP => [[pre][suf] {v}-> | ].
 - elim: pre => [| p0 p IHp].
-    case: u => [| u0 u]; first exact: factor0s.
-    rewrite cat0s [_ ++ _]/= factors_cons mem_cat /=.
+    case: u => [| u0 u]; first exact: infixe0s.
+    rewrite cat0s [_ ++ _]/= infixes_cons mem_cat /=.
     by rewrite -prefixesP /= eqxx /= prefix_prefix.
-  rewrite [_ ++ _]/= factors_cons mem_cat;
-  move: IHp; rewrite factors_non_emtpyE /=.
+  rewrite [_ ++ _]/= infixes_cons mem_cat;
+  move: IHp; rewrite infixes_non_emtpyE /=.
   by case: u => [|u0 u] //=; rewrite inE => /orP[/eqP// | ->] /[!orbT].
 - elim: v u => [| v0 v IHv] u.
     by rewrite /= inE => /eqP ->; exists [::]; exists [::].
   case: u => [_ | u0 u]; first by exists [::]; exists (v0 :: v).
-  rewrite factors_cons mem_cat => /orP[{IHv} |].
+  rewrite infixes_cons mem_cat => /orP[{IHv} |].
     rewrite -prefixesP => /= /andP[/eqP {v0}<-] /prefixP[w {v}->].
     by exists [::]; exists w.
   move=> /mem_behead {}/IHv [pre][suf]{v}->.
   by exists (v0 :: pre); exists suf.
 Qed.
 
-Lemma non_empty_factorsP u v :
-  ((u != [::]) && factor u v) = (u \in non_empty_factors v).
+Lemma non_empty_infixesP u v :
+  ((u != [::]) && infix u v) = (u \in non_empty_infixes v).
 Proof.
-rewrite factorsP factors_non_emtpyE.
-by case: u => //=; rewrite (negbTE (non_empty_factors0 _)).
+rewrite infixesP infixes_non_emtpyE.
+by case: u => //=; rewrite (negbTE (non_empty_infixes0 _)).
 Qed.
 
-End Factor.
+End Infixes.
 
