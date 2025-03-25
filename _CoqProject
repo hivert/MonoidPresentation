@@ -15,10 +15,11 @@ theories/criteria.v
 theories/compress.v
 theories/batchchecker.v
 
-theories/certs/largestcert.v
-theories/certs/bbaaaabbba_abbbaa.v
+# theories/certs/largestcert.v
+# theories/certs/bbaaaabbba_abbbaa.v
 
-# theories/samples/notrennerB40.v
+# theories/samples/rennertypeD41.v
+# theories/samples/rennertypeD51.v
 
 # theories/autocerts/aaaaaa_abaaba.v
 # theories/autocerts/aaaaaaa_bbbabbb.v

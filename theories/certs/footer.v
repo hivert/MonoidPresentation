@@ -1,3 +1,6 @@
+From mathcomp Require Import order.
+
+
 Theorem isopres_final : isopres present_entry present_final.
 Proof.
 have wfc : wfpres_cert present_entry cert by vm_cast_no_check is_true_true.
@@ -6,6 +9,7 @@ apply: pres_irrelevance.
   by rewrite (pgen_final_pres wfc).
 by rewrite (prelat_final_pres wfc).
 Time Qed.
+
 
 Theorem final_ok : convergent (prelat present_final).
 Proof.

@@ -1,7 +1,9 @@
 (** Presentation isomorphism certificate / To be extracted from James database *)
 From HB Require Import structures.
-From mathcomp Require Import all_ssreflect all_algebra.
-Require Import monoids present.
+From Coq Require Import Uint63.
+From mathcomp Require Import all_ssreflect.
+Require Import int_seq monoids present.
+
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -9,7 +11,7 @@ Unset Printing Implicit Defensive.
 
 
 Lemma perm_eq_move_to_end (T : eqType) (x0 : T) (s : seq T) (n : nat) :
-  n < size s ->  perm_eq (rcons (take n s ++ drop n.+1 s) (nth x0 s n)) s.
+  n < size s -> perm_eq (rcons (take n s ++ drop n.+1 s) (nth x0 s n)) s.
 Proof.
 move=> ltnsz.
 rewrite -cats1 -catA -[X in perm_eq _ X](cat_take_drop n s) perm_cat2l perm_catC.
@@ -32,7 +34,7 @@ Implicit Types (u v w : word A).
 
 (** Apply relation no nrel at position pos in direction dir *)
 Record rew_triple : Type := RTriple {
-  nrel : nat;
+  nrel : PrimInt63.int;
   pos : nat;
   dirrel : bool; (* true means left to right rewriting *)
 }.
@@ -42,20 +44,24 @@ Definition rew_cert := seq rew_triple.
 Section ApplyTriple.
 Variables (w : word A) (c : rew_triple).
 
-Definition wf_triple := [&& pos c <= size w, nrel c < size R &
-    let (r1, r2) := nth ([::], [::]) R (nrel c) in
-    let src := if dirrel c then r1 else r2 in
-      take (size src) (drop (pos c) w) == src].
+Definition wf_triple :=
+  (pos c <= size w) &&
+    (if onth_int R (nrel c) is Some (r1, r2) then
+       let src := if dirrel c then r1 else r2 in
+       take (size src) (drop (pos c) w) == src
+     else false).
 Definition apply_triple :=
-    let (r1, r2) := nth ([::], [::]) R (nrel c) in
+  if onth_int R (nrel c) is Some (r1, r2) then
     let src := if dirrel c then r1 else r2 in
     let dst := if dirrel c then r2 else r1 in
-    take (pos c) w ++ dst ++ drop (pos c + size src) w.
+    take (pos c) w ++ dst ++ drop (pos c + size src) w
+  else [::].
 
 Lemma apply_tripleP : wf_triple -> apply_triple \in rewrites (undirected R) w.
 Proof.
-rewrite /apply_triple; case/and3P => ltpre /(mem_nth ([::], [::])).
-case: nth => /= r1 r2 rinR.
+rewrite /apply_triple; case/andP => ltpre.
+have /= := onth_int_mem R (nrel c).
+case: (onth_int R (nrel c)) => [/=[r1 r2] /(_ _ erefl) rinR|] //.
 set src := if _ then _ else _; set dst := if _ then _ else _.
 have Rin : (src, dst) \in (undirected R).
   by rewrite {}/src {}/dst mem_undirected; case: dirrel; rewrite rinR // orbT.

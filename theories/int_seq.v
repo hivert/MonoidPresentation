@@ -69,7 +69,7 @@ End Int.
 
 Section Seq.
 
-Variable T : eqType.
+Context {T : eqType}.
 Implicit Types (s : seq T) (n : int) (x : T).
 
 
