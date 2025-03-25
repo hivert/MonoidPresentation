@@ -20,17 +20,17 @@ theories/recursive.v
 theories/batches/CompleteRewritingSystem100
 theories/batches/CheckedCompleteRewritingSystem100
 
-theories/batches/CompleteRewritingSystem200
-theories/batches/CheckedCompleteRewritingSystem200
+# theories/batches/CompleteRewritingSystem200
+# theories/batches/CheckedCompleteRewritingSystem200
 
-theories/batches/CompleteRewritingSystem500
-theories/batches/CheckedCompleteRewritingSystem500
+# theories/batches/CompleteRewritingSystem500
+# theories/batches/CheckedCompleteRewritingSystem500
 
-theories/batches/CompleteRewritingSystem1000
-theories/batches/CheckedCompleteRewritingSystem1000
+# theories/batches/CompleteRewritingSystem1000
+# theories/batches/CheckedCompleteRewritingSystem1000
 
-theories/batches/CompleteRewritingSystem5000
-theories/batches/CheckedCompleteRewritingSystem5000
+# theories/batches/CompleteRewritingSystem5000
+# theories/batches/CheckedCompleteRewritingSystem5000
 
-theories/batches/CompleteRewritingSystem10000
-theories/batches/CheckedCompleteRewritingSystemx10000
+# theories/batches/CompleteRewritingSystem10000
+# theories/batches/CheckedCompleteRewritingSystemx10000
