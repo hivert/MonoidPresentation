@@ -26,15 +26,8 @@ Makefile.coq.conf
 .Makefile.coq.d
 .Makefile.d
 .lia.cache
-3rdparty/ALEA/.lia.cache
 *.cmi
 *.cmo
 *.cmx
 *.o
 TAGS
-scripts/ocamldot
-scripts/ocamldot.ml
-src/LRrule/lrcoeff.ml
-src/LRrule/lrcoeff.mli
-src/LRrule/schensted.ml
-src/LRrule/schensted.mli
