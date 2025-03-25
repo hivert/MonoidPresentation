@@ -11,8 +11,8 @@ theories/homogeneous.v
 theories/rewcert.v
 theories/fastcert.v
 theories/criteria.v
+theories/compress.v
 theories/batchchecker.v
-theories/recursive.v
 
 theories/certs/largestcert.v
 theories/certs/bbaaaabbba_abbbaa.v
