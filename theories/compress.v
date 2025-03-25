@@ -79,12 +79,14 @@ Definition strong_compress_pres P k : pres (word Alph) :=
     (allwords_uniq k (uniq_pgen P))
     (correctrelat_strong_compress P k).
 
-Theorem StrongCompress_dec (P : pres Alph) :
+(* The assumption that both side of the relation starts with a implies
+   that k >= 1, which in turn implies that there is a non trivial common suffix *)
+Theorem strong_compress_dec (P : pres Alph) :
   forall a b u v,
-    pgen P = [:: a; b] -> prelat P = [:: (a :: u, a :: v)] ->
-    let l := seq.size (long_cprefix (a :: u) (a :: v)) in
-    l <= seq.size (long_csuffix (a :: u) (a :: v)) ->
-    WPdecidable (strong_compress_pres P l.+1) -> WPdecidable P.
+    pgen P = [:: a; b] -> prelat P = [:: (a :: u, a :: v)] -> u != v ->
+    let k := seq.size (long_cprefix (a :: u) (a :: v)) in
+    k <= seq.size (long_csuffix (a :: u) (a :: v)) ->
+    WPdecidable (strong_compress_pres P k.+1) -> WPdecidable P.
 Admitted.
 
 End StrongCompress.
@@ -96,13 +98,12 @@ Context {Alph Beta : choiceType}.
 
 Implicit Type (u v w : word Alph).
 
-(* map w to a and all other to b *)
-Variables (P : pres Alph) (w : Alph) (a b : Beta).
+(* map A to a and all other to b *)
+Variables (P : pres Alph) (A : Alph) (a b : Beta).
 Hypothesis neqab : a != b.
 
-
-Definition word_to2letters u :=
-  [seq if l == w then a else b | l <- u].
+Definition word_to2letters U :=
+  [seq if l == A then a else b | l <- U].
 Definition rel2letters :=
   [seq (word_to2letters r.1, word_to2letters r.2) | r <- prelat P].
 
@@ -117,8 +118,75 @@ Qed.
 Definition reduce2letters :=
   Pres [:: a; b] rel2letters uniq_ab correct_rel2letters.
 
+Theorem reduce2letters_dec :
+  forall B U V,
+    A != B -> prelat P = [:: (A :: U, B :: V)] ->
+    WPdecidable reduce2letters -> WPdecidable P.
+Admitted.
+
 End ReduceTo2letters.
 
+
+Section StrongCompressAndReduce.
+
+Context {Alph : choiceType}.
+Variable (P : pres Alph).
+Variable (a b : Alph) (u v : word Alph).
+Hypothesis
+  (nequv : u != v)
+  (Hgen : pgen P = [:: a; b])
+  (Hrel : prelat P = [:: (a :: u, a :: v)]).
+
+Let k := seq.size (long_cprefix (a :: u) (a :: v)).
+Let strcA := take k.+1 (a :: u).
+Let strcB := take k.+1 (a :: v).
+
+Lemma kneq0 : k > 0.
+Proof. by rewrite /k /= eqxx. Qed.
+Lemma strcAneqB : strcA != strcB.
+Proof.
+rewrite /strcA /strcB /k /= eqxx /= eqseq_cons eqxx /=.
+move: nequv; apply contra => /eqP eq.
+have := prefix_take u (seq.size (long_cprefix u v)).+1.
+have := prefix_take v (seq.size (long_cprefix u v)).+1.
+rewrite -eq => pru prv.
+have /size_prefix := long_cprefixP pru prv.
+rewrite size_take; case: ltnP => [|_]; first by rewrite long_cprefixC ltnn.
+move/(prefix_sizeE (long_cprefixr v u)) <-.
+rewrite eq in pru prv.
+have /size_prefix := long_cprefixP pru prv.
+rewrite size_take; case: ltnP => [|_]; first by rewrite long_cprefixC ltnn.
+by move/(prefix_sizeE (long_cprefixl v u)) => {2}<-.
+Qed.
+
+Context {B : choiceType} (x y : B) (neqxy : x != y).
+
+Definition compress_reduce : pres B :=
+  reduce2letters (strong_compress_pres P k.+1) strcA neqxy.
+
+Theorem compress_reduce_dec :
+  WPdecidable compress_reduce -> WPdecidable P.
+Proof.
+move=> Hdec.
+have : WPdecidable (strong_compress_pres P k.+1).
+  pose U := strong_compress k.+1 u.
+  pose V := strong_compress k.+1 v.
+  move/(reduce2letters_dec (U := U) (V := V) strcAneqB): Hdec; apply.
+  rewrite /= Hrel /= !ltnS !ltnNge.
+(*  
+  apply: strong_compress_dec.
+have : WPdecidable (strong_compress_pres P k).
+
+
+
+  rewrite /compress_reduce => H.
+apply (reduce2letters_dec strcAneqB).
+
+apply (reduce2letters_dec strcAneqB (neqab := neqxy)).
+*)
+Abort.
+
+End StrongCompressAndReduce.
 
 Definition testpres :=
   make_pres [:: 1; 0] [:: ([:: 0;0;1;1;1], [:: 0;1;0;1;1;1])].
