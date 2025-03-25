@@ -1,7 +1,7 @@
 (** Native int is a well founded choice and type **)
 From HB Require Import structures.
-From mathcomp Require Import all_ssreflect.
 From Coq Require Import Znat BinIntDef Uint63.
+From mathcomp Require Import all_ssreflect.
 
 Require Import present rewcert int_seq.
 
@@ -34,7 +34,7 @@ Time Qed.
 Fixpoint eqseq_int (s1 s2 : seq int) {struct s2} :=
   match s1, s2 with
   | [::], [::] => true
-  | x1 :: s1', x2 :: s2' => if eqb x1 x2 then eqseq_int s1' s2' else false
+  | x1 :: s1', x2 :: s2' => if x1 =? x2 then eqseq_int s1' s2' else false
   | _, _ => false
   end.
 Lemma eqseq_intE : @eq_op (seq int) = eqseq_int.
@@ -44,13 +44,13 @@ Proof. by []. Qed.
 Fixpoint prefix_int s1 s2 {struct s2} :=
   if s1 isn't x :: s1' then true else
   if s2 isn't y :: s2' then false else
-    if eqb x y then prefix_int s1' s2' else false.
+    if x =? y then prefix_int s1' s2' else false.
 Lemma prefix_intE : @prefix int = prefix_int.
 Proof. by []. Qed.
 
 Definition drop_int := Eval compute in @drop int.     (* 7%   speedup ?? *)
 Definition cat_int := Eval compute in @cat int.       (* 3.5% speedup ?? *)
-Definition size_int := Eval compute in @seq.size int. (* 4%   speedup ?? *)
+Definition size_int := Eval compute in @size int.     (* 4%   speedup ?? *)
 
 Fixpoint rewrites1_front_int (R : relat int) (u : seq int) :=
   if R is (r1, r2) :: R' then
@@ -82,14 +82,14 @@ Lemma norfuel2_intE : @norfuel2 int = norfuel2_int.
 Proof. by []. Qed.
 
 Definition all_spairs_rule_int (r1 r2 s1 s2 : seq int) :=
-  [seq (r2 ++ drop (seq.size r1 - shift) s1, take shift r1 ++ s2) |
-    shift <- iota 0 (seq.size r1) & prefix_int (drop shift r1) s1].
+  [seq (r2 ++ drop (size r1 - shift) s1, take shift r1 ++ s2) |
+    shift <- iota 0 (size r1) & prefix_int (drop shift r1) s1].
 Definition all_spairs_int R :=
   flatten [seq all_spairs_rule_int r.1 r.2 s.1 s.2 | r <- R, s <- R].
 Definition all_npairs_rule_int (r1 r2 s1 s2 : seq int) :=
-  [seq (r2, take shift r1 ++ s2 ++ drop (shift + seq.size s1) r1) |
-    shift <- iota 0 (seq.size r1 - seq.size s1).+1 &
-      eqseq_int s1 (take (seq.size s1) (drop shift r1))].
+  [seq (r2, take shift r1 ++ s2 ++ drop (shift + size s1) r1) |
+    shift <- iota 0 (size r1 - size s1).+1 &
+      eqseq_int s1 (take (size s1) (drop shift r1))].
 Definition all_npairs_int R :=
   flatten [seq all_npairs_rule_int r.1 r.2 s.1 s.2 | r <- R, s <- R].
 Lemma all_spairs_intE : @all_spairs int = all_spairs_int.
@@ -129,19 +129,19 @@ Implicit Types r s : seq int.
 Variable wrel : seq int -> seq int -> bool.
 
 Definition all_pred_npairs_rule_int r1 r2 s1 s2 :=
-  let ss1 := seq.size s1 in
+  let ss1 := size s1 in
   all_tr (fun shift =>
       if prefix_int s1 (drop shift r1) then
         wrel r2 (take shift r1 ++ s2 ++ drop (shift + ss1) r1)
       else true)
-    (iota 0 (seq.size r1 - ss1).+1).
+    (iota 0 (size r1 - ss1).+1).
 
 Definition all_pred_npairs_int R :=
   all_tr (fun pa => let r1 := pa.1 in let r2 := pa.2 in
     all_tr (fun pb => all_pred_npairs_rule_int r1 r2 pb.1 pb.2) R) R.
 
 Definition all_pred_spairs_rule_int r1 r2 s1 s2 :=
-  let sr1 := seq.size r1 in
+  let sr1 := size r1 in
   all_tr (fun shift =>
       if prefix_int (drop shift r1) s1 then
         wrel (r2 ++ drop (sr1 - shift) s1) (take shift r1 ++ s2)

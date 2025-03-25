@@ -273,7 +273,7 @@ Lemma pordK (l1 l2 : list T) :
 Proof.
 rewrite /pord => uniq1 Hperm t.
 have uniq2 : uniq l2 by rewrite -(perm_uniq Hperm).
-have eqsize : seq.size l1 = seq.size l2 by rewrite (perm_size Hperm).
+have eqsize : size l1 = size l2 by rewrite (perm_size Hperm).
 case (boolP (t \in l1)) => [tin | tout].
   rewrite nthK ?nth_index // -eqsize.
   by move: tin; rewrite -index_mem.
