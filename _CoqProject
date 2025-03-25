@@ -4,6 +4,7 @@
 -arg -w -arg -redundant-canonical-projection
 -arg -w -arg -deprecated-since-8.19
 -arg -w -arg -projection-no-head-constant
+theories/int_seq.v
 theories/monoids.v
 theories/factor.v
 theories/present.v

@@ -8,7 +8,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import present rewcert fastcert criteria homogeneous.
+Require Import int_seq present rewcert fastcert criteria homogeneous.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
