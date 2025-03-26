@@ -8,7 +8,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import int_seq present rewcert fastcert criteria homogeneous batchchecker factor.
+Require Import int_seq present rewcert fastcert homogeneous factor.
 
 
 Section AllWords.
@@ -38,6 +38,33 @@ Qed.
 
 End AllWords.
 
+
+Section Special.
+
+Context {Alph : choiceType}.
+
+Definition is_special (P : pres Alph) :=
+  match prelat P with
+  | [:: (r1, r2)] => (r1 == [::]) || (r2 == [::])
+  | _ => false
+  end.
+Lemma is_specialP P :
+  reflect (exists u, prelat P = [:: (u, [::])] \/ prelat P = [:: ([::], u)])
+          (is_special P).
+Proof.
+rewrite /is_special; apply (iffP idP).
+- case: (prelat P) => //= [[r1 r2] [|tl]] //.
+  by case/orP=> /eqP ->; [exists r2; right| exists r1; left].
+- by move=> [u] []->; rewrite eqxx // orbC.
+Qed.
+
+(* https://arxiv.org/abs/2102.00745
+   Makanin, G.S.: On the identity problem for finitely presented groups
+   and semigroups. PhD thesis, Steklov Mathematical Institute, Moscow (1966) *)
+Theorem special_dec P : is_special P -> WPdecidable P.
+Admitted.
+
+End Special.
 
 
 Section StrongCompress.
@@ -132,10 +159,17 @@ Section StrongCompressAndReduce.
 Context {Alph : choiceType}.
 Variable (P : pres Alph).
 Variable (a b : Alph) (u v : word Alph).
-Hypothesis
-  (nequv : u != v)
+Hypotheses
   (Hgen : pgen P = [:: a; b])
-  (Hrel : prelat P = [:: (a :: u, a :: v)]).
+  (Hrel : prelat P = [:: (a :: u, a :: v)])
+  (NonSpecial : ~~ prefix (a :: u) (a :: v) && ~~ prefix (a :: v) (a :: u))
+  (Hleft : seq.size (long_cprefix (a :: u) (a :: v)) <=
+             seq.size (long_csuffix (a :: u) (a :: v))).
+
+Lemma nequv : u != v.
+Proof.
+by apply/negP => /eqP equv; move: NonSpecial; rewrite equv !prefix_refl.
+Qed.
 
 Let k := seq.size (long_cprefix (a :: u) (a :: v)).
 Let strcA := take k.+1 (a :: u).
@@ -168,23 +202,25 @@ Theorem compress_reduce_dec :
   WPdecidable compress_reduce -> WPdecidable P.
 Proof.
 move=> Hdec.
-have : WPdecidable (strong_compress_pres P k.+1).
+have: WPdecidable (strong_compress_pres P k.+1).
   pose U := strong_compress k.+1 u.
   pose V := strong_compress k.+1 v.
   move/(reduce2letters_dec (U := U) (V := V) strcAneqB): Hdec; apply.
   rewrite /= Hrel /= !ltnS !ltnNge.
-(*  
-  apply: strong_compress_dec.
-have : WPdecidable (strong_compress_pres P k).
-
-
-
-  rewrite /compress_reduce => H.
-apply (reduce2letters_dec strcAneqB).
-
-apply (reduce2letters_dec strcAneqB (neqab := neqxy)).
-*)
-Abort.
+  case: leqP => [_ | Habs]/=; first last.
+    exfalso.
+    have {}Habs : long_cprefix (a :: u) (a :: v) = a :: u.
+      by apply: (prefix_sizeE (long_cprefixl _ _)); rewrite -/k /=.
+    move: NonSpecial.
+    by have:= (long_cprefixr (a :: u) (a :: v)); rewrite Habs => ->.
+  case: leqP => [_| Habs]//=.
+  exfalso.
+  have {}Habs : long_cprefix (a :: u) (a :: v) = a :: v.
+    by apply: (prefix_sizeE (long_cprefixr _ _)); rewrite -/k /=.
+  move: NonSpecial.
+  by have:= (long_cprefixl (a :: u) (a :: v)); rewrite Habs andbC => ->.
+exact: (strong_compress_dec Hgen Hrel nequv).
+Qed.
 
 End StrongCompressAndReduce.
 
