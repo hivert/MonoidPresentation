@@ -102,42 +102,48 @@ rewrite /check_certpres; case: C => [].
   exact: (homog_dec homog).
 Qed.
 
-Lemma check_seq_certpresP (l : seq (pres int * prescertificate)) :
-  all (fun cpair => certpres_Ok (check_certpres cpair.1 cpair.2)) l ->
-  forall (P : pres int), P \in unzip1 l -> WPdecidable P.
-Proof.
-elim: l => // l0 l IHl /= /andP[/check_certpresP dec0 {}/IHl Hl] P.
-by rewrite inE; case: eqP => [-> //|_ /=]; apply: Hl.
-Qed.
-Fixpoint check_batch (lp : seq (pres int)) (lc : seq prescertificate) :=
+
+Section Batch.
+
+Variable (certType : Type).
+Variable (checker : pres int -> certType -> CheckCertifiedPresentationError).
+Hypothesis (checkerP : forall p c, certpres_Ok (checker p c) -> WPdecidable p).
+
+Fixpoint generic_check_batch (lp : seq (pres int)) (lc : seq certType) :=
   match lp, lc with
   | p :: tlp, c :: tlc =>
-      if ~~ certpres_Ok (check_certpres p c) then false
-      else check_batch tlp tlc
+      if ~~ certpres_Ok (checker p c) then false
+      else generic_check_batch tlp tlc
   | [::], [::] => true
   | _, _ => false
   end.
-Lemma check_batchE (lp : seq (pres int)) (lc : seq prescertificate) :
-  (check_batch lp lc) =
+
+Lemma generic_check_seq_certpresP (l : seq (pres int * certType)) :
+  all (fun cpair => certpres_Ok (checker cpair.1 cpair.2)) l ->
+  forall (P : pres int), P \in unzip1 l -> WPdecidable P.
+Proof.
+elim: l => // l0 l IHl /= /andP[/checkerP dec0 {}/IHl Hl] P.
+by rewrite inE; case: eqP => [-> //|_ /=]; apply: Hl.
+Qed.
+Lemma generic_check_batchE (lp : seq (pres int)) (lc : seq certType) :
+  (generic_check_batch lp lc) =
     (seq.size lp == seq.size lc) &&
-    all (fun cpair => certpres_Ok (check_certpres cpair.1 cpair.2)) (zip lp lc).
+    all (fun cpair => certpres_Ok (checker cpair.1 cpair.2)) (zip lp lc).
 Proof.
 elim: lp lc => [|p lp Hlp] [|c lc] //=.
 by case: (certpres_Ok _); rewrite //= andbF.
 Qed.
-Lemma check_batchP (lp : seq (pres int)) (lc : seq prescertificate) :
-  check_batch lp lc -> forall P, P \in lp -> WPdecidable P.
+Lemma generic_check_batchP (lp : seq (pres int)) (lc : seq certType) :
+  generic_check_batch lp lc -> forall P, P \in lp -> WPdecidable P.
 Proof.
-rewrite check_batchE => /andP[/eqP eqsz /check_seq_certpresP /= H] P Pin.
+rewrite generic_check_batchE.
+case/andP => /eqP eqsz /generic_check_seq_certpresP /= H P Pin.
 by apply: H; rewrite unzip1_zip // eqsz.
 Qed.
 
-Record decidable_presentation (Alph : choiceType) : Type :=
-  DecPres { decpres :> pres Alph; _ : WPdecidable decpres }.
-Definition make_decidable_presentation P C (H : certpres_Ok (check_certpres P C))
-  : decidable_presentation _ := DecPres (check_certpresP H).
-Notation make_decpres P C :=
-  (make_decidable_presentation (P := P) (C := C) is_true_true).
+End Batch.
+
+Definition check_batchP := generic_check_batchP check_certpresP.
 
 
 Definition AB_AAAAAA_ABAABA :=
@@ -185,7 +191,7 @@ Variant recursive_criterion {Alph : choiceType} :=
   (* reorder the generator and relation -- WARNING: very slow if needed *)
   | Reorder
   (* params: the word which is kept and sent to a which letter among 0 and 1 *)
-  | StronglyCompressAndReduced of word Alph & Alph.
+  | StronglyCompressAndReduce of word Alph & Alph.
 Record recursive_certificate {Alph : choiceType} := RecCert
   { lpres     : seq (pres Alph);
     lproof    : forall P : pres Alph, P \in lpres -> WPdecidable P;
@@ -206,7 +212,7 @@ Definition check_reccertpres (P : pres int) (C : recursive_certificate) :=
           if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
           else if ~~ perm_eq (prelat P) (prelat prec) then CPRelationMissmatchError
           else CPOk
-      | StronglyCompressAndReduced w l =>
+      | StronglyCompressAndReduce w l =>
           CPNotImplemented
       end
     else CPPresentationNotFound.
@@ -227,11 +233,22 @@ case: crit.
 - by []. (* NotImplemented *)
 Qed.
 
+Definition check_recbatchP := generic_check_batchP check_reccertpresP.
+
+
+Record decidable_presentation (Alph : choiceType) : Type :=
+  DecPres { decpres :> pres Alph; _ : WPdecidable decpres }.
+Definition make_decidable_presentation P C (H : certpres_Ok (check_certpres P C))
+  : decidable_presentation _ := DecPres (check_certpresP H).
+Notation make_decpres P C :=
+  (make_decidable_presentation (P := P) (C := C) is_true_true).
+
 Definition make_recursively_decidable_presentation P C
   (H : certpres_Ok (check_reccertpres P C))
   : decidable_presentation _ := DecPres (check_reccertpresP H).
 Notation make_recdecpres P C :=
   (make_recursively_decidable_presentation (P := P) (C := C) is_true_true).
+
 
 
 Definition AB_BBA_AB :=
