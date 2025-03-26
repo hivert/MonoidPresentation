@@ -15,6 +15,8 @@ HB.instance Definition _ := hasDecEq.Build int natint_eq_axiom.
 
 Lemma le0Z x : BinInt.Z.le 0 φ(x).
 Proof. by have [] := to_Z_bounded x. Qed.
+Lemma ltZwB x : BinInt.Z.lt φ(x) wB.
+Proof. by have [] := to_Z_bounded x. Qed.
 
 Definition int_to_nat (i : int) : nat := to_nat i.
 Definition nat_to_int (n : nat) : int := of_nat n.
@@ -70,22 +72,29 @@ End Int.
 Section Seq.
 
 Context {T : eqType}.
-Implicit Types (s : seq T) (n : int) (x : T).
+
+
+Implicit Types (s : seq T) (i j : int) (n m : nat) (x : T).
+
+Lemma firstnE n (l : list T) : List.firstn n l = take n l.
+Proof. by elim: n l => [|n IHn] [|l0 l] //=; rewrite IHn. Qed.
+Lemma skipnE n (l : list T) : List.skipn n l = drop n l.
+Proof. by elim: n l => [|n IHn] [|l0 l] //=; rewrite IHn. Qed.
 
 
 Definition size_int s : int :=
-  let fix rec n s :=
-    if s is s0 :: s' then rec (succ n)%uint63 s' else n
+  let fix rec i s :=
+    if s is s0 :: s' then rec (succ i)%uint63 s' else i
   in rec 0%uint63 s.
-Fixpoint onth_int s n :=
+Fixpoint onth_int s i :=
   if s is s0 :: s' then
-    if PrimInt63.eqb n 0 then Some s0 else onth_int s' (n - 1)%uint63
+    if PrimInt63.eqb i 0 then Some s0 else onth_int s' (i - 1)%uint63
   else None.
 
 Lemma size_intE s : size_int s = nat_to_int (size s).
 Proof.
 rewrite /size_int; set f := (X in X 0%uint63).
-suff -> : forall m : int, f m s = (m + nat_to_int (size s))%uint63.
+suff -> : forall i, f i s = (i + nat_to_int (size s))%uint63.
   apply: to_Z_inj; rewrite add_spec to_Z_0 BinInt.Z.add_0_l.
   by rewrite -of_Z_spec of_to_Z.
 elim: s => [| s0 s IHs] //= m.
@@ -97,12 +106,11 @@ rewrite Nat2Z.inj_succ !(of_Z_spec, Zdiv.Zplus_mod_idemp_r, Zdiv.Zplus_mod_idemp
 by rewrite to_Z_1 [BinInt.Z.succ _]BinInt.Z.add_comm BinInt.Z.add_assoc.
 Qed.
 
-Lemma onth_int_mem s n x : onth_int s n = Some x -> x \in s.
+Lemma onth_int_mem s i x : onth_int s i = Some x -> x \in s.
 Proof.
-elim: s n => // s0 s IHs /= n.
-case: (boolP (n =? 0)%uint63) => [_ [<-] | _]; first by rewrite inE eqxx.
+elim: s i => // s0 s IHs /= i.
+case: (boolP (i =? 0)%uint63) => [_ [<-] | _]; first by rewrite inE eqxx.
 by rewrite inE orbC => /IHs ->.
 Qed.
-
 
 End Seq.

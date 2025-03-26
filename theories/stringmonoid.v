@@ -32,13 +32,21 @@ HB.instance Definition _ := isMonoid.Build string
 Lemma lengthE s : to_nat (length s) = size (to_list s).
 Proof. by rewrite length_spec. Qed.
 
-Lemma firstnE T n (l : list T) : List.firstn n l = take n l.
-Proof. by elim: n l => [|n IHn] [|l0 l] //=; rewrite IHn. Qed.
-Lemma skipnE T n (l : list T) : List.skipn n l = drop n l.
-Proof. by elim: n l => [|n IHn] [|l0 l] //=; rewrite IHn. Qed.
-
 Lemma take_strE s i : to_list (sub s 0 i) = take (to_nat i) (to_list s).
 Proof. by rewrite sub_spec List.skipn_O firstnE. Qed.
+Lemma drop_strE s i :
+  (i <= length s)%O ->
+  to_list (sub s i (length s - i)) = drop (to_nat i) (to_list s).
+Proof.
+move=> H; rewrite sub_spec skipnE firstnE take_oversize // size_drop.
+rewrite Uint63.sub_spec BinInt.Z.mod_small; first last.
+  split; first by apply: Zorder.Zle_minus_le_0; apply/lebP.
+  apply: (BinInt.Z.le_lt_trans _ (to_Z (length s))).
+    by rewrite -BinInt.Z.le_sub_nonneg; apply: le0Z.
+  by have [] := to_Z_bounded (length s).
+rewrite Z2Nat.inj_sub; last exact: le0Z.
+by rewrite lengthE.
+Qed.
 
 Definition str_prefix u v := sub v 0 (length u) == u.
 
@@ -47,6 +55,11 @@ Proof.
 by rewrite /str_prefix -(eqtype.inj_eq to_list_inj) take_strE lengthE prefixE.
 Qed.
 
+Section Rewrite.
+
+Variable R : seq (string * string).
+Hypothesis Hdecr : all (fun r => (length r.2 <= length r.1)%O) R.
+
 Fixpoint str_rewrites1_front R u :=
   if R is (r1, r2) :: R' then
     if str_prefix r1 u then
@@ -54,12 +67,11 @@ Fixpoint str_rewrites1_front R u :=
     else
       str_rewrites1_front R' u
   else None.
-Lemma str_rewrites1_frontE (R : (seq (string * string))) u :
-  (all (fun r => (length r.2 <= length r.1)%O) R) ->
+Lemma str_rewrites1_frontE u :
   omap to_list (str_rewrites1_front R u) =
     rewrites1_front [seq (to_list r.1, to_list r.2) | r <- R] (to_list u).
 Proof.
-elim: R => [| [r1 r2] R IHR] //= /andP[lenr] {}/IHR <-.
+elim: R Hdecr => [| [r1 r2] S IHS] //= /andP[lenr] {}/IHS <-.
 rewrite str_prefixE; case Hpref: prefix => //=.
 rewrite cat_spec; congr Some.
 rewrite sub_spec !firstnE !skipnE (lengthE r1).
@@ -72,6 +84,58 @@ move: lenr; rewrite leintE /int_to_nat !lengthE.
 move/size_prefix/subnKC : Hpref => {2}<-.
 by rewrite leq_add2r.
 Qed.
+Lemma length_rewrites1_frontE u :
+  omap (fun s => to_nat (length s)) (str_rewrites1_front R u) =
+    omap size (rewrites1_front [seq (to_list r.1, to_list r.2) | r <- R] (to_list u)).
+Proof.
+rewrite -str_rewrites1_frontE -[RHS]omap_comp; apply eq_omap => s /=.
+by rewrite lengthE.
+Qed.
+Lemma length_rewrites1_front_leq u v :
+  str_rewrites1_front R u = Some v -> (length v <= length u)%O.
+Proof.
+move=> H.
+rewrite leintE /int_to_nat !lengthE.
+have:= length_rewrites1_frontE u.
+rewrite -str_rewrites1_frontE H /= => -[] eq.
+have := str_rewrites1_frontE u.
+rewrite H => /esym/rewrites1_frontP/rewrites_frontP[/= suf [s1 s2] /= -> ->].
+case/mapP => /= -[r1 r2] /[swap] /= -[{s1}-> {s2}->]/=.
+move/(allP Hdecr) => /=.
+by rewrite leintE !size_cat leq_add2r /int_to_nat !lengthE.
+Qed.
+
+Definition str_rewrites1_at R u i :=
+  omap (PrimString.cat (sub u 0 i))
+       (str_rewrites1_front R (sub u i (length u - i))).
+
+Lemma str_rewrites1_atE u i :
+  (i <= length u)%O ->
+  omap to_list (str_rewrites1_at R u i) =
+    omap (cat (take (to_nat i) (to_list u)))
+      (rewrites1_front [seq (to_list r.1, to_list r.2) | r <- R]
+         (drop (to_nat i) (to_list u))).
+Proof.
+rewrite /str_rewrites1_at -skipnE => leiu.
+have Hrew1 := str_rewrites1_frontE (sub u i (length u - i)).
+have -> : List.skipn (to_nat i) (to_list u) = to_list (sub u i (length u - i)).
+  by rewrite skipnE drop_strE.
+rewrite -Hrew1 -[LHS]omap_comp -[RHS]omap_comp.
+case Hrew : (str_rewrites1_front _ _) => [s|] //=; congr Some.
+move/length_rewrites1_front_leq: Hrew => lens.
+rewrite cat_spec take_strE firstnE take_oversize //.
+rewrite size_cat size_take_min -!lengthE.
+have:= leiu; rewrite leintE /int_to_nat => /minn_idPl ->.
+apply: (leq_trans (n := to_nat (length u))); first last.
+  have := leintE (length u) max_length; rewrite /int_to_nat => <-.
+  rewrite /Order.le /=.
+  by have := valid_length u; rewrite -leb_spec.
+  move: lens; rewrite leintE /int_to_nat lengthE.
+rewrite (lengthE (sub _ _ _)) drop_strE // size_drop.
+rewrite -(leq_add2l (to_nat i)) => /leq_trans; apply.
+by rewrite subnKC -(lengthE u) // -leintE.
+Qed.
+
 
 (* Check string : monoidType.
 
