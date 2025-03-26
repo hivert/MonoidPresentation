@@ -234,10 +234,25 @@ Notation make_recdecpres P C :=
   (make_recursively_decidable_presentation (P := P) (C := C) is_true_true).
 
 
-Definition AB_AAAAAA_ABAABA_rec :=
+Definition AB_BBA_AB :=
   make_pres [::0;1]  [:: ([:: 1;1;0], [:: 0;1])].
-Definition AB_AAAAAA_ABAABA_rec_cert :=
-  RecCert all_pres_dec 3 Reverse.
-Definition AB_AAAAAA_ABAABA_dec_rec :=
-  @make_recdecpres AB_AAAAAA_ABAABA_rec AB_AAAAAA_ABAABA_rec_cert.
+Definition AB_ABBABBB_A :=
+  make_pres [:: 0; 1] [:: ([:: 0;1;1;0;1;1;1], [:: 0])].
+Definition BA_BBBABBA_A :=
+  make_pres [:: 1; 0] [:: ([:: 1;1;1;0;1;1;0], [:: 0])].
+Definition list_recpres := [:: AB_BBA_AB; AB_ABBABBB_A; BA_BBBABBA_A].
 
+Definition AB_BBA_AB_rec_cert :=
+  RecCert all_pres_dec 3 Reverse.
+Definition AB_BBA_AB_dec :=
+  @make_recdecpres AB_BBA_AB AB_BBA_AB_rec_cert.
+
+Definition AB_ABBABBB_A_rec_cert :=
+  RecCert all_pres_dec 1 Reverse.
+Definition AB_ABBABBB_A_dec :=
+  @make_recdecpres AB_ABBABBB_A AB_ABBABBB_A_rec_cert.
+
+Definition BA_BBBABBA_A_rec_cert :=
+  RecCert all_pres_dec 1 Reorder.
+Definition BA_ABBABBB_A_dec :=
+  @make_recdecpres BA_BBBABBA_A BA_BBBABBA_A_rec_cert.
