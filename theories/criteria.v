@@ -386,16 +386,17 @@ Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
 Local Notation word := (word Alph).
 
-Variant PresentationCertificate :=
-    (* rewriting certificate + final order *)
+Variant prescertificate :=
+    (* param: rewriting certificate + final order *)
   | CompleteRewritingSystem of @pres_cert Alph & seq Alph
-    (* a b u v k in < a b | b^k a u = a v > *)
+    (* param: a b u v k in < a b | b^k a u = a v > *)
   | Watier of Alph & Alph & word & word & nat
   | Monogenic
   | FreeProductMonogenicAndFree
-    (* repeted letter *)
+    (* param: repeated letter a in < a b | a^k = a^l > *)
   | EqualNumberOfOccurences of Alph
-    (* list of factorization of the relations words in the order of relwords P *)
+    (* param: list of the factorizations of each relations words *)
+    (*        in the order given by relwords P                   *)
   | SmallOverlap of seq (seq word)
   | Homogeneous. (* Not used in the database *)
 
@@ -404,16 +405,16 @@ Definition getRWScert C :=
 Definition getRWSorder C :=
   if C is CompleteRewritingSystem _ order then order else [::].
 
-Definition CertifiedPresentation := (pres Alph * PresentationCertificate)%type.
-
 End Certificate.
 
 (* Examples *)
 
-Definition AB_AAAAAA_ABAABA : CertifiedPresentation :=
-  (make_pres [::0;1]
-     [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])],
-  CompleteRewritingSystem
+Definition AB_AAAAAA_ABAABA :=
+  make_pres [::0;1] [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])].
+Lemma AB_AAAAAA_ABAABA_dec : WPdecidable AB_AAAAAA_ABAABA.
+Proof.
+set pres := AB_AAAAAA_ABAABA.
+pose certCRS := CompleteRewritingSystem
     [::
        add_rel [::0;1;0;0;1;0] [::0;0;0;0;0;0]
          [:: RTriple 0 0 false];
@@ -422,11 +423,8 @@ Definition AB_AAAAAA_ABAABA : CertifiedPresentation :=
              RTriple 1 0 true];
        rm_rel 0
          [:: RTriple 0 0 false]]
-    [::0;1]).
-Lemma AB_AAAAAA_ABAABA_dec : WPdecidable AB_AAAAAA_ABAABA.1.
-Proof.
-set pres := AB_AAAAAA_ABAABA.1.
-pose p := if AB_AAAAAA_ABAABA.2 is CompleteRewritingSystem cert order then
+    [::0;1].
+pose p := if certCRS is CompleteRewritingSystem cert order then
             (cert, order) else ([::], [::]).
 pose cert := p.1; pose order := p.2.
 have wfc : wfpres_cert pres cert by compute.
@@ -438,41 +436,27 @@ apply: diamond.
 exact: (spair_confluence_loopP (fuel := 10)).
 Qed.
 
-Definition AB_AAAB_A : CertifiedPresentation :=
-  (make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])],
-    Watier
-      0 1 [:: 1; 1; 0] [::] 3).
-Lemma AB_AAAB_A_dec : WPdecidable AB_AAAB_A.1.
+Definition AB_AAAB_A :=
+  make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])].
+Lemma AB_AAAB_A_dec : WPdecidable AB_AAAB_A.
 Proof. exact: (@check_Watier_dec _ _ 0 1 [:: 1; 1; 0] [::] 3). Qed.
 
-Definition A_AAA_A : CertifiedPresentation :=
-  (make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])],
-    Monogenic).
-Lemma A_AAA_A_dec : WPdecidable A_AAA_A.1.
+Definition A_AAA_A := make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])].
+Lemma A_AAA_A_dec : WPdecidable A_AAA_A.
 Proof. exact: monogenic_dec. Qed.
 
-Definition AB_ABB_BA : CertifiedPresentation :=
-  (make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])],
-    EqualNumberOfOccurences 0).
-Lemma AB_ABB_BA_dec : WPdecidable AB_ABB_BA.1.
+Definition AB_ABB_BA := make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])].
+Lemma AB_ABB_BA_dec : WPdecidable AB_ABB_BA.
 Proof. exact: (check_same_number_occ_dec (a := 0)). Qed.
 
-Definition AB_BAAAABBAAA_ABBBAABA : CertifiedPresentation :=
-  (make_pres [:: 0; 1]
-       [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ],
-    SmallOverlap
-      [:: [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
-       [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ]).
-Lemma AB_BAAAABBAAA_ABBBAABA_dec : WPdecidable AB_BAAAABBAAA_ABBBAABA.1.
+Definition AB_BAAAABBAAA_ABBBAABA :=
+  make_pres [:: 0; 1]
+       [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
+Lemma AB_BAAAABBAAA_ABBBAABA_dec : WPdecidable AB_BAAAABBAAA_ABBBAABA.
 Proof. exact: (check_c3_monoid_dec (facts := [::
                      [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
                      [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ]
                   ])).
 Qed.
 
-Definition all_pres := [:: AB_AAAAAA_ABAABA;
-                        AB_AAAB_A;
-                        A_AAA_A;
-                        AB_ABB_BA;
-                        AB_BAAAABBAAA_ABBBAABA].
 
