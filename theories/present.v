@@ -1918,6 +1918,71 @@ Proof. rewrite -{1}(dual_presK R); exact: dual_decK. Qed.
 End DualPres.
 
 
+Section FlipDirection.
+
+Context {A : choiceType}.
+Implicit Types (R : relat A) (P : pres A) (u v : word A).
+
+Lemma flipped_rewrites1_impl R u v :
+  v \in rewrites R u -> u \in rewrites (map swap R) v.
+Proof.
+case/rewritesP => pre suf r /= {u}-> {v}-> rinR.
+by apply/rewritesP; exists pre suf (swap r) => //; apply: map_f.
+Qed.
+
+Lemma flipped_rewrites_to_impl R u v :
+  rewrites_to R u v -> rewrites_to (map swap R) v u.
+Proof.
+case=> pth /[swap] {v}->; elim: pth u => [|p0 pth IHpth] u /=.
+  move=> _; exact: rewrites_to_refl.
+case/andP => /flipped_rewrites1_impl Hp0 {}/IHpth /rewrites_to_trans; apply.
+exact: rewrites_to1.
+Qed.
+Lemma flipped_rewrites_toE R u v :
+  rewrites_to (map swap R) v u <-> rewrites_to R u v.
+Proof.
+split; last exact: flipped_rewrites_to_impl.
+by move/flipped_rewrites_to_impl; rewrite (mapK swapK).
+Qed.
+Lemma flipped_equivE R u v : u = v %[mod map swap R] <-> u = v %[mod R].
+Proof.
+have swap_inj := @swap_inj (word A).
+apply: eq_equiv_undirected => -[r1 r2].
+by rewrite !mem_undirected -{1}/(swap (r2, r1)) -{2}/(swap (r1, r2)) !mem_map // orbC.
+Qed.
+
+Lemma flipped_pres_subproof (P : pres A) :
+  correctrelat (map swap (prelat P)) (mem (pgen P)).
+Proof.
+have:= wf_relat P; rewrite /correctrelat all_map.
+set p1 := (X in all X _ -> _); set p2 := (X in _ -> all X _).
+suff /eq_all -> : p1 =1 p2 by [].
+by rewrite {}/p1 {}/p2 => -[u v] /=; rewrite andbC.
+Qed.
+Definition flipped_pres P := Pres (uniq_pgen P) (flipped_pres_subproof P).
+
+Lemma words_of_flipped P u :
+  (u \in words_of (flipped_pres P)) = (u \in words_of P).
+Proof. by rewrite !unfold_in. Qed.
+
+Lemma flipped_presK : involutive flipped_pres.
+Proof.
+move=> P; apply/eqP; rewrite -eqpresE /= eqxx /= -map_comp.
+by apply/eqP; rewrite -[RHS]map_id; apply eq_map => [[u v]]; rewrite /= swapK.
+Qed.
+
+Lemma flipped_pres_equivE P u v :
+  u = v %[mod prelat (flipped_pres P)] <-> u = v %[mod prelat P].
+Proof. exact: flipped_equivE. Qed.
+Lemma flipped_pres_dec P : WPdecidable (flipped_pres P) -> WPdecidable P.
+Proof.
+move=> Hdec u v; rewrite -!(words_of_flipped P) => uP vP.
+by have [] := Hdec _ _ uP vP => /(flipped_pres_equivE P u v) H; [left | right].
+Qed.
+
+End FlipDirection.
+
+
 Section RenameGenImpl.
 
 Context {A B : choiceType} {RA : relat A} {RB : relat B}.

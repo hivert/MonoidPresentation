@@ -15,6 +15,8 @@ theories/criteria.v
 theories/compress.v
 theories/batchchecker.v
 
+theories/test/
+
 # theories/certs/largestcert.v
 # theories/certs/bbaaaabbba_abbbaa.v
 

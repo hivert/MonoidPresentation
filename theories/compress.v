@@ -58,9 +58,13 @@ rewrite /is_special; apply (iffP idP).
 - by move=> [u] []->; rewrite eqxx // orbC.
 Qed.
 
-(* https://arxiv.org/abs/2102.00745
-   Makanin, G.S.: On the identity problem for finitely presented groups
-   and semigroups. PhD thesis, Steklov Mathematical Institute, Moscow (1966) *)
+(* The word problem in special monoids reduces to the corresponding problem in
+  groups. This is Corollary 2.8 in "The word problem for one-relation monoids: a
+  survey" by Carl-Fredrik Nyberg-Brodda.
+
+   https://arxiv.org/abs/2102.00745 Makanin, G.S.: On the identity problem for
+   finitely presented groups and semigroups. PhD thesis, Steklov Mathematical
+   Institute, Moscow (1966) *)
 Theorem special_dec P : is_special P -> WPdecidable P.
 Admitted.
 
@@ -154,6 +158,23 @@ Admitted.
 End ReduceTo2letters.
 
 
+Section FastCompressReduce.
+
+Context {Alph Beta : choiceType} (w : word Alph) (x y : Beta).
+Implicit Types (a b : Alph) (u v : word Alph).
+
+Fixpoint compressreduce k u :=
+  if u is u0 :: u' then
+    if seq.size u < k then [::]
+    else (if take k u == w then x else y) :: compressreduce k u'
+  else [::].
+Lemma compressreduceE k u :
+  compressreduce k u = word_to2letters w x y (strong_compress k u).
+Proof. by rewrite /word_to2letters; elim: u => //= u0 u ->; case: ltnP. Qed.
+
+End FastCompressReduce.
+
+
 Section StrongCompressAndReduce.
 
 Context {Alph : choiceType}.
@@ -195,32 +216,61 @@ Qed.
 
 Context {B : choiceType} (x y : B) (neqxy : x != y).
 
-Definition compress_reduce : pres B :=
+Definition reduced_compressed_pres : pres B :=
   reduce2letters (strong_compress_pres P k.+1) strcA neqxy.
 
+(* TODO : De duplicate *)
+Local Lemma ltkszu : k <= seq.size u.
+Proof.
+rewrite leqNgt; apply/negP => Habs.
+have {}Habs : long_cprefix (a :: u) (a :: v) = a :: u.
+   by apply: (prefix_sizeE (long_cprefixl _ _)); rewrite -/k /=.
+move: NonSpecial.
+by have:= (long_cprefixr (a :: u) (a :: v)); rewrite Habs => ->.
+Qed.
+Local Lemma ltkszv : k <= seq.size v.
+Proof.
+rewrite leqNgt; apply/negP => Habs.
+have {}Habs : long_cprefix (a :: u) (a :: v) = a :: v.
+  by apply: (prefix_sizeE (long_cprefixr _ _)); rewrite -/k /=.
+move: NonSpecial.
+by have:= (long_cprefixl (a :: u) (a :: v)); rewrite Habs andbC => ->.
+Qed.
+
 Theorem compress_reduce_dec :
-  WPdecidable compress_reduce -> WPdecidable P.
+  WPdecidable reduced_compressed_pres -> WPdecidable P.
 Proof.
 move=> Hdec.
 have: WPdecidable (strong_compress_pres P k.+1).
   pose U := strong_compress k.+1 u.
   pose V := strong_compress k.+1 v.
   move/(reduce2letters_dec (U := U) (V := V) strcAneqB): Hdec; apply.
-  rewrite /= Hrel /= !ltnS !ltnNge.
-  case: leqP => [_ | Habs]/=; first last.
-    exfalso.
-    have {}Habs : long_cprefix (a :: u) (a :: v) = a :: u.
-      by apply: (prefix_sizeE (long_cprefixl _ _)); rewrite -/k /=.
-    move: NonSpecial.
-    by have:= (long_cprefixr (a :: u) (a :: v)); rewrite Habs => ->.
-  case: leqP => [_| Habs]//=.
-  exfalso.
-  have {}Habs : long_cprefix (a :: u) (a :: v) = a :: v.
-    by apply: (prefix_sizeE (long_cprefixr _ _)); rewrite -/k /=.
-  move: NonSpecial.
-  by have:= (long_cprefixl (a :: u) (a :: v)); rewrite Habs andbC => ->.
+  by rewrite /= Hrel /= !ltnS !ltnNge ltkszu ltkszv /=.
 exact: (strong_compress_dec Hgen Hrel nequv).
 Qed.
+
+Lemma reduced_compressed_presE :
+  prelat reduced_compressed_pres =
+    [:: (compressreduce strcA x y k.+1 (a :: u),
+         compressreduce strcA x y k.+1 (a :: v))].
+Proof.
+rewrite /= /rel2letters /strong_compress_pres /= Hrel /=.
+by rewrite !compressreduceE //= !ltnS !ltnNge ltkszu ltkszv /=.
+Qed.
+Fact wf_fast_compressreduce :
+  correctrelat [:: (compressreduce strcA x y k.+1 (a :: u),
+                    compressreduce strcA x y k.+1 (a :: v))] (mem [:: x; y]).
+Proof. by rewrite -reduced_compressed_presE wf_relat. Qed.
+Definition fast_reduced_compressed_pres : pres B :=
+  Pres [:: x; y] _ (uniq_ab neqxy) wf_fast_compressreduce.
+
+Lemma fast_reduced_compressed_presE :
+  fast_reduced_compressed_pres = reduced_compressed_pres.
+Proof. by apply/eqP; rewrite -eqpresE reduced_compressed_presE //= !eqxx. Qed.
+
+Theorem fast_compress_reduce_dec :
+  WPdecidable fast_reduced_compressed_pres -> WPdecidable P.
+Proof. by rewrite fast_reduced_compressed_presE => /compress_reduce_dec. Qed.
 
 End StrongCompressAndReduce.
 
