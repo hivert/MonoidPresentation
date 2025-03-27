@@ -190,6 +190,8 @@ Variant recursive_criterion {Alph : choiceType} :=
   | Reverse
   (* reorder the generator and relation -- WARNING: very slow if needed *)
   | Reorder
+  (* flip the direction of the relation *)
+  | FlipAllRelations
   (* params: the word which is kept and sent to a which letter among 0 and 1 *)
   | StronglyCompressAndReduce of word Alph & Alph.
 Record recursive_certificate {Alph : choiceType} := RecCert
@@ -212,6 +214,10 @@ Definition check_reccertpres (P : pres int) (C : recursive_certificate) :=
           if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
           else if ~~ perm_eq (prelat P) (prelat prec) then CPRelationMissmatchError
           else CPOk
+      | FlipAllRelations =>
+          if pgen P != (pgen prec) then CPGeneratorMissmatchError
+          else if prelat prec != map swap (prelat P) then CPRelationMissmatchError
+          else CPOk
       | StronglyCompressAndReduce w l =>
           CPNotImplemented
       end
@@ -230,6 +236,10 @@ case: crit.
 - case: (boolP (perm_eq _ _)) => permgen //=.
   case: (boolP (perm_eq _ _)) => permrel //= _.
   exact: (isopres_dec (pres_irrelevance_perm_eq permgen permrel)).
+- case: eqP => eqgen //=; case: eqP => eqrel //= _.
+  move: prec_dec.
+  suff -> : prec = flipped_pres P by apply: flipped_pres_dec.
+  by apply/eqP; rewrite -eqpresE eqgen /= !eqxx /= eqrel.
 - by []. (* NotImplemented *)
 Qed.
 
