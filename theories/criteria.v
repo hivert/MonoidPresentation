@@ -18,22 +18,22 @@ apply/(all_nthP [::]) => i _; apply/eqP.
 by rewrite -nth_shape shape0 nth_nseq if_same.
 Qed.
 
-Section AlphabetChange.
+Section Fenced.
 
 Context {Alph : choiceType}.
-Implicit Type (P : pres Alph) (u v w : word Alph).
+Implicit Types (a b : Alph) (u v w : word Alph).
 
-Variant first_occ_spec (p : pred Alph) u : Type :=
-  FirstOcc a u0 u1 : all (predC p) u0 -> p a -> u = u0 ++ a :: u1
-                     -> first_occ_spec p u.
-Lemma first_occP p u : has p u -> first_occ_spec p u.
+Variant first_occ_spec (G : pred Alph) u : Type :=
+  FirstOcc a u0 u1 : all (predC G) u0 -> G a -> u = u0 ++ a :: u1
+                     -> first_occ_spec G u.
+Lemma first_occP G u : has G u -> first_occ_spec G u.
 Proof.
 move=> pu.
 have x0 : Alph by case: u pu.
 move: pu; case: findP => // i ltiu /(_ x0); set a := nth x0 u i => Hb.
 move/(_ a) => before _.
 have := cat_take_drop i u; rewrite (drop_nth x0 ltiu) => eq.
-have {}before : all (predC p) (take i u).
+have {}before : all (predC G) (take i u).
   apply/allP => x /[dup] xin.
   rewrite -{1}index_mem size_take ltiu => {}/before /=.
   have:= xin => /(nth_index a); rewrite nth_take => [-> -> //|].
@@ -42,38 +42,139 @@ have {}before : all (predC p) (take i u).
 by exists (nth x0 u i) (take i u) (drop i.+1 u).
 Qed.
 
-Theorem simpleWPdec P :
+Variable (G : pred Alph) (R : relat Alph).
+Hypothesis (GR : all (fun r => all G r.1 && all G r.2) R).
+
+Lemma fenced_leq_size u0 a u1 v0 v1 :
+  u0 ++ a :: u1 = v0 ++ v1 -> ~~ G a -> all G v0 -> size v0 <= size u0.
+Proof.
+move=> eq nGa /allP Gv0.
+rewrite leqNgt -(size_rcons u0 a) -cats1; apply/negP => ltu0av0.
+move: eq; rewrite -cat1s catA => /(cat2E ltu0av0) [w] _ eqr1.
+by move: nGa; rewrite Gv0 // eqr1 !mem_cat inE eqxx /= orbT.
+Qed.
+
+Lemma fenced_eq u0 a b u1 v0 v1 :
+  all G u0 -> ~~ G a -> all G v0 -> ~~ G b ->
+  u0 ++ a :: u1 = v0 ++ b :: v1 -> (u0, a, u1) = (v0, b, v1).
+Proof.
+move=> Gu0 nGa Gv0 nGb /[dup] eq /eqP.
+have {eq}/eqseq_cat -> : size u0 = size v0.
+  apply anti_leq; apply/andP; split.
+  + by move: eq => /esym/fenced_leq_size/(_ nGb); apply.
+  + by move: eq => /fenced_leq_size/(_ nGa); apply.
+by case/andP => /eqP -> /eqP[->->].
+Qed.
+
+Lemma rewrites_count u v :
+  v \in rewrites R u -> count (predC G) v = count (predC G) u.
+Proof.
+case/rewritesP => pre suf [r1 r2] /= {u}-> {v}-> /(allP GR) /andP[/= Gr1 Gr2].
+rewrite !count_cat; congr (_ + (_ + _)) => {pre suf}.
+suff allGcount u : all G u -> count (predC G) u = 0 by rewrite !allGcount.
+by move=> allG; apply/eqP; rewrite -leqn0 leqNgt -has_count has_predC allG.
+Qed.
+Lemma rewrites_all u v : v \in rewrites R u -> all G u = all G v.
+Proof.
+move/rewrites_count.
+by rewrite -(negbK (all G u)) -(negbK (all G v)) -!has_predC !has_count => ->.
+Qed.
+Lemma rewrites_to_count u v :
+  rewrites_to R u v -> count (predC G) u = count (predC G) v.
+Proof.
+case=> pth /[swap] {v}->; elim: pth u => [//| p0 pth IHpth] u /=.
+by case/andP => /rewrites_count <- /IHpth.
+Qed.
+Lemma rewrites_to_all u v : rewrites_to R u v -> all G u = all G v.
+Proof.
+move/rewrites_to_count.
+by rewrite -(negbK (all G u)) -(negbK (all G v)) -!has_predC !has_count => ->.
+Qed.
+
+Lemma fenced_rewrites (a : Alph) u0 u1 v :
+  all G u0 -> ~~ G a -> v \in rewrites R (u0 ++ a :: u1) ->
+  (exists v0, v0 \in rewrites R u0 /\ v = v0 ++ a :: u1) \/
+  (exists v1, v1 \in rewrites R u1 /\ v = u0 ++ a :: v1).
+Proof.
+move=> /= Gu0 nGa Ruv.
+have /first_occP[b v0 v1] : has (predC G) v.
+  by rewrite has_predC -(rewrites_all Ruv) all_cat /= (negbTE nGa) /= andbF.
+have /eq_all -> : predC (predC G) =1 G by move=> x; rewrite /= negbK.
+rewrite /= => Gv0 nGb eqv; subst v.
+move/rewritesP: Ruv => [pre suf [r1 r2]] /= equ eqv.
+move=> /[dup] rinR /(allP GR) /= /andP[Gr1 Gr2].
+case: (leqP (size pre) (size u0)) => [lepreu0 | ltu0pre].
+- left; case: (cat2E lepreu0 (esym equ)) => w eqr1suf equ0 {lepreu0}.
+  have ler1w : size r1 <= size w.
+    exact: (fenced_leq_size (esym eqr1suf) nGa Gr1).
+  move: eqr1suf => /(cat2E ler1w) [x] eqsuf eqw {ler1w}; subst w suf.
+  have allG2 : all G ((pre ++ r2) ++ x).
+    by move: Gu0; rewrite equ0 !all_cat Gr2 /= => /and3P[-> _ ->].
+  have {equ} eqv0 : v0 = pre ++ r2 ++ x.
+    by move: eqv; rewrite !catA => /(fenced_eq Gv0 nGb allG2 nGa)[].
+  move/eqP: eqv; rewrite eqv0 equ0 !catA eqseq_cat // => /andP[_ /eqP[-> ->]].
+  exists ((pre ++ r2) ++ x); rewrite -!catA; split; last by [].
+  by apply/rewritesP; exists pre x (r1, r2).
+- right; move: ltu0pre.
+  rewrite -(size_rcons u0 a) -cats1 => /cat2E H.
+  have:= equ; rewrite -cat1s catA => {}/H [w equ1 eqpre] {equ}; subst pre u1.
+  move: eqv; rewrite -!catA cat1s => /(fenced_eq Gv0 nGb Gu0 nGa)[-> -> ->].
+  exists (w ++ r2 ++ suf); split; last by [].
+  by apply/rewritesP; exists w suf (r1, r2).
+Qed.
+
+Lemma fenced_rewrites_to a u0 u1 v :
+  all G u0 -> ~~ G a -> rewrites_to R (u0 ++ a :: u1) v ->
+  exists v0 v1,
+    [/\ rewrites_to R u0 v0, rewrites_to R u1 v1 & v = v0 ++ a :: v1].
+Proof.
+move=> Gu0 nGa [pth] /[swap] {v}->.
+elim: pth => [|p0 pth IHpth] /= in u0 u1 Gu0 *.
+  by move=> _; exists u0; exists u1; split => //; exact: rewrites_to_refl.
+case/andP=> /(fenced_rewrites Gu0 nGa)[].
+- case=> v0 [u0Rv0 {p0}->].
+  move: Gu0; rewrite (rewrites_all u0Rv0) => {}/IHpth/[apply].
+  case=> w0 [w1] [v0Rw0 v1Rw1 eq]; exists w0; exists w1; split=> //=.
+  exact: (rewrites_to_trans (rewrites_to1 u0Rv0)).
+- case=> v1 [u1Rv1 {p0}->].
+  move: Gu0 => {}/IHpth/[apply].
+  case=> w0 [w1] [v0Rw0 v1Rw1 eq]; exists w0; exists w1; split=> //=.
+  exact: (rewrites_to_trans (rewrites_to1 u1Rv1)).
+Qed.
+
+End Fenced.
+
+
+Section AlphabetChange.
+
+Context {Alph : choiceType}.
+
+Theorem outwords_of_dec (P : pres Alph) :
   WPdecidable P -> forall u v : word Alph, decidable (u = v %[mod prelat P]).
 Proof.
-pose out := predC (mem (pgen P)).
-have outwords w : (all (predC out) w) = (w \in words_of P).
-  by apply: eq_all => a; rewrite /= negbK.
-have cnteq r s : r = s %[mod prelat P] -> count out r = count out s.
-  case=> pth /[swap] {s}->; elim: pth r => [//| p0 pth IHpth] r /=.
-  case/andP => /[swap]{}/IHpth <- {pth}.
-  case/rewritesP => pre suf [r1 r2] /= {r}-> {p0}-> rinP.
-  rewrite !count_cat; congr (_ + (_ + _)) => {pre suf}.
-  have count0 r : r \in words_of P -> count out r = 0.
-    rewrite /out unfold_in /= => Hall.
-    by apply/eqP; rewrite -leqn0 leqNgt -has_count has_predC negbK.
-  have {rinP} :(r1 \in words_of P) && (r2 \in words_of P).
-    by move: rinP; rewrite mem_undirected => /orP[] /words_of_prelat/andP[/= -> ->].
-  by case/andP=> /count0-> /count0->.
-move=> Hdec u; move: {2}(count _ _) (erefl (count out u)) => n.
+pose G := mem (pgen P).
+have GR : all (fun r => all G r.1 && all G r.2) (undirected (prelat P)).
+  rewrite /= /undirected all_cat.
+  have := wf_relat P; rewrite /correctrelat => ->.
+  exact: flipped_pres_subproof.
+have cnteq r s : r = s %[mod prelat P] -> count (predC G) r = count (predC G) s.
+  exact: rewrites_to_count.
+move=> Hdec u; move: {2}(count _ _) (erefl (count (predC G) u)) => n.
 elim: n u => [| n IHn] u.
   move/eqP; rewrite -leqn0 leqNgt -has_count has_predC negbK => Pu v.
   have {}Pu : u \in words_of P by exact: Pu.
   case: (boolP (v \in words_of P)) => [Pv | nPv]; first exact: Hdec.
   by right=> equv; move: nPv; rewrite -(equiv_words_ofE equv) Pu.
 move=> cntu v.
-have /first_occP[a u0 u1] : has out u by rewrite has_count cntu.
-rewrite outwords => Pu0 /= outa equ.
-case: (altP (count out u =P count out v)) => [/esym | /negbTE neqout]; first last.
+have /first_occP[a u0 u1] : has (predC G) u by rewrite has_count cntu.
+rewrite all_predC has_predC negbK /= => Gu0 nGa equ.
+case: (altP (count (predC G) u =P count (predC G) v)) => [/esym|/negbTE neqout];
+                                                         first last.
   by right => {}/cnteq /eqP; rewrite neqout.
 rewrite cntu => cntv.
-have {cntv} /first_occP[b v0 v1] : has out v by rewrite has_count cntv.
-rewrite {}outwords => Pv0 /= outb eqv.
-have {outb} equv : u = v %[mod prelat P] <->
+have {cntv}/first_occP[b v0 v1] : has (predC G) v by rewrite has_count cntv.
+rewrite all_predC has_predC negbK /= => Gv0 nGb eqv.
+have {nGb} equv : u = v %[mod prelat P] <->
                  [/\ a = b, u0 = v0 %[mod prelat P] & u1 = v1 %[mod prelat P] ].
   rewrite {IHn u cntu}equ {v}eqv.
   split=> [|[eqab eq0 eq1]]; first last.
@@ -81,24 +182,26 @@ have {outb} equv : u = v %[mod prelat P] <->
     rewrite -{}eqab -(cat1s a u1) -(cat1s a v1).
     apply: (stable_cat (@equiv_trans _ _) (@equiv_stable _ _)) => //.
     exact: equiv_refl.
-  admit.
+  move/(fenced_rewrites_to GR Gu0 nGa) => [w0][w1][u0Rw0 u1Rw1].
+  have Gw0 : all G w0 by rewrite -(rewrites_to_all GR u0Rw0).
+  by case/(fenced_eq Gv0 nGb Gw0 nGa)=> -> -> ->.
 case: (altP (a =P b)) => [eqab | /negbTE neqab]; first last.
   by right; rewrite {}equv => [[/eqP]]; rewrite neqab.
 subst b.
-case: (Hdec u0 v0 Pu0 Pv0) => {Pv0} [eq0 | neq0]; first last.
+case: (Hdec u0 v0 Gu0 Gv0) => {Gv0} [eq0 | neq0]; first last.
   by right; rewrite equv => [[_ eq0 _]]; exact: neq0.
-have : count out u = (count out u1).+1.
-  move: outa; rewrite equ count_cat /= => ->; rewrite add1n.
-  suff -> : count out u0 = 0 by [].
+have : count (predC G) u = (count (predC G) u1).+1.
+  move: nGa; rewrite equ count_cat /= => ->; rewrite add1n.
+  suff -> : count (predC G) u0 = 0 by [].
   by apply/eqP; rewrite -leqn0 leqNgt -has_count has_predC negbK.
 rewrite {}cntu => -[] /esym {}/IHn/(_ v1) [eq1 | neq1]; first last.
   by right; rewrite equv => [[_ eq1]]; exact: neq1.
 by left; rewrite equv.
-Admitted.
+Qed.
 
 Corollary eqrelat_dec (P1 P2 : pres Alph) :
   prelat P1 = prelat P2 -> WPdecidable P1 -> WPdecidable P2.
-Proof. by move=> eq /simpleWPdec dec u v _ _; rewrite -eq. Qed.
+Proof. by move=> eq /outwords_of_dec dec u v _ _; rewrite -eq. Qed.
 
 End AlphabetChange.
 
