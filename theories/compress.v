@@ -279,6 +279,11 @@ Definition testpres :=
 Definition compressed := strong_compress_pres testpres 2.
 
 Definition reduced := @reduce2letters _ _ compressed [:: 0; 0] 0 1 is_true_true.
+Definition fast_reduced :=
+  @fast_reduced_compressed_pres int testpres 0 [::0;1;1;1] [::1;0;1;1;1]
+    erefl is_true_true int 0 1 is_true_true.
 
-Eval compute in prelat compressed.
-Eval compute in prelat reduced.
+(* Reduce to  = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])] which is Watier *)
+Goal prelat reduced = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])]. by []. Qed.
+Goal prelat fast_reduced = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])]. by []. Qed.
+
