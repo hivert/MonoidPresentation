@@ -14,7 +14,49 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+
+
 Definition Fuel : nat := 20.
+
+Section Certificate.
+
+Context {Alph : choiceType}.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
+Local Notation word := (word Alph).
+
+
+Variant prescertificate :=
+    (* param: rewriting certificate + final order *)
+  | CompleteRewritingSystem of @pres_cert Alph & seq Alph
+    (* param: a b u v k in < a b | b^k a u = a v > *)
+  | Watier of Alph & Alph & word & word & nat
+  | Monogenic
+  | FreeProductMonogenicAndFree
+    (* param: repeated letter a in < a b | a^k = a^l > *)
+  | EqualNumberOfOccurences of Alph
+    (* param: list of the factorizations of each relations words *)
+    (*        in the order given by relwords P                   *)
+  | SmallOverlap of seq (seq word)
+  | Homogeneous. (* Not used in the database *)
+
+Variant recursive_criterion :=
+  (* apply rev to all relation words keeping the gens and relation order *)
+  | Reverse
+  (* reorder the generator and relation -- WARNING: very slow if needed *)
+  | Reorder
+  (* flip the direction of the relation *)
+  | FlipAllRelations
+  (* params: the word which is kept and sent to a which letter among 0 and 1 *)
+  | StronglyCompressAndReduce of word & Alph.
+
+Record recursive_certificate := RecCert
+  { lpres     : seq (pres Alph);
+    lproof    : forall P : pres Alph, P \in lpres -> WPdecidable P;
+    pres_ind  : int;
+    pres_crit : recursive_criterion
+  }.
 
 Variant CheckCertifiedPresentationError :=
   | CPOk
@@ -35,8 +77,10 @@ Variant CheckCertifiedPresentationError :=
   | CPPresentationNotFound
   | CPNotImplemented.
 
-
 Definition certpres_Ok r := if r is CPOk then true else false.
+
+End Certificate.
+
 
 Definition check_certpres (P : pres int) (PC : prescertificate) :=
   match PC with
@@ -67,6 +111,28 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
   | Homogeneous =>
       if ~~ is_homogeneous (prelat P) then CPHomogeneousError else CPOk
   end.
+
+Definition check_reccertpres (P : pres int) (C : recursive_certificate) :=
+  let: RecCert lp lproof ind crit := C in
+    if onth_int lp ind is Some prec then
+      match crit with
+      | Reverse =>
+          if pgen P != (pgen prec) then CPGeneratorMissmatchError
+          else if prelat P != dual_relats (prelat prec)
+               then CPRelationMissmatchError
+               else CPOk
+      | Reorder =>
+          if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
+          else if ~~ perm_eq (prelat P) (prelat prec) then CPRelationMissmatchError
+          else CPOk
+      | FlipAllRelations =>
+          if pgen P != (pgen prec) then CPGeneratorMissmatchError
+          else if prelat prec != map swap (prelat P) then CPRelationMissmatchError
+          else CPOk
+      | StronglyCompressAndReduce w l =>
+          CPNotImplemented
+      end
+    else CPPresentationNotFound.
 
 Lemma check_certpresP P C : certpres_Ok (check_certpres P C) -> WPdecidable P.
 Proof.
@@ -184,44 +250,6 @@ apply: (check_batchP (lc :=
    by native_cast_no_check is_true_true.
 Qed.
 
-
-Variant recursive_criterion {Alph : choiceType} :=
-  (* apply rev to all relation words keeping the gens and relation order *)
-  | Reverse
-  (* reorder the generator and relation -- WARNING: very slow if needed *)
-  | Reorder
-  (* flip the direction of the relation *)
-  | FlipAllRelations
-  (* params: the word which is kept and sent to a which letter among 0 and 1 *)
-  | StronglyCompressAndReduce of word Alph & Alph.
-Record recursive_certificate {Alph : choiceType} := RecCert
-  { lpres     : seq (pres Alph);
-    lproof    : forall P : pres Alph, P \in lpres -> WPdecidable P;
-    pres_ind  : int;
-    pres_crit : @recursive_criterion Alph
-  }.
-
-Definition check_reccertpres (P : pres int) (C : recursive_certificate) :=
-  let: RecCert lp lproof ind crit := C in
-    if onth_int lp ind is Some prec then
-      match crit with
-      | Reverse =>
-          if pgen P != (pgen prec) then CPGeneratorMissmatchError
-          else if prelat P != dual_relats (prelat prec)
-               then CPRelationMissmatchError
-               else CPOk
-      | Reorder =>
-          if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
-          else if ~~ perm_eq (prelat P) (prelat prec) then CPRelationMissmatchError
-          else CPOk
-      | FlipAllRelations =>
-          if pgen P != (pgen prec) then CPGeneratorMissmatchError
-          else if prelat prec != map swap (prelat P) then CPRelationMissmatchError
-          else CPOk
-      | StronglyCompressAndReduce w l =>
-          CPNotImplemented
-      end
-    else CPPresentationNotFound.
 
 Lemma check_reccertpresP P C:
   certpres_Ok (check_reccertpres P C) -> WPdecidable P.

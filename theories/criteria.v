@@ -492,65 +492,6 @@ Definition testWatier :=
 Lemma testWatierP : isWatier testWatier.
 Proof. by exists 0 1 [:: 1; 1; 0] [::] 3. Qed.
 
-
-Section Certificate.
-
-Context {Alph : choiceType}.
-
-Implicit Type (u v w : word Alph).
-Implicit Type (P : pres Alph).
-Local Notation word := (word Alph).
-
-Variant prescertificate :=
-    (* param: rewriting certificate + final order *)
-  | CompleteRewritingSystem of @pres_cert Alph & seq Alph
-    (* param: a b u v k in < a b | b^k a u = a v > *)
-  | Watier of Alph & Alph & word & word & nat
-  | Monogenic
-  | FreeProductMonogenicAndFree
-    (* param: repeated letter a in < a b | a^k = a^l > *)
-  | EqualNumberOfOccurences of Alph
-    (* param: list of the factorizations of each relations words *)
-    (*        in the order given by relwords P                   *)
-  | SmallOverlap of seq (seq word)
-  | Homogeneous. (* Not used in the database *)
-
-Definition getRWScert C :=
-  if C is CompleteRewritingSystem cert _ then cert else [::].
-Definition getRWSorder C :=
-  if C is CompleteRewritingSystem _ order then order else [::].
-
-End Certificate.
-
-(* Examples *)
-
-Definition AB_AAAAAA_ABAABA :=
-  make_pres [::0;1] [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])].
-Lemma AB_AAAAAA_ABAABA_dec : WPdecidable AB_AAAAAA_ABAABA.
-Proof.
-set pres := AB_AAAAAA_ABAABA.
-pose certCRS := CompleteRewritingSystem
-    [::
-       add_rel [::0;1;0;0;1;0] [::0;0;0;0;0;0]
-         [:: RTriple 0 0 false];
-       add_rel [::0;1;0;0;0;0;0;0;0] [::0;0;0;0;0;0;0;1;0]
-         [:: RTriple 0 3 true;
-             RTriple 1 0 true];
-       rm_rel 0
-         [:: RTriple 0 0 false]]
-    [::0;1].
-pose p := if certCRS is CompleteRewritingSystem cert order then
-            (cert, order) else ([::], [::]).
-pose cert := p.1; pose order := p.2.
-have wfc : wfpres_cert pres cert by compute.
-apply: (isopres_dec (@iso_final_pres _ pres cert wfc)).
-apply: convergent_dec; rewrite prelat_final_pres.
-apply: (rgen_convergent (@reorderK _ _ order is_true_true) erefl).
-apply: diamond.
-  exact: (decreasing_wf (@lt_sizelexi_stable _ nat) sizelexi_nat_wf).
-exact: (spair_confluence_loopP (fuel := 10)).
-Qed.
-
 Definition AB_AAAB_A :=
   make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])].
 Lemma AB_AAAB_A_dec : WPdecidable AB_AAAB_A.
