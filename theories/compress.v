@@ -43,17 +43,17 @@ Section Special.
 
 Context {Alph : choiceType}.
 
-Definition is_special (P : pres Alph) :=
-  match prelat P with
+Definition is_special (R : relat Alph) :=
+  match R with
   | [:: (r1, r2)] => (r1 == [::]) || (r2 == [::])
   | _ => false
   end.
-Lemma is_specialP P :
-  reflect (exists u, prelat P = [:: (u, [::])] \/ prelat P = [:: ([::], u)])
-          (is_special P).
+Lemma is_specialP R :
+  reflect (exists u, R = [:: (u, [::])] \/ R = [:: ([::], u)])
+          (is_special R).
 Proof.
 rewrite /is_special; apply (iffP idP).
-- case: (prelat P) => //= [[r1 r2] [|tl]] //.
+- case: R => //= [[r1 r2] [|tl]] //.
   by case/orP=> /eqP ->; [exists r2; right| exists r1; left].
 - by move=> [u] []->; rewrite eqxx // orbC.
 Qed.
@@ -65,7 +65,7 @@ Qed.
    https://arxiv.org/abs/2102.00745 Makanin, G.S.: On the identity problem for
    finitely presented groups and semigroups. PhD thesis, Steklov Mathematical
    Institute, Moscow (1966) *)
-Theorem special_dec P : is_special P -> WPdecidable P.
+Theorem special_dec P : is_special (prelat P) -> WPdecidable P.
 Admitted.
 
 End Special.

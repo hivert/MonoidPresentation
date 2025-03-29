@@ -8,7 +8,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import int_seq present rewcert fastcert criteria homogeneous.
+Require Import int_seq present rewcert fastcert criteria compress homogeneous.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -28,9 +28,9 @@ Implicit Type (P : pres Alph).
 Local Notation word := (word Alph).
 
 Record recursive_certificate := RecCert
-  { lpres     : seq (pres Alph);
-    lproof    : forall P, P \in lpres -> WPdecidable P;
-    pres_ind  : int;
+  { lpres : seq (pres Alph);
+    _ : forall P, P \in lpres -> WPdecidable P;
+    _ : int;
   }.
 
 Variant prescertificate :=
@@ -45,8 +45,10 @@ Variant prescertificate :=
     (* param: list of the factorizations of each relations words *)
     (*        in the order given by relwords P                   *)
   | SmallOverlap of seq (seq word)
-  | Homogeneous (* Not used in the database *)
-(* Recursive ones *)
+(* Not used in the database *)
+  | Homogeneous
+  | Special
+(* Recursive certificates *)
   (* apply rev to all relation words keeping the gens and relation order *)
   | Reverse of recursive_certificate
   (* reorder the generator and relation -- WARNING: very slow if needed *)
@@ -55,6 +57,8 @@ Variant prescertificate :=
   | FlipAllRelations of recursive_certificate
   (* params: the word which is kept and sent to a which letter among 0 and 1 *)
   | StronglyCompressAndReduce of recursive_certificate & word & Alph
+  (* We don't recurse here as the special presentation can have *)
+  (* more than two generators and thus is not in the database.  *)
   | StronglyCompressToSpecial.
 
 
@@ -70,12 +74,14 @@ Variant CheckCertifiedPresentationError :=
   | CPLeftCycleFree1RelError
   | CPOccError
   | CPSmallOverlapError
-  | CPHomogeneousError  (* Not used in the database *)
-      (* Recursive cases *)
+  (* Not used in the database *)
+  | CPHomogeneousError
+  | CPSpecialError
+  (* Recursive cases *)
   | CPGeneratorMissmatchError
   | CPRelationMissmatchError
   | CPRecursivePresentationNotFound
-      (* TODO: remove me when done *)
+  (* TODO: remove me when done *)
   | CPNotImplemented.
 
 Definition certpres_Ok r := if r is CPOk then true else false.
@@ -90,14 +96,15 @@ Hypothesis checkerP : forall Prec,
   WPdecidable Prec -> certpres_Ok (checker Prec) -> WPdecidable P.
 
 Definition check_recurse :=
-  if onth_int (lpres c) (pres_ind c) is some prec then checker prec
+  let: RecCert lp _ i:= c in
+  if onth_int lp i is some prec then checker prec
   else CPRecursivePresentationNotFound.
 
 Lemma check_recurseP : certpres_Ok check_recurse -> WPdecidable P.
 Proof.
-rewrite /check_recurse; case: c => lP prfP ind.
-case Hget: (onth_int lP ind) => /= [prec|] //.
-by move/onth_int_mem: Hget => {}/prfP prec_dec /checkerP; apply.
+rewrite /check_recurse; case: c => lp prfs ind.
+case Hget: (onth_int lp ind) => /= [prec|] //.
+by move/onth_int_mem: Hget => {}/prfs prec_dec /checkerP; apply.
 Qed.
 
 End Certificate.
@@ -131,6 +138,8 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
       if ~~ check_small_overlap 3 P facts then CPSmallOverlapError else CPOk
   | Homogeneous =>
       if ~~ is_homogeneous (prelat P) then CPHomogeneousError else CPOk
+  | Special =>
+      if ~~ is_special (prelat P) then CPSpecialError else CPOk
   | Reverse c => check_recurse c (fun prec =>
       if pgen P != (pgen prec) then CPGeneratorMissmatchError
       else if prelat P != dual_relats (prelat prec)
@@ -183,6 +192,8 @@ rewrite /check_certpres; case: C => [].
   exact: (check_c3_monoid_dec c3).
 - case: (boolP (is_homogeneous _)) => //= homog _.
   exact: (homog_dec homog).
+- case: (boolP (is_special _)) => //= spec _.
+  exact: (special_dec spec).
 - move=> r; apply: check_recurseP => prec prec_dec.
   case: eqP => eqgen //=; case: eqP => eqrel //= _.
   suff -> : P = dual_pres prec by apply: dual_dec.
