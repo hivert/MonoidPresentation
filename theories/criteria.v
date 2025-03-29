@@ -32,14 +32,14 @@ move=> pu.
 have x0 : Alph by case: u pu.
 move: pu; case: findP => // i ltiu /(_ x0); set a := nth x0 u i => Hb.
 move/(_ a) => before _.
-have := cat_take_drop i u; rewrite (drop_nth x0 ltiu) => eq.
-have {}before : all (predC G) (take i u).
-  apply/allP => x /[dup] xin.
-  rewrite -{1}index_mem size_take ltiu => {}/before /=.
-  have:= xin => /(nth_index a); rewrite nth_take => [-> -> //|].
-  have:= size_take i u; rewrite ltiu => {2}<-.
-  by rewrite index_mem.
-by exists (nth x0 u i) (take i u) (drop i.+1 u).
+have:= cat_take_drop i u; rewrite (drop_nth x0 ltiu) => eq.
+suff : all (predC G) (take i u).
+  by exists (nth x0 u i) (take i u) (drop i.+1 u).
+apply/allP => x /[dup] xin.
+rewrite -{1}index_mem size_take ltiu => {}/before /=.
+have:= xin => /(nth_index a); rewrite nth_take => [-> -> //|].
+have:= size_take i u; rewrite ltiu => {2}<-.
+by rewrite index_mem.
 Qed.
 
 Variable (G : pred Alph) (R : relat Alph).
@@ -74,16 +74,16 @@ rewrite !count_cat; congr (_ + (_ + _)) => {pre suf}.
 suff allGcount u : all G u -> count (predC G) u = 0 by rewrite !allGcount.
 by move=> allG; apply/eqP; rewrite -leqn0 leqNgt -has_count has_predC allG.
 Qed.
-Lemma rewrites_all u v : v \in rewrites R u -> all G u = all G v.
-Proof.
-move/rewrites_count.
-by rewrite -(negbK (all G u)) -(negbK (all G v)) -!has_predC !has_count => ->.
-Qed.
 Lemma rewrites_to_count u v :
   rewrites_to R u v -> count (predC G) u = count (predC G) v.
 Proof.
 case=> pth /[swap] {v}->; elim: pth u => [//| p0 pth IHpth] u /=.
 by case/andP => /rewrites_count <- /IHpth.
+Qed.
+Lemma rewrites_all u v : v \in rewrites R u -> all G u = all G v.
+Proof.
+move/rewrites_count.
+by rewrite -(negbK (all G u)) -(negbK (all G v)) -!has_predC !has_count => ->.
 Qed.
 Lemma rewrites_to_all u v : rewrites_to R u v -> all G u = all G v.
 Proof.
@@ -117,7 +117,7 @@ case: (leqP (size pre) (size u0)) => [lepreu0 | ltu0pre].
   by apply/rewritesP; exists pre x (r1, r2).
 - right; move: ltu0pre.
   rewrite -(size_rcons u0 a) -cats1 => /cat2E H.
-  have:= equ; rewrite -cat1s catA => {}/H [w equ1 eqpre] {equ}; subst pre u1.
+  move: equ; rewrite -cat1s catA => {}/H [w equ1 eqpre]; subst pre u1.
   move: eqv; rewrite -!catA cat1s => /(fenced_eq Gv0 nGb Gu0 nGa)[-> -> ->].
   exists (w ++ r2 ++ suf); split; last by [].
   by apply/rewritesP; exists w suf (r1, r2).
@@ -154,11 +154,10 @@ Theorem outwords_of_dec (P : pres Alph) :
 Proof.
 pose G := mem (pgen P).
 have GR : all (fun r => all G r.1 && all G r.2) (undirected (prelat P)).
-  rewrite /= /undirected all_cat.
-  have := wf_relat P; rewrite /correctrelat => ->.
+  rewrite /undirected all_cat.
+  have:= wf_relat P; rewrite /correctrelat => ->.
   exact: flipped_pres_subproof.
-have cnteq r s : r = s %[mod prelat P] -> count (predC G) r = count (predC G) s.
-  exact: rewrites_to_count.
+have cnteq := rewrites_to_count GR.
 move=> Hdec u; move: {2}(count _ _) (erefl (count (predC G) u)) => n.
 elim: n u => [| n IHn] u.
   move/eqP; rewrite -leqn0 leqNgt -has_count has_predC negbK => Pu v.
@@ -168,9 +167,8 @@ elim: n u => [| n IHn] u.
 move=> cntu v.
 have /first_occP[a u0 u1] : has (predC G) u by rewrite has_count cntu.
 rewrite all_predC has_predC negbK /= => Gu0 nGa equ.
-case: (altP (count (predC G) u =P count (predC G) v)) => [/esym|/negbTE neqout];
-                                                         first last.
-  by right => {}/cnteq /eqP; rewrite neqout.
+case: (altP (count (predC G) u =P count (predC G) v)) =>
+      [/esym|/negbTE neqout]; last by right => {}/cnteq /eqP; rewrite neqout.
 rewrite cntu => cntv.
 have {cntv}/first_occP[b v0 v1] : has (predC G) v by rewrite has_count cntv.
 rewrite all_predC has_predC negbK /= => Gv0 nGb eqv.
@@ -222,6 +220,31 @@ Admitted.
 End Monogenic.
 
 
+Section Trivial.
+
+Context {Alph : choiceType}.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
+
+Definition trivial_relats P := all (fun r => r.1 == r.2) (prelat P).
+
+Proposition trivial_relats_dec P : trivial_relats P -> WPdecidable P.
+Proof.
+rewrite /trivial_relats => /= /allP Htriv u v _ _.
+case: (altP (u =P v)) => [{u}->| nequv]; first by left; exact: equiv_refl.
+right => -[pth Hpth equv]; move: nequv; rewrite {v}equv => /negP; apply.
+elim: pth u Hpth => [|p0 pth IHpth] u //=.
+case/andP=> [/[swap]{}/IHpth/eqP{1}->]; move: (last _ _) => {p0}v.
+case/rewritesP => pre suf [r1 r2] {u}-> {v}-> /=.
+by rewrite mem_undirected => /orP[] /Htriv /= => /eqP->.
+Qed.
+Corollary free_dec P : prelat P = [::] -> WPdecidable P.
+Proof. by move=> H; apply: trivial_relats_dec; rewrite /trivial_relats H. Qed.
+
+End Trivial.
+
+
 Section FreeProductMonogenicFree.
 
 Context {Alph : choiceType}.
@@ -230,36 +253,25 @@ Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
 
 Definition free_product_monogenic_free P :=
-  size (undup (flatten (relwords P))) <= 1.
+  size (undup (flatten (relwords P))) == 1.
 
 Theorem free_product_monogenic_free_dec P :
   free_product_monogenic_free P -> WPdecidable P.
 Proof.
 rewrite /free_product_monogenic_free.
-case Hgs : (undup (flatten (relwords P))) => [|g [|//]] _.
-- move/undup_nil/flatten0/allP=> /= in Hgs.
-  move=> u v _ _; case: (altP (u =P v)) => [-> | /negP nequv].
-  + left; exact: equiv_refl.
-  + right=> [eq]; apply: nequv.
-    case: eq  => pth /[swap] {v}->.
-    elim: pth u => [| p0 pth IHpth] //= u /andP[Hp0 {}/IHpth /eqP <-].
-    case/rewritesP: Hp0 => pre suf [r1 r2] /= {u}-> {p0}-> rinP.
-    suff : (r1 \in relwords P) && (r2 \in relwords P).
-      by case/andP => /Hgs/nilP-> /Hgs/nilP->.
-    move: rinP; rewrite mem_undirected => /orP[] /mem_relatwords //.
-    by rewrite andbC.
-- have gsrel : correctrelat (prelat P) (mem [:: g]).
-    apply/allP => /= -[r1 r2] /= /mem_relatwords.
-    suff rnseq r : r \in relwords P -> exists n, r = nseq n g.
-      case/andP => /rnseq [n1] {r1}-> /rnseq [n2] {r2}->.
-      by rewrite !all_nseq !inE eqxx !orbT.
-    move=> H; exists (size r).
-    apply/all_pred1P/allP => x xinr /=.
-    suff : x \in [:: g] by rewrite inE => ->.
-    by rewrite -Hgs mem_undup; apply/flattenP => /=; exists r.
-  pose Q := Pres [:: g] _ is_true_true gsrel.
-  apply: (eqrelat_dec (P1 := Q)) => //.
-  exact: monogenic_dec.
+case Hgs : (undup (flatten (relwords P))) => [//|g [|//]] _.
+have gsrel : correctrelat (prelat P) (mem [:: g]).
+  apply/allP => /= -[r1 r2] /= /mem_relatwords.
+  suff rnseq r : r \in relwords P -> exists n, r = nseq n g.
+    case/andP => /rnseq [n1] {r1}-> /rnseq [n2] {r2}->.
+    by rewrite !all_nseq !inE eqxx !orbT.
+  move=> H; exists (size r).
+  apply/all_pred1P/allP => x xinr /=.
+  suff : x \in [:: g] by rewrite inE => ->.
+  by rewrite -Hgs mem_undup; apply/flattenP => /=; exists r.
+pose Q := Pres [:: g] _ is_true_true gsrel.
+apply: (eqrelat_dec (P1 := Q)) => //.
+exact: monogenic_dec.
 Qed.
 
 End FreeProductMonogenicFree.
