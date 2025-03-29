@@ -18,6 +18,7 @@ Unset Printing Implicit Defensive.
 
 Definition Fuel : nat := 20.
 
+
 Section Certificate.
 
 Context {Alph : choiceType}.
@@ -26,6 +27,11 @@ Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
 Local Notation word := (word Alph).
 
+Record recursive_certificate := RecCert
+  { lpres     : seq (pres Alph);
+    lproof    : forall P, P \in lpres -> WPdecidable P;
+    pres_ind  : int;
+  }.
 
 Variant prescertificate :=
     (* param: rewriting certificate + final order *)
@@ -39,24 +45,18 @@ Variant prescertificate :=
     (* param: list of the factorizations of each relations words *)
     (*        in the order given by relwords P                   *)
   | SmallOverlap of seq (seq word)
-  | Homogeneous. (* Not used in the database *)
-
-Variant recursive_criterion :=
+  | Homogeneous (* Not used in the database *)
+(* Recursive ones *)
   (* apply rev to all relation words keeping the gens and relation order *)
-  | Reverse
+  | Reverse of recursive_certificate
   (* reorder the generator and relation -- WARNING: very slow if needed *)
-  | Reorder
+  | Reorder of recursive_certificate
   (* flip the direction of the relation *)
-  | FlipAllRelations
+  | FlipAllRelations of recursive_certificate
   (* params: the word which is kept and sent to a which letter among 0 and 1 *)
-  | StronglyCompressAndReduce of word & Alph.
+  | StronglyCompressAndReduce of recursive_certificate & word & Alph
+  | StronglyCompressToSpecial.
 
-Record recursive_certificate := RecCert
-  { lpres     : seq (pres Alph);
-    lproof    : forall P : pres Alph, P \in lpres -> WPdecidable P;
-    pres_ind  : int;
-    pres_crit : recursive_criterion
-  }.
 
 Variant CheckCertifiedPresentationError :=
   | CPOk
@@ -74,10 +74,31 @@ Variant CheckCertifiedPresentationError :=
       (* Recursive cases *)
   | CPGeneratorMissmatchError
   | CPRelationMissmatchError
-  | CPPresentationNotFound
+  | CPRecursivePresentationNotFound
+      (* TODO: remove me when done *)
   | CPNotImplemented.
 
 Definition certpres_Ok r := if r is CPOk then true else false.
+
+(* Recursive case *)
+Variables
+  (P : pres Alph)
+  (c : recursive_certificate)
+  (checker : pres Alph -> CheckCertifiedPresentationError).
+
+Hypothesis checkerP : forall Prec,
+  WPdecidable Prec -> certpres_Ok (checker Prec) -> WPdecidable P.
+
+Definition check_recurse :=
+  if onth_int (lpres c) (pres_ind c) is some prec then checker prec
+  else CPRecursivePresentationNotFound.
+
+Lemma check_recurseP : certpres_Ok check_recurse -> WPdecidable P.
+Proof.
+rewrite /check_recurse; case: c => lP prfP ind.
+case Hget: (onth_int lP ind) => /= [prec|] //.
+by move/onth_int_mem: Hget => {}/prfP prec_dec /checkerP; apply.
+Qed.
 
 End Certificate.
 
@@ -110,29 +131,25 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
       if ~~ check_small_overlap 3 P facts then CPSmallOverlapError else CPOk
   | Homogeneous =>
       if ~~ is_homogeneous (prelat P) then CPHomogeneousError else CPOk
+  | Reverse c => check_recurse c (fun prec =>
+      if pgen P != (pgen prec) then CPGeneratorMissmatchError
+      else if prelat P != dual_relats (prelat prec)
+           then CPRelationMissmatchError
+           else CPOk)
+  | Reorder c => check_recurse c (fun prec =>
+      if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
+      else if ~~ perm_eq (prelat P) (prelat prec) then CPRelationMissmatchError
+           else CPOk)
+  | FlipAllRelations c => check_recurse c (fun prec =>
+      if pgen P != (pgen prec) then CPGeneratorMissmatchError
+      else if prelat prec != map swap (prelat P) then CPRelationMissmatchError
+           else CPOk)
+  | StronglyCompressAndReduce c w l => check_recurse c (fun prec =>
+      CPNotImplemented)
+  | StronglyCompressToSpecial =>
+      CPNotImplemented
   end.
 
-Definition check_reccertpres (P : pres int) (C : recursive_certificate) :=
-  let: RecCert lp lproof ind crit := C in
-    if onth_int lp ind is Some prec then
-      match crit with
-      | Reverse =>
-          if pgen P != (pgen prec) then CPGeneratorMissmatchError
-          else if prelat P != dual_relats (prelat prec)
-               then CPRelationMissmatchError
-               else CPOk
-      | Reorder =>
-          if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
-          else if ~~ perm_eq (prelat P) (prelat prec) then CPRelationMissmatchError
-          else CPOk
-      | FlipAllRelations =>
-          if pgen P != (pgen prec) then CPGeneratorMissmatchError
-          else if prelat prec != map swap (prelat P) then CPRelationMissmatchError
-          else CPOk
-      | StronglyCompressAndReduce w l =>
-          CPNotImplemented
-      end
-    else CPPresentationNotFound.
 
 Lemma check_certpresP P C : certpres_Ok (check_certpres P C) -> WPdecidable P.
 Proof.
@@ -166,51 +183,58 @@ rewrite /check_certpres; case: C => [].
   exact: (check_c3_monoid_dec c3).
 - case: (boolP (is_homogeneous _)) => //= homog _.
   exact: (homog_dec homog).
+- move=> r; apply: check_recurseP => prec prec_dec.
+  case: eqP => eqgen //=; case: eqP => eqrel //= _.
+  suff -> : P = dual_pres prec by apply: dual_dec.
+  by apply/eqP; rewrite -eqpresE eqgen /= -eqrel !eqxx.
+- move=> r; apply: check_recurseP => prec prec_dec.
+  case: (boolP (perm_eq _ _)) => permgen //=.
+  case: (boolP (perm_eq _ _)) => permrel //= _.
+  exact: (isopres_dec (pres_irrelevance_perm_eq permgen permrel)).
+- move=> r; apply: check_recurseP => prec prec_dec.
+  case: eqP => eqgen //=; case: eqP => eqrel //= _; apply: flipped_pres_dec.
+  suff <- : prec = flipped_pres P by [].
+  by apply/eqP; rewrite -eqpresE eqgen /= !eqxx /= eqrel.
+- move=> r w i; apply: check_recurseP => prec prec_dec.
+  by []. (* NotImplemented *)
+- by []. (* NotImplemented *)
 Qed.
 
-
-Section Batch.
-
-Variable (certType : Type).
-Variable (checker : pres int -> certType -> CheckCertifiedPresentationError).
-Hypothesis (checkerP : forall p c, certpres_Ok (checker p c) -> WPdecidable p).
-
-Fixpoint generic_check_batch (lp : seq (pres int)) (lc : seq certType) :=
+Fixpoint check_batch (lp : seq (pres int)) (lc : seq prescertificate) :=
   match lp, lc with
   | p :: tlp, c :: tlc =>
-      if ~~ certpres_Ok (checker p c) then false
-      else generic_check_batch tlp tlc
+      if ~~ certpres_Ok (check_certpres p c) then false
+      else check_batch tlp tlc
   | [::], [::] => true
   | _, _ => false
   end.
 
-Lemma generic_check_seq_certpresP (l : seq (pres int * certType)) :
-  all (fun cpair => certpres_Ok (checker cpair.1 cpair.2)) l ->
+Lemma check_seq_certpresP (l : seq (pres int * prescertificate)) :
+  all (fun cpair => certpres_Ok (check_certpres cpair.1 cpair.2)) l ->
   forall (P : pres int), P \in unzip1 l -> WPdecidable P.
 Proof.
-elim: l => // l0 l IHl /= /andP[/checkerP dec0 {}/IHl Hl] P.
+elim: l => // l0 l IHl /= /andP[/check_certpresP dec0 {}/IHl Hl] P.
 by rewrite inE; case: eqP => [-> //|_ /=]; apply: Hl.
 Qed.
-Lemma generic_check_batchE (lp : seq (pres int)) (lc : seq certType) :
-  (generic_check_batch lp lc) =
+Lemma check_batchE (lp : seq (pres int)) (lc : seq prescertificate) :
+  (check_batch lp lc) =
     (seq.size lp == seq.size lc) &&
-    all (fun cpair => certpres_Ok (checker cpair.1 cpair.2)) (zip lp lc).
+    all (fun cpair => certpres_Ok (check_certpres cpair.1 cpair.2)) (zip lp lc).
 Proof.
 elim: lp lc => [|p lp Hlp] [|c lc] //=.
 by case: (certpres_Ok _); rewrite //= andbF.
 Qed.
-Lemma generic_check_batchP (lp : seq (pres int)) (lc : seq certType) :
-  generic_check_batch lp lc -> forall P, P \in lp -> WPdecidable P.
+Lemma check_batchP (lp : seq (pres int)) (lc : seq prescertificate) :
+  check_batch lp lc -> forall P, P \in lp -> WPdecidable P.
 Proof.
-rewrite generic_check_batchE.
-case/andP => /eqP eqsz /generic_check_seq_certpresP /= H P Pin.
+rewrite check_batchE.
+case/andP => /eqP eqsz /check_seq_certpresP /= H P Pin.
 by apply: H; rewrite unzip1_zip // eqsz.
 Qed.
 
-End Batch.
 
-Definition check_batchP := generic_check_batchP check_certpresP.
 
+Module Examples.
 
 Definition AB_AAAAAA_ABAABA :=
   make_pres [::0;1] [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])].
@@ -221,13 +245,13 @@ Definition AB_ABB_BA := make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])].
 Definition AB_BAAAABBAAA_ABBBAABA :=
   make_pres [:: 0; 1]
        [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
-Definition all_pres := [:: AB_AAAAAA_ABAABA;
+Definition list_pres := [:: AB_AAAAAA_ABAABA;
                         AB_AAAB_A;
                         A_AAA_A;
                         AB_ABB_BA;
                         AB_BAAAABBAAA_ABBBAABA].
 
-Lemma all_pres_dec (P : pres int) : P \in all_pres -> WPdecidable P.
+Lemma all_pres_dec (P : pres int) : P \in list_pres -> WPdecidable P.
 Proof.
 apply: (check_batchP (lc :=
   [:: CompleteRewritingSystem
@@ -250,45 +274,6 @@ apply: (check_batchP (lc :=
    by native_cast_no_check is_true_true.
 Qed.
 
-
-Lemma check_reccertpresP P C:
-  certpres_Ok (check_reccertpres P C) -> WPdecidable P.
-Proof.
-rewrite /check_reccertpres; case: C => lp prf ind crit.
-case Hget: (onth_int lp ind) => /= [prec|] //.
-move/onth_int_mem: Hget => {}/prf prec_dec.
-case: crit.
-- case: eqP => eqgen //=; case: eqP => eqrel //= _.
-  suff -> : P = dual_pres prec by apply: dual_dec.
-  by apply/eqP; rewrite -eqpresE eqgen /= -eqrel !eqxx.
-- case: (boolP (perm_eq _ _)) => permgen //=.
-  case: (boolP (perm_eq _ _)) => permrel //= _.
-  exact: (isopres_dec (pres_irrelevance_perm_eq permgen permrel)).
-- case: eqP => eqgen //=; case: eqP => eqrel //= _.
-  move: prec_dec.
-  suff -> : prec = flipped_pres P by apply: flipped_pres_dec.
-  by apply/eqP; rewrite -eqpresE eqgen /= !eqxx /= eqrel.
-- by []. (* NotImplemented *)
-Qed.
-
-Definition check_recbatchP := generic_check_batchP check_reccertpresP.
-
-
-Record decidable_presentation (Alph : choiceType) : Type :=
-  DecPres { decpres :> pres Alph; _ : WPdecidable decpres }.
-Definition make_decidable_presentation P C (H : certpres_Ok (check_certpres P C))
-  : decidable_presentation _ := DecPres (check_certpresP H).
-Notation make_decpres P C :=
-  (make_decidable_presentation (P := P) (C := C) is_true_true).
-
-Definition make_recursively_decidable_presentation P C
-  (H : certpres_Ok (check_reccertpres P C))
-  : decidable_presentation _ := DecPres (check_reccertpresP H).
-Notation make_recdecpres P C :=
-  (make_recursively_decidable_presentation (P := P) (C := C) is_true_true).
-
-
-
 Definition AB_BBA_AB :=
   make_pres [::0;1]  [:: ([:: 1;1;0], [:: 0;1])].
 Definition AB_ABBABBB_A :=
@@ -297,17 +282,16 @@ Definition BA_BBBABBA_A :=
   make_pres [:: 1; 0] [:: ([:: 1;1;1;0;1;1;0], [:: 0])].
 Definition list_recpres := [:: AB_BBA_AB; AB_ABBABBB_A; BA_BBBABBA_A].
 
-Definition AB_BBA_AB_rec_cert :=
-  RecCert all_pres_dec 3 Reverse.
-Definition AB_BBA_AB_dec :=
-  @make_recdecpres AB_BBA_AB AB_BBA_AB_rec_cert.
+Lemma all_recpres_dec (P : pres int) : P \in list_recpres -> WPdecidable P.
+Proof.
+apply: (check_batchP (lc :=
+  [::
+   Reverse (RecCert all_pres_dec 3);
+   Reverse (RecCert all_pres_dec 1);
+   Reorder (RecCert all_pres_dec 1)
+  ])).
+by native_cast_no_check is_true_true.
+Qed.
 
-Definition AB_ABBABBB_A_rec_cert :=
-  RecCert all_pres_dec 1 Reverse.
-Definition AB_ABBABBB_A_dec :=
-  @make_recdecpres AB_ABBABBB_A AB_ABBABBB_A_rec_cert.
+End Examples.
 
-Definition BA_BBBABBA_A_rec_cert :=
-  RecCert all_pres_dec 1 Reorder.
-Definition BA_ABBABBB_A_dec :=
-  @make_recdecpres BA_BBBABBA_A BA_BBBABBA_A_rec_cert.
