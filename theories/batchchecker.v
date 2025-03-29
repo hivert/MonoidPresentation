@@ -291,7 +291,9 @@ Definition AB_ABBABBB_A :=
   make_pres [:: 0; 1] [:: ([:: 0;1;1;0;1;1;1], [:: 0])].
 Definition BA_BBBABBA_A :=
   make_pres [:: 1; 0] [:: ([:: 1;1;1;0;1;1;0], [:: 0])].
-Definition list_recpres := [:: AB_BBA_AB; AB_ABBABBB_A; BA_BBBABBA_A].
+Definition AB_BA_ABB :=
+  make_pres [:: 0; 1] [:: ([:: 1; 0], [:: 0; 1; 1])].
+Definition list_recpres := [:: AB_BBA_AB; AB_ABBABBB_A; BA_BBBABBA_A; AB_BA_ABB].
 
 Lemma all_recpres_dec (P : pres int) : P \in list_recpres -> WPdecidable P.
 Proof.
@@ -299,10 +301,20 @@ apply: (check_batchP (lc :=
   [::
    Reverse (RecCert all_pres_dec 3);
    Reverse (RecCert all_pres_dec 1);
-   Reorder (RecCert all_pres_dec 1)
+   Reorder (RecCert all_pres_dec 1);
+   FlipAllRelations (RecCert all_pres_dec 3)
   ])).
 by native_cast_no_check is_true_true.
 Qed.
+
+(* http://127.0.0.1:5000/proof/404857/ <a, b | aabab = aaabbb > Compress aa -> a *)
+(* 
+
+abbbb aaabbb
+
+http://127.0.0.1:5000/proof/86021/
+
+*)
 
 End Examples.
 
