@@ -15,14 +15,15 @@ theories/fastcert.v
 theories/criteria.v
 theories/compress.v
 theories/batchchecker.v
+theories/trie.v
 
 theories/samples/rennertypeD41.v
 #theories/samples/rennertypeD51.v
 
-theories/test/
+# theories/test/
 
 # theories/certs/largestcert.v
-# theories/certs/bbaaaabbba_abbbaa.v
+theories/certs/bbaaaabbba_abbbaa.v
 
 # theories/autocerts/aaaaaa_abaaba.v
 # theories/autocerts/aaaaaaa_bbbabbb.v
