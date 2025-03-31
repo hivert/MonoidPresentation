@@ -15,7 +15,11 @@ Section Homogeneous.
 Context {A : choiceType}.
 Implicit Type (u v : word A) (R : relat A).
 
+Definition homogeneous R := forall r, r \in R -> size r.1 = size r.2.
 Definition is_homogeneous R := all (fun r => size r.1 == size r.2) R.
+
+Lemma is_homogeneousP R : reflect (homogeneous R) (is_homogeneous R).
+Proof. by apply (iffP allP) => /= H [r1 r2] /= /H/eqP /=. Qed.
 
 Section Rewrite.
 

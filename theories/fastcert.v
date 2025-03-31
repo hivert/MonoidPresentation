@@ -1,5 +1,4 @@
 (** Native int is a well founded choice and type **)
-From HB Require Import structures.
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 

@@ -1,5 +1,4 @@
 (** Presentation isomorphism certificate / To be extracted from James database *)
-From HB Require Import structures.
 From Coq Require Import Uint63.
 From mathcomp Require Import all_ssreflect.
 Require Import int_seq monoids present.

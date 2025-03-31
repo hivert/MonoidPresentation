@@ -1,4 +1,3 @@
-From HB Require Import structures.
 From mathcomp Require Import all_ssreflect.
 From Coq Require Import Znat BinIntDef Uint63.
 

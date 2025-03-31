@@ -1,4 +1,3 @@
-From HB Require Import structures.
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 
@@ -63,7 +62,7 @@ Variant prescertificate :=
   | StronglyCompressToSpecial.
 
 
-Variant CheckCertifiedPresentationError :=
+Variant check_certified_presentation_result :=
   | CPOk
   | CPTietzeSequenceError
   | CPOrderDup
@@ -92,7 +91,7 @@ Definition certpres_Ok r := if r is CPOk then true else false.
 Variables
   (P : pres Alph)
   (c : recursive_certificate)
-  (checker : pres Alph -> CheckCertifiedPresentationError).
+  (checker : pres Alph -> check_certified_presentation_result).
 
 Hypothesis checkerP : forall Prec,
   WPdecidable Prec -> certpres_Ok (checker Prec) -> WPdecidable P.
@@ -217,12 +216,12 @@ rewrite /check_certpres; case: C => [].
 - by []. (* NotImplemented *)
 Qed.
 
-Variant bathresult :=
+Variant batchresult :=
   | BatchOk
   (* Lenghts of the batch and certificate doesn't match *)
   | BatchLengthMismatch
   (* Check failed for presentation at position with given Error *)
-  | BatchError of int & CheckCertifiedPresentationError.
+  | BatchError of int & check_certified_presentation_result.
 
 Definition check_batch (lp : seq (pres int)) (lc : seq prescertificate) :=
   let fix rec (i : int) lp lc :=
