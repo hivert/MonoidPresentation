@@ -39,6 +39,7 @@ Variant prescertificate :=
     (* param: a b u v k in < a b | b^k a u = a v > *)
   | Watier of Alph & Alph & word & word & nat
   | Monogenic
+  | CycleFree
   | FreeProductMonogenicAndFree
     (* param: repeated letter a in < a b | a^k = a^l > *)
   | EqualNumberOfOccurences of Alph
@@ -70,6 +71,7 @@ Variant CheckCertifiedPresentationError :=
   | CPNotDecreasing
   | CPWatierError
   | CPMonogenicError
+  | CPCycleFreeError
   | CPFreeProductMonogenicAndFreeError
   | CPLeftCycleFree1RelError
   | CPOccError
@@ -127,6 +129,8 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
       if ~~ check_Watier P a b u v k then CPWatierError else CPOk
   | Monogenic =>
       if ~~ monogenic P then CPMonogenicError else CPOk
+  | CycleFree =>
+      if ~~ is_cycle_free_1rel P then CPCycleFreeError else CPOk
   | FreeProductMonogenicAndFree =>
       if ~~ free_product_monogenic_free P then
         CPFreeProductMonogenicAndFreeError
@@ -177,22 +181,24 @@ rewrite /check_certpres; case: C => [].
   rewrite spair_confluence_loop_intE.
   exact: confl.
 - move=> a b u v k /=.
-  case: (boolP (check_Watier _ _ _ _ _ _)) => //= cW _.
+  case: (boolP (check_Watier P a b u v k)) => //= cW _.
   exact: (check_Watier_dec cW).
-- case: (boolP (monogenic _)) => //= mono _.
+- case: (boolP (monogenic P)) => //= mono _.
   exact: monogenic_dec.
-- case: (boolP (_ P)) => //= fp _.
+- case: (boolP (is_cycle_free_1rel P)) => //= cf1r _.
+  exact: is_cycle_free_1rel_dec.
+- case: (boolP (free_product_monogenic_free P)) => //= fp _.
   exact: free_product_monogenic_free_dec.
 - move=> l.
-  case: (boolP (is_left_cycle_free_1rel _)) => //= free.
-  case: (boolP (has_same_number_of_occ _ _)) => //= nbocc _.
+  case: (boolP (is_left_cycle_free_1rel P)) => //= free.
+  case: (boolP (has_same_number_of_occ P l)) => //= nbocc _.
   exact: (check_same_number_occ_dec free nbocc).
 - move=> facts.
-  case: (boolP (check_small_overlap 3 _ _)) => //= c3 _.
+  case: (boolP (check_small_overlap 3 P facts)) => //= c3 _.
   exact: (check_c3_monoid_dec c3).
-- case: (boolP (is_homogeneous _)) => //= homog _.
+- case: (boolP (is_homogeneous (prelat P))) => //= homog _.
   exact: (homog_dec homog).
-- case: (boolP (is_special _)) => //= spec _.
+- case: (boolP (is_special (prelat P))) => //= spec _.
   exact: (special_dec spec).
 - move=> r; apply: check_recurseP => prec prec_dec.
   case: eqP => eqgen //=; case: eqP => eqrel //= _.
@@ -211,14 +217,27 @@ rewrite /check_certpres; case: C => [].
 - by []. (* NotImplemented *)
 Qed.
 
-Fixpoint check_batch (lp : seq (pres int)) (lc : seq prescertificate) :=
-  match lp, lc with
-  | p :: tlp, c :: tlc =>
-      if ~~ certpres_Ok (check_certpres p c) then false
-      else check_batch tlp tlc
-  | [::], [::] => true
-  | _, _ => false
-  end.
+Variant bathresult :=
+  | BatchOk
+  (* Lenghts of the batch and certificate doesn't match *)
+  | BatchLengthMismatch
+  (* Check failed for presentation at position with given Error *)
+  | BatchError of int & CheckCertifiedPresentationError.
+
+Definition check_batch (lp : seq (pres int)) (lc : seq prescertificate) :=
+  let fix rec (i : int) lp lc :=
+    match lp, lc with
+    | p :: tlp, c :: tlc =>
+        let res := check_certpres p c in
+        if ~~ certpres_Ok (res) then BatchError i res
+        else rec (i + 1) tlp tlc
+    | [::], [::] => BatchOk
+    | _, _ => BatchLengthMismatch
+    end in
+  rec 0 lp lc.
+Definition batch_ok b := if b is BatchOk then true else false.
+Lemma batch_okP b : reflect (b = BatchOk) (batch_ok b).
+Proof. by apply (iffP idP); case: b. Qed.
 
 Lemma check_seq_certpresP (l : seq (pres int * prescertificate)) :
   all (fun cpair => certpres_Ok (check_certpres cpair.1 cpair.2)) l ->
@@ -228,21 +247,21 @@ elim: l => // l0 l IHl /= /andP[/check_certpresP dec0 {}/IHl Hl] P.
 by rewrite inE; case: eqP => [-> //|_ /=]; apply: Hl.
 Qed.
 Lemma check_batchE (lp : seq (pres int)) (lc : seq prescertificate) :
-  (check_batch lp lc) =
+  (batch_ok (check_batch lp lc)) =
     (seq.size lp == seq.size lc) &&
     all (fun cpair => certpres_Ok (check_certpres cpair.1 cpair.2)) (zip lp lc).
 Proof.
-elim: lp lc => [|p lp Hlp] [|c lc] //=.
+rewrite /check_batch; move: 0 => i.
+elim: lp lc i => [|p lp Hlp] [|c lc] i //=.
 by case: (certpres_Ok _); rewrite //= andbF.
 Qed.
 Lemma check_batchP (lp : seq (pres int)) (lc : seq prescertificate) :
-  check_batch lp lc -> forall P, P \in lp -> WPdecidable P.
+  check_batch lp lc = BatchOk -> forall P, P \in lp -> WPdecidable P.
 Proof.
-rewrite check_batchE.
+move/batch_okP; rewrite check_batchE.
 case/andP => /eqP eqsz /check_seq_certpresP /= H P Pin.
 by apply: H; rewrite unzip1_zip // eqsz.
 Qed.
-
 
 
 Module Examples.
@@ -282,7 +301,7 @@ apply: (check_batchP (lc :=
                    [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
                  [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ]
        ]])).
-   by native_cast_no_check is_true_true.
+   by native_cast_no_check (erefl BatchOk).
 Qed.
 
 Definition AB_BBA_AB :=
@@ -304,7 +323,7 @@ apply: (check_batchP (lc :=
    Reorder (RecCert all_pres_dec 1);
    FlipAllRelations (RecCert all_pres_dec 3)
   ])).
-by native_cast_no_check is_true_true.
+by native_cast_no_check (erefl BatchOk).
 Qed.
 
 (* http://127.0.0.1:5000/proof/404857/ <a, b | aabab = aaabbb > Compress aa -> a *)

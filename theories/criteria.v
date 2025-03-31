@@ -204,22 +204,6 @@ Proof. by move=> eq /outwords_of_dec dec u v _ _; rewrite -eq. Qed.
 End AlphabetChange.
 
 
-Section Monogenic.
-
-Context {Alph : choiceType}.
-
-Implicit Type (u v w : word Alph).
-Implicit Type (P : pres Alph).
-
-Definition monogenic P : bool := size (pgen P) == 1.
-
-Theorem monogenic_dec P : monogenic P -> WPdecidable P.
-(* TODO : Confined in a^m where m is the size of the largest relation word *)
-Admitted.
-
-End Monogenic.
-
-
 Section Trivial.
 
 Context {Alph : choiceType}.
@@ -243,6 +227,22 @@ Corollary free_dec P : prelat P = [::] -> WPdecidable P.
 Proof. by move=> H; apply: trivial_relats_dec; rewrite /trivial_relats H. Qed.
 
 End Trivial.
+
+
+Section Monogenic.
+
+Context {Alph : choiceType}.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
+
+Definition monogenic P : bool := size (pgen P) == 1.
+
+Theorem monogenic_dec P : monogenic P -> WPdecidable P.
+(* TODO : Confined in a^m where m is the size of the largest relation word *)
+Admitted.
+
+End Monogenic.
 
 
 Section FreeProductMonogenicFree.
@@ -275,6 +275,50 @@ exact: monogenic_dec.
 Qed.
 
 End FreeProductMonogenicFree.
+
+
+Section CycleFree.
+
+Context {Alph : choiceType}.
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
+
+Definition cycle_free_1rel (P : pres Alph) : Prop :=
+  exists (a b : Alph) (u v : word Alph),
+      a != b /\ prelat P = [:: (a :: u ++ [:: b], b :: v ++ [:: a])].
+Definition is_cycle_free_1rel P : bool :=
+  if (prelat P) is [:: (a :: u, b :: v)] then
+    [&& a != b, last a u == b & last b v == a] else false.
+
+Lemma is_cycle_free_1relP P :
+  reflect (cycle_free_1rel P) (is_cycle_free_1rel P).
+Proof.
+rewrite /is_cycle_free_1rel /cycle_free_1rel.
+case Hrel: (prelat P) => [|r1 [|r2 l]] /=; first 2 last.
+- apply (iffP idP) => [|[a][b][u][v][_] //].
+  by case: r1 {Hrel} => [[|a u][|b v]].
+- by apply (iffP idP) => [|[a][b][u][v][_]].
+apply (iffP idP); case: r1 {Hrel} => [[|a u][|b v]] //;
+first 1 [case/and3P => /negbTE neqab] || (try by move=> [a'][b'][u'][v'] [_ []]).
+- case/lastP: u => [|u c]/=; first by rewrite neqab.
+  rewrite last_rcons => /eqP {c}->.
+- case/lastP: v => [|v c]/=; first by rewrite eq_sym neqab.
+  rewrite last_rcons => /eqP {c}->.
+  exists a; exists  b; exists u; exists v.
+  by rewrite neqab !cats1.
+- move=> [a'][b'][u'][v'][neqab][{a}->{u}->{b}->{v}->].
+  by rewrite neqab /= !cats1 !last_rcons !eqxx.
+Qed.
+
+(* Theorem 2.6 in Carl-Fredrik Nyberg-Brodda1,
+   The word problem for one-relation monoids: a survey *)
+Theorem cycle_free_1rel_dec P : cycle_free_1rel P -> WPdecidable P.
+Admitted.
+
+Theorem is_cycle_free_1rel_dec P : is_cycle_free_1rel P -> WPdecidable P.
+Proof. move/is_cycle_free_1relP; exact: cycle_free_1rel_dec. Qed.
+
+End CycleFree.
 
 
 Section DefLeftCycleFree1Rel.
