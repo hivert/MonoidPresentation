@@ -4,6 +4,7 @@
 *.vos
 *.vok
 *.vio
+*.v.timing
 *.aux
 *.log
 *.nav
