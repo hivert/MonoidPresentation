@@ -1,7 +1,8 @@
 (* The goal of this file is to prove that if all the relation preserve lenght
    the equality is decidable since we are confined in a finite set *)
 From HB Require Import structures.
-From mathcomp Require Import all_ssreflect all_algebra.
+From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat seq
+  eqtype choice fintype path tuple fingraph.
 Require Import monoids present.
 
 Set Implicit Arguments.

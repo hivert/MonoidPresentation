@@ -1,7 +1,5 @@
-From mathcomp Require Import all_ssreflect.
 From Coq Require Import Znat BinIntDef Uint63.
-
-Local Open Scope uint63_scope.
+From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice ssrnat seq.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -17,10 +15,10 @@ Context {Alph : choiceType}.
 Fixpoint allwords (letters : seq Alph) (k : nat) :=
   if k is k'.+1 then [seq l :: w | l <- letters, w <- allwords letters k']
   else [:: [::]].
-Lemma size_allwords l k : seq.size (allwords l k) = (seq.size l) ^ k.
-Proof. by elim: k => [// | n IHn] /=; rewrite size_allpairs {}IHn. Qed.
+Lemma size_allwords l k : size (allwords l k) = (size l) ^ k.
+Proof. by elim: k => [// | n IHn] /=; rewrite size_allpairs {}IHn expnS. Qed.
 Lemma allwordsP l k w :
-  (w \in allwords l k) = (seq.size w == k) && all (mem l) w.
+  (w \in allwords l k) = (size w == k) && all (mem l) w.
 Proof.
 elim: k w => [|k IHk] /=; first by case.
 case=> [| w0 w]/=; first by apply/negP => /allpairsP[[/= w0 w] []].
@@ -79,7 +77,7 @@ Implicit Type (P : pres Alph).
 
 Fixpoint strong_compress k u :=
   if u is u0 :: u' then
-    if seq.size u < k then [::]
+    if size u < k then [::]
     else take k u :: strong_compress k u'
   else [::].
 
@@ -114,8 +112,8 @@ Definition strong_compress_pres P k : pres (word Alph) :=
 Theorem strong_compress_dec (P : pres Alph) :
   forall a b u v,
     pgen P = [:: a; b] -> prelat P = [:: (a :: u, a :: v)] -> u != v ->
-    let k := seq.size (long_cprefix (a :: u) (a :: v)) in
-    k <= seq.size (long_csuffix (a :: u) (a :: v)) ->
+    let k := size (long_cprefix (a :: u) (a :: v)) in
+    k <= size (long_csuffix (a :: u) (a :: v)) ->
     WPdecidable (strong_compress_pres P k.+1) -> WPdecidable P.
 Admitted.
 
@@ -164,7 +162,7 @@ Implicit Types (a b : Alph) (u v : word Alph).
 
 Fixpoint compressreduce k u :=
   if u is u0 :: u' then
-    if seq.size u < k then [::]
+    if size u < k then [::]
     else (if take k u == w then x else y) :: compressreduce k u'
   else [::].
 Lemma compressreduceE k u :
@@ -183,15 +181,15 @@ Hypotheses
   (Hgen : pgen P = [:: a; b])
   (Hrel : prelat P = [:: (a :: u, a :: v)])
   (NonSpecial : ~~ prefix (a :: u) (a :: v) && ~~ prefix (a :: v) (a :: u))
-  (Hleft : seq.size (long_cprefix (a :: u) (a :: v)) <=
-             seq.size (long_csuffix (a :: u) (a :: v))).
+  (Hleft : size (long_cprefix (a :: u) (a :: v)) <=
+             size (long_csuffix (a :: u) (a :: v))).
 
 Lemma nequv : u != v.
 Proof.
 by apply/negP => /eqP equv; move: NonSpecial; rewrite equv !prefix_refl.
 Qed.
 
-Let k := seq.size (long_cprefix (a :: u) (a :: v)).
+Let k := size (long_cprefix (a :: u) (a :: v)).
 Let strcA := take k.+1 (a :: u).
 Let strcB := take k.+1 (a :: v).
 
@@ -201,8 +199,8 @@ Lemma strcAneqB : strcA != strcB.
 Proof.
 rewrite /strcA /strcB /k /= eqxx /= eqseq_cons eqxx /=.
 move: nequv; apply contra => /eqP eq.
-have := prefix_take u (seq.size (long_cprefix u v)).+1.
-have := prefix_take v (seq.size (long_cprefix u v)).+1.
+have := prefix_take u (size (long_cprefix u v)).+1.
+have := prefix_take v (size (long_cprefix u v)).+1.
 rewrite -eq => pru prv.
 have /size_prefix := long_cprefixP pru prv.
 rewrite size_take; case: ltnP => [|_]; first by rewrite long_cprefixC ltnn.
@@ -219,7 +217,7 @@ Definition reduced_compressed_pres : pres B :=
   reduce2letters (strong_compress_pres P k.+1) strcA neqxy.
 
 (* TODO : De duplicate *)
-Local Lemma ltkszu : k <= seq.size u.
+Local Lemma ltkszu : k <= size u.
 Proof.
 rewrite leqNgt; apply/negP => Habs.
 have {}Habs : long_cprefix (a :: u) (a :: v) = a :: u.
@@ -227,7 +225,7 @@ have {}Habs : long_cprefix (a :: u) (a :: v) = a :: u.
 move: NonSpecial.
 by have:= (long_cprefixr (a :: u) (a :: v)); rewrite Habs => ->.
 Qed.
-Local Lemma ltkszv : k <= seq.size v.
+Local Lemma ltkszv : k <= size v.
 Proof.
 rewrite leqNgt; apply/negP => Habs.
 have {}Habs : long_cprefix (a :: u) (a :: v) = a :: v.
@@ -272,6 +270,8 @@ Theorem fast_compress_reduce_dec :
 Proof. by rewrite fast_reduced_compressed_presE => /compress_reduce_dec. Qed.
 
 End StrongCompressAndReduce.
+
+Local Open Scope uint63_scope.
 
 Definition testpres :=
   make_pres [:: 1; 0] [:: ([:: 0;0;1;1;1], [:: 0;1;0;1;1;1])].

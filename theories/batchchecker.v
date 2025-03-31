@@ -1,18 +1,14 @@
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
+Require Import int_seq wfsizelexi present rewcert fastcert
+  criteria compress homogeneous.
+
+Set Implicit Arguments.
+Unset Strict Implicit.
+Unset Printing Implicit Defensive.
+
 
 Local Open Scope uint63_scope.
-
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-
-Require Import int_seq wfsizelexi present rewcert fastcert criteria compress homogeneous.
-
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-
 
 
 Definition Fuel : nat := 20.

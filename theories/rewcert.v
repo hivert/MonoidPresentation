@@ -161,31 +161,46 @@ Definition pres_transfo := Pres _ _ uniq_gen_transfo correct_rel_transfo.
 
 End Defs.
 
-Theorem isopres_transfo (R : pres A) (t : transfo)
-  (prf : wf_transfo (pgen R) (prelat R) t) :
-  isopres R (pres_transfo prf).
+
+Section IsoTransfo.
+
+Variables (R : pres A) (t : transfo) (wft : wf_transfo (pgen R) (prelat R) t).
+
+Theorem isopres_transfo_ex :
+  { p : isopres R (pres_transfo wft) | p =1 idfun :> (_ -> _) }.
 Proof.
-case: t prf => /=.
+case: t wft => /=.
 - move=> g w /[dup] /andP[gok win] prf /=.
-  apply: (isopres_trans (isopres_Tietze2 win gok)).
-  exact: pres_irrelevance.
+  set newpres := pres_transfo _.
+  have @iso2 : isopres (T2_pres win gok) newpres by apply: pres_irrelevance.
+  by exists (isopres_trans (isopres_Tietze2 win gok) iso2).
 - move=> u v prf /[dup] /and3P[uin vin /check_certP eq_u_v] tok.
-  apply: (isopres_trans (isopres_rcons_rule uin vin eq_u_v)).
-  exact: pres_irrelevance.
+  set newpres := pres_transfo _.
+  have @iso2 : isopres (rcons_ext_pres uin vin) newpres by apply: pres_irrelevance.
+  by exists (isopres_trans (isopres_rcons_rule uin vin eq_u_v) iso2).
 - move=> n prf /[dup] /andP[lt_n_sz].
   case Huv : {1}(nth ([::], [::]) (prelat R) n) => [u v] /check_certP eq_u_v prf0.
   set newpres := pres_transfo _.
-  have [uin vin]: u \in words_of newpres /\ v \in words_of newpres.
+  have [uin vin] : u \in words_of newpres /\ v \in words_of newpres.
     have eq_words_of : words_of newpres = words_of R by [].
     have {lt_n_sz} : (u, v) \in prelat R by rewrite -Huv; apply: mem_nth.
     rewrite eq_words_of /words_of; case R => gens rels /= _.
     by rewrite /correctrelat !inE => /allP /= /[apply] /= /andP[-> ->].
-  apply: isopres_sym.
-  apply: (isopres_trans (isopres_rcons_rule uin vin eq_u_v)).
-  apply: pres_irrelevance_perm_eq => //=.
-  rewrite -{eq_u_v prf0 newpres uin vin u v}Huv.
-  exact: perm_eq_move_to_end.
+  have @iso2 : isopres R newpres.
+    apply: isopres_sym.
+    apply: (isopres_trans (isopres_rcons_rule uin vin eq_u_v)).
+    apply: pres_irrelevance_perm_eq => //=.
+    rewrite -{eq_u_v prf0 newpres uin vin u v}Huv.
+    exact: perm_eq_move_to_end.
+  by exists iso2.
 Qed.
+Definition isopres_transfo : isopres R (pres_transfo wft)
+  := let: exist x _ := isopres_transfo_ex in x.
+Lemma isopres_transfoE : isopres_transfo =1 idfun :> (_ -> _).
+Proof. by rewrite /isopres_transfo; case: isopres_transfo_ex. Qed.
+
+End IsoTransfo.
+
 
 Implicit Types (R : pres A) (c : pres_cert) (t : transfo).
 
@@ -200,6 +215,7 @@ Fixpoint wf_cert (gens : seq A) (rels : relat A) (c : pres_cert) :=
   else true.
 
 Definition wfpres_cert R c := wf_cert (pgen R) (prelat R) c.
+
 
 Lemma pres_certP R c (wfc : wfpres_cert R c) :
   { Res : pres A |
@@ -222,27 +238,30 @@ Lemma prelat_final_pres R c (wfc : wfpres_cert R c) :
   prelat (final_pres wfc) = rel_cert (prelat R) c.
 Proof. by rewrite /final_pres; case: (pres_certP wfc) => /= Res []. Qed.
 
-Theorem iso_final_pres R c (wfc : wfpres_cert R c) : isopres R (final_pres wfc).
+Theorem iso_final_pres_ex R c (wfc : wfpres_cert R c) :
+  { p : isopres R (final_pres wfc) | p =1 idfun :> (_ -> _) }.
 Proof.
-rewrite /final_pres; elim: c R wfc => [| t c IHc] R /= wf.
-  by apply: pres_irrelevance; rewrite ?pgen_final_pres ?prelat_final_pres.
+elim: c R wfc => [| t c IHc] R /= wf.
+  by exists (isopres_sym (pres_irrelevance (pgen_final_pres wf)
+                            (prelat_final_pres wf))).
 have:= wf => /andP[wft wfc].
-apply: (isopres_trans (isopres_transfo wft)).
 set R1 := pres_transfo wft.
 have genR1 : pgen R1 = gen_transfo (pgen R) t by [].
 have relR1 : prelat R1 = rel_transfo (prelat R) t by [].
 move: wfc; rewrite -{1}genR1 -{1}relR1 => wfcR1.
-apply: (isopres_trans (IHc R1 wfcR1)).
-apply: pres_irrelevance => //=.
-  by rewrite !pgen_final_pres genR1.
-by rewrite !prelat_final_pres relR1.
+case: (IHc R1 wfcR1) => iso2 eqiso2.
+have @isof : isopres (final_pres wfcR1) (final_pres wf).
+  apply: pres_irrelevance => //=.
+    by rewrite !pgen_final_pres genR1.
+  by rewrite !prelat_final_pres relR1.
+exists (isopres_trans (isopres_transfo wft) (isopres_trans iso2 isof)).
+by move=> u /=; rewrite eqiso2 isopres_transfoE.
 Qed.
-
-(*
-Theorem iso_final_pres_isom R c (wfc : wfpres_cert R c) :
-  { prf : isopres R (final_pres wfc) | prf =1 id }.
-Proof.
-*)
+Definition iso_final_pres R c (wfc : wfpres_cert R c) :
+  isopres R (final_pres wfc) := let: exist x _ := iso_final_pres_ex wfc in x.
+Lemma iso_final_presE R c (wfc : wfpres_cert R c) :
+  iso_final_pres wfc =1 idfun :> (_ -> _).
+Proof. by rewrite /iso_final_pres; case: iso_final_pres_ex. Qed.
 
 End Certificate.
 
