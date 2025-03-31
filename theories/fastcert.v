@@ -2,7 +2,7 @@
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 
-Require Import present rewcert int_seq.
+Require Import int_seq wfsizelexi present rewcert.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -18,8 +18,8 @@ Qed.
 Definition sizelexi_int_wf := sizelexi_wf wf_ltint.
 Definition check_convergence_intP fuel R :
   is_Ok (check_convergence <%O fuel R) -> convergent R :=
-  check_convergenceP (@lt_sizelexi_stable _ int) sizelexi_int_wf
-    (fuel := fuel) (R := R).
+  check_convergenceP lt_sizelexi_stable sizelexi_int_wf
+    (T := int) (fuel := fuel) (R := R).
 
 Theorem isopres_final : isopres present_entry present_final.
 Proof.
@@ -28,7 +28,7 @@ apply: (isopres_trans (@iso_final_pres _ present_entry cert wfc)).
 apply: pres_irrelevance.
   by rewrite (pgen_final_pres wfc).
 by rewrite (prelat_final_pres wfc).
-Time Qed.
+Qed.
 
 Fixpoint eqseq_int (s1 s2 : seq int) {struct s2} :=
   match s1, s2 with
