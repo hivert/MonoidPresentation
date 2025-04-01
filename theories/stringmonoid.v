@@ -11,6 +11,11 @@ Unset Printing Implicit Defensive.
 
 Local Open Scope uint63_scope.
 
+Lemma isSome_omap (T U : Type) (f : T -> U) (x : option T) :
+  isSome (omap f x) = isSome x.
+Proof. by case: x. Qed.
+
+
 Implicit Types (a b c : char63) (x y : int) (s t u v : string).
 
 Definition strcmp s t := if compare s t is Eq then true else false.
@@ -32,27 +37,29 @@ HB.instance Definition _ := isMonoid.Build string
 Lemma lengthE s : to_nat (length s) = size (to_list s).
 Proof. by rewrite length_spec. Qed.
 
-Lemma take_strE s i : to_list (sub s 0 i) = take (to_nat i) (to_list s).
+Lemma length_max s : (length s <= max_length)%O.
+Proof. by rewrite leintE -leintbE; apply/lebP; exact: valid_length. Qed.
+
+Definition takes s i := sub s 0 i.
+Definition drops s i := sub s i (length s).
+
+Lemma takesE s i : to_list (takes s i) = take (to_nat i) (to_list s).
 Proof. by rewrite sub_spec List.skipn_O firstnE. Qed.
-Lemma drop_strE s i :
-  (i <= length s)%O ->
-  to_list (sub s i (length s - i)) = drop (to_nat i) (to_list s).
+Lemma dropsE s i :
+  to_list (drops s i) = drop (to_nat i) (to_list s).
 Proof.
-move=> H; rewrite sub_spec skipnE firstnE take_oversize // size_drop.
-rewrite Uint63.sub_spec BinInt.Z.mod_small; first last.
-  split; first by apply: Zorder.Zle_minus_le_0; apply/lebP.
-  apply: (BinInt.Z.le_lt_trans _ (to_Z (length s))).
-    by rewrite -BinInt.Z.le_sub_nonneg; apply: le0Z.
-  by have [] := to_Z_bounded (length s).
-rewrite Z2Nat.inj_sub; last exact: le0Z.
-by rewrite lengthE.
+by rewrite sub_spec skipnE firstnE take_oversize // size_drop lengthE leq_subr.
 Qed.
 
-Definition str_prefix u v := sub v 0 (length u) == u.
+Lemma drops0E s : drops s 0 = s.
+Proof. by apply: (can_inj of_to_list); rewrite dropsE drop0. Qed.
+Lemma takes0E s : takes s 0 = ""%pstring.
+Proof. by apply: (can_inj of_to_list); rewrite takesE take0. Qed.
 
+Definition str_prefix u v := sub v 0 (length u) == u.
 Lemma str_prefixE u v : str_prefix u v = prefix (to_list u) (to_list v).
 Proof.
-by rewrite /str_prefix -(eqtype.inj_eq to_list_inj) take_strE lengthE prefixE.
+by rewrite /str_prefix -(eqtype.inj_eq to_list_inj) takesE lengthE prefixE.
 Qed.
 
 Section Rewrite.
@@ -78,9 +85,8 @@ rewrite sub_spec !firstnE !skipnE (lengthE r1).
 have lesz : size (drop (size (to_list r1)) (to_list u)) <= to_nat (length u).
   by rewrite size_drop lengthE leq_subr.
 rewrite !take_oversize // {lesz} size_cat size_drop.
-have /lebP := valid_length u.
-rewrite leintbE /int_to_nat => /(leq_trans _); apply.
-move: lenr; rewrite leintE /int_to_nat !lengthE.
+have:= length_max u; rewrite leintE => /(leq_trans _); apply.
+move: lenr; rewrite leintE !lengthE.
 move/size_prefix/subnKC : Hpref => {2}<-.
 by rewrite leq_add2r.
 Qed.
@@ -95,20 +101,64 @@ Lemma length_rewrites1_front_leq u v :
   str_rewrites1_front R u = Some v -> (length v <= length u)%O.
 Proof.
 move=> H.
-rewrite leintE /int_to_nat !lengthE.
+rewrite leintE !lengthE.
 have:= length_rewrites1_frontE u.
 rewrite -str_rewrites1_frontE H /= => -[] eq.
 have := str_rewrites1_frontE u.
 rewrite H => /esym/rewrites1_frontP/rewrites_frontP[/= suf [s1 s2] /= -> ->].
 case/mapP => /= -[r1 r2] /[swap] /= -[{s1}-> {s2}->]/=.
 move/(allP Hdecr) => /=.
-by rewrite leintE !size_cat leq_add2r /int_to_nat !lengthE.
+by rewrite leintE !size_cat leq_add2r !lengthE.
 Qed.
 
 Definition str_rewrites1_at R u i :=
-  omap (PrimString.cat (sub u 0 i))
-       (str_rewrites1_front R (sub u i (length u - i))).
+  omap (PrimString.cat (takes u i)) (str_rewrites1_front R (drops u i)).
 
+Lemma str_rewrites1_at0E u :
+  str_rewrites1_at R u 0 = str_rewrites1_front R u.
+Proof.
+rewrite /str_rewrites1_at; apply: (inj_omap (can_inj of_to_list)).
+rewrite -[LHS]omap_comp drops0E takes0E.
+by apply: eq_omap => s /=; rewrite cat_empty_l.
+Qed.
+Lemma str_rewrites1_at_drop u n i :
+  to_nat n + to_nat i <= to_nat (length u) ->
+  str_rewrites1_at R (drops u n) i =
+    omap (drops^~ n) (str_rewrites1_at R u (n + i)).
+Proof.
+move=> lesum.
+have ltsum : to_nat n + to_nat i < BinInt.Z.to_nat wB.
+  apply (leq_ltn_trans lesum).
+  rewrite length_spec.
+  have /leP/leq_ltn_trans := (to_list_length u); apply.
+  rewrite /max_length; apply/ltP.
+  by rewrite -Z2Nat.inj_lt.
+rewrite /str_rewrites1_at.
+have -> : drops (drops u n) i = drops u (n + i).
+  apply: (can_inj of_to_list); rewrite !dropsE drop_drop.
+  by rewrite (to_natD _ _ ltsum) addnC.
+case H: str_rewrites1_front => [s|//]; congr Some.
+move/length_rewrites1_front_leq : H.
+rewrite leintE !lengthE !dropsE size_drop (to_natD _ _ ltsum) => ltl.
+apply: (can_inj of_to_list); rewrite !dropsE !cat_spec !firstnE.
+rewrite !(takesE, dropsE).
+rewrite !take_drop (to_natD _ _ ltsum).
+rewrite take_oversize; first last.
+  rewrite size_cat size_drop size_take_min (addnC (to_nat i)).
+  have:= lesum; rewrite lengthE => /minn_idPl ->.
+  rewrite addKn.
+  have:= ltl; rewrite subnDA -(leq_add2l (to_nat i)) => /leq_trans; apply.
+  rewrite addnC subnK.
+    apply (leq_trans (leq_subr _ _)).
+    by rewrite -lengthE -leintE length_max.
+  rewrite -(leq_add2l (to_nat n)) -lengthE subnKC; first exact: lesum.
+  exact: (leq_trans (leq_addr _ _) lesum).
+rewrite (take_oversize (n := to_nat max_length)).
+  rewrite [X in take X]addnC.
+  rewrite drop_cat.
+
+
+  
 Lemma str_rewrites1_atE u i :
   (i <= length u)%O ->
   omap to_list (str_rewrites1_at R u i) =
@@ -116,25 +166,104 @@ Lemma str_rewrites1_atE u i :
       (rewrites1_front [seq (to_list r.1, to_list r.2) | r <- R]
          (drop (to_nat i) (to_list u))).
 Proof.
-rewrite /str_rewrites1_at -skipnE => leiu.
-have Hrew1 := str_rewrites1_frontE (sub u i (length u - i)).
-have -> : List.skipn (to_nat i) (to_list u) = to_list (sub u i (length u - i)).
-  by rewrite skipnE drop_strE.
-rewrite -Hrew1 -[LHS]omap_comp -[RHS]omap_comp.
+rewrite /str_rewrites1_at -dropsE => leiu.
+rewrite -str_rewrites1_frontE.
 case Hrew : (str_rewrites1_front _ _) => [s|] //=; congr Some.
 move/length_rewrites1_front_leq: Hrew => lens.
-rewrite cat_spec take_strE firstnE take_oversize //.
+rewrite cat_spec takesE firstnE take_oversize //.
 rewrite size_cat size_take_min -!lengthE.
-have:= leiu; rewrite leintE /int_to_nat => /minn_idPl ->.
+have:= leiu; rewrite leintE => /minn_idPl ->.
 apply: (leq_trans (n := to_nat (length u))); first last.
-  have := leintE (length u) max_length; rewrite /int_to_nat => <-.
-  rewrite /Order.le /=.
+  rewrite -(leintE (length u) max_length) /Order.le /=.
   by have := valid_length u; rewrite -leb_spec.
-  move: lens; rewrite leintE /int_to_nat lengthE.
-rewrite (lengthE (sub _ _ _)) drop_strE // size_drop.
+move: lens; rewrite leintE lengthE.
+rewrite (lengthE (sub _ _ _)) dropsE // size_drop.
 rewrite -(leq_add2l (to_nat i)) => /leq_trans; apply.
 by rewrite subnKC -(lengthE u) // -leintE.
 Qed.
+
+Fixpoint str_rewrites1_loop u n i :=
+    if n is n'.+1 then
+      let rec := str_rewrites1_at R u i in
+      if rec then rec else str_rewrites1_loop u n' (i + 1)
+    else None.
+Definition str_rewrites1 u := str_rewrites1_loop u (to_nat (length u)).+1 0.
+
+Lemma str_rewrites1E u :
+  omap to_list (str_rewrites1 u) =
+    rewrites1 [seq (to_list r.1, to_list r.2) | r <- R] (to_list u).
+Proof.
+rewrite /str_rewrites1 lengthE; move Hl : (to_list u) => l /=.
+rewrite -(isSome_omap to_list) fun_if.
+rewrite str_rewrites1_at0E /= str_rewrites1_frontE Hl.
+elim: l u Hl => [|l0 l IHl] u eql0l /=.
+  by case: rewrites1_front.
+case: rewrites1_front => [res|]//=.
+have {}/IHl <- : to_list (drops u 1) = l by rewrite dropsE eql0l /= drop0.
+rewrite -(isSome_omap to_list) fun_if.
+rewrite str_rewrites1_atE /=; last by rewrite leintE lengthE eql0l.
+rewrite eql0l /= drop0 isSome_omap.
+case: rewrites1_front => [res|] /=; first by rewrite take0.
+have -> : option_map (cons l0) =1 omap (cons l0) by case.
+rewrite -[RHS](omap_comp (to_list) (cons l0)).
+rewrite -[2]/(1 + 1); move: {2 4}1 => i.
+elim: l u eql0l => [// | l1 l IHl]//= u equ.
+rewrite isSome_omap.
+
+case: (size l) => // n.
+rewrite /option_map. 
+/  rewrite /=.
+  have /str_rewrites1_atE : (0 <= length u)%O by rewrite leintE.
+  rewrite eql0l take0 drop0 /=.
+  by case: (str_rewrites1_at R u 0) => [res|] ->; case: rewrites1_front.
+
+
+
+
+
+
+  
+move Hl : (to_nat (length u))
+Fixpoint str_norfuel2 fuel u :=
+  if fuel is fuel'.+1 then
+    if str_rewrites1 u is Some u1 then
+      let rec := str_norfuel2 fuel' u1 in
+      if rec is (u2, false) then str_norfuel2 fuel' u2 else rec
+    else (u, true)
+  else (u, false).
+
+End Rewrite.
+
+Local Open Scope pstring_scope.
+
+Definition Sys := [::
+                   ("abababab", "c");
+                   ("abc", "cab");
+                   ("babaaa", "ca");
+                   ("babaac", "cc");
+                   ("ababaca", "caaa");
+                   ("ababacc", "caac")].
+
+Eval compute in str_rewrites1 Sys "bcaabacbabbacaaabcccbba".
+Eval compute in str_rewrites1 Sys "bcaabacbabbacaacabccbba".
+Eval compute in str_rewrites1 Sys "bcaabacbabbacaaccabcbba".
+Eval compute in str_rewrites1 Sys "bcaabacbabbacaacccabbba".
+Eval compute in str_rewrites1 Sys "bcaabacbabbacaacccabbba".
+Eval compute in str_norfuel2 Sys 10 "aabcaabacbabbacaaabcccbba".
+
+Eval compute in str_rewrites1
+                  [::
+                    ("aabaaaba", "c");
+                    ("aabac", "caaba");
+                    ("bababba", "ca");
+                    ("bababbc", "cc");
+                    ("bababca", "cababba");
+                    ("bababcc", "cababbc");
+                    ("aabaaabc", "cabaaaba");
+                    ("aabaaaca", "cbabba");
+                    ("aabaaacc", "cbabbc")]
+                  "bcaabacbabbacaaabcccbba".
+
 
 
 (* Check string : monoidType.
