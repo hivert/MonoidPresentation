@@ -12,8 +12,8 @@ Local Open Scope uint63_scope.
 
 Lemma wf_ltint : well_founded (<%O : rel int).
 Proof.
-apply: (wf_f int_to_natK _ wf_ltnat) => x y.
-by rewrite int_ltE ltEnat.
+apply: (wf_f to_natK _ wf_ltnat) => x y.
+by rewrite ltintE ltEnat.
 Qed.
 Definition sizelexi_int_wf := sizelexi_wf wf_ltint.
 Definition check_convergence_intP fuel R :
