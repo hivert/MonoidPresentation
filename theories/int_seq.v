@@ -18,12 +18,12 @@ Proof. by have [] := to_Z_bounded x. Qed.
 Lemma ltZwB x : BinInt.Z.lt φ(x) wB.
 Proof. by have [] := to_Z_bounded x. Qed.
 
-Fact int_to_natK : cancel (fun i => to_nat i) (fun n => of_nat n).
+Fact to_natK : cancel (fun i => to_nat i) (fun n => of_nat n).
 Proof. by move=> i; rewrite Z2Nat.id ?of_to_Z // -to_Z_0; exact: le0Z. Qed.
-HB.instance Definition _ := CanIsCountable int_to_natK.
+HB.instance Definition _ := CanIsCountable to_natK.
 
 Lemma int_to_nat_inj : injective (fun i => to_nat i).
-Proof. exact: can_inj int_to_natK. Qed.
+Proof. exact: can_inj to_natK. Qed.
 
 (* Check int : countType. *)
 
@@ -49,7 +49,7 @@ HB.instance Definition _ := Order.isPOrder.Build int_disp int
 
 Lemma leintE x y : (x <= y)%O = (to_nat x <= to_nat y).
 Proof. exact: leintbE. Qed.
-Lemma int_ltE x y : (x < y)%O = (to_nat x < to_nat y).
+Lemma ltintE x y : (x < y)%O = (to_nat x < to_nat y).
 Proof. exact: ltintbE. Qed.
 
 Fact leint_total : total (<=%O : rel int).
@@ -60,15 +60,22 @@ Fact le0int x : (0 <= x)%O.
 Proof. by rewrite leintE. Qed.
 HB.instance Definition _ := Order.hasBottom.Build int_disp int le0int.
 
-Local Notation wBN := (BinInt.Z.to_nat wB).
+Local Notation wBnat := (BinInt.Z.to_nat wB).
 
 Lemma to_nat0 : to_nat 0 = 0%N.
 Proof. by []. Qed.
 Lemma to_nat1 : to_nat 1 = 1%N.
 Proof. by []. Qed.
 
+Lemma of_natK n : n < wBnat -> to_nat (of_nat n) = n.
+Proof.
+move=> ltn; rewrite of_Z_spec BinInt.Z.mod_small; first by rewrite Nat2Z.id.
+split; first exact: Nat2Z.is_nonneg.
+by rewrite -(Z2Nat.id wB); first exact/inj_lt/ltP.
+Qed.
+
 Lemma to_natD x y :
-  to_nat x + to_nat y < wBN -> to_nat (x + y) = (to_nat x + to_nat y)%N.
+  to_nat x + to_nat y < wBnat -> to_nat (x + y) = (to_nat x + to_nat y)%N.
 Proof.
 have lex := le0Z x; have ley := le0Z y.
 have lexy := BinInt.Z.add_nonneg_nonneg _ _ lex ley.
