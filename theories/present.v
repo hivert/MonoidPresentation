@@ -179,9 +179,6 @@ Fixpoint rewrites_front R u : seq word :=
     else rewrites_front R' u
   else [::].
 
-Lemma rewrite1_frontE R u :
-  rewrites1_front R u = head None [seq Some v | v <- rewrites_front R u].
-Proof. by elim: R => [// | [r1 r2] R IHR] /=; case: prefix. Qed.
 Lemma rewrites_frontP R u v :
   reflect (rewrites_front_spec R u v) (v \in rewrites_front R u).
 Proof.
@@ -199,6 +196,10 @@ rewrite inE => /orP[/eqP[{r1}<-{r2}<-] | sinR].
 have {}/IHR : rewrites_front_spec R (s1 ++ suf) (s2 ++ suf) by exists suf (s1, s2).
 by case: prefixP => _ //; rewrite inE orbC => ->.
 Qed.
+
+Lemma rewrite1_frontE R u :
+  rewrites1_front R u = head None [seq Some v | v <- rewrites_front R u].
+Proof. by elim: R => [// | [r1 r2] R IHR] /=; case: prefix. Qed.
 Lemma rewrites_front0P R u :
   (rewrites_front R u == [::]) = (rewrites1_front R u == None).
 Proof. by rewrite rewrite1_frontE; case: rewrites_front. Qed.
@@ -227,20 +228,6 @@ Fixpoint rewrites u :=
   then (rewrites_front R u) ++ [seq a :: v | v <- rewrites u']
   else rewrites_front R [::].
 
-Lemma rewrite1E u :
-  rewrites1 u = head None [seq Some v | v <- rewrites u].
-Proof.
-elim: u => [|a u]; rewrite /= rewrite1_frontE.
-by case: head.
-move => H /=.
-case: rewrites_front => //=.
-rewrite {}H /=.
-by case: rewrites.
-Qed.
-Lemma rewrite1_in u v : rewrites1 u = Some v -> v \in rewrites u.
-Proof.
-by rewrite rewrite1E; case: rewrites => [//| a l [->]/=]; rewrite inE eqxx.
-Qed.
 Lemma rewritesP u v : reflect (rewrites_spec R u v) (v \in rewrites u).
 Proof.
 apply (iffP idP); elim: u v => [| a u IHu] v /=.
@@ -255,6 +242,18 @@ apply (iffP idP); elim: u v => [| a u IHu] v /=.
     by left; apply/rewrites_frontP; exists suf (r1, r2).
   right; rewrite mem_map; last by move=> ? ? [].
   by apply: IHu; rewrite {}equ; exists pre suf (r1, r2).
+Qed.
+Lemma rewrite1E u :
+  rewrites1 u = head None [seq Some v | v <- rewrites u].
+Proof.
+elim: u => [|a u H /=]; rewrite /= rewrite1_frontE.
+  by case: head.
+case: rewrites_front => //=; rewrite {}H /=.
+by case: rewrites.
+Qed.
+Lemma rewrite1_in u v : rewrites1 u = Some v -> v \in rewrites u.
+Proof.
+by rewrite rewrite1E; case: rewrites => [//| a l [->]/=]; rewrite inE eqxx.
 Qed.
 Lemma rewrites0P u : (rewrites u == [::]) = (rewrites1 u == None).
 Proof. by rewrite rewrite1E; case: rewrites. Qed.
