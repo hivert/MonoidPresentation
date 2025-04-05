@@ -15,7 +15,8 @@ theories/fastcert.v
 theories/criteria.v
 theories/compress.v
 theories/batchchecker.v
-theories/trie.v
+#  theories/trie.v
+theories/inttrie.v
 
 theories/samples/rennertypeD41.v
 #theories/samples/rennertypeD51.v
