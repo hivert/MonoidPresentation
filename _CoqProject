@@ -19,7 +19,7 @@ theories/batchchecker.v
 theories/inttrie.v
 
 theories/samples/rennertypeD41.v
-#theories/samples/rennertypeD51.v
+theories/samples/rennertypeD51.v
 
 # theories/test/
 

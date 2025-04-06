@@ -10,6 +10,8 @@ apply: pres_irrelevance.
 by rewrite (prelat_final_pres wfc).
 Time Qed.
 
+Require Import inttrie.
+
 
 Theorem final_ok : convergent (prelat present_final).
 Proof.
@@ -17,8 +19,10 @@ apply: (rgen_convergent (reorderK (l := final_order) is_true_true) erefl).
 apply: diamond.
   apply (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
   by native_cast_no_check is_true_true.
-apply: (spair_confluence_loopP (rewrites1P _) (fuel := 10)).
-rewrite spair_confluence_loop_intE.
+have relbound : correctrelat (prelat present_final) (<%O^~ 12) by [].
+apply: (spair_confluence_loopP (trie_rewrites1P _ relbound ) (fuel := 10)).
+  by [].
+rewrite spair_confluence_loop_trieE.
 (* Set NativeCompute Timing.
 Set NativeCompute Profiling.
 Time by native_compute.  *)

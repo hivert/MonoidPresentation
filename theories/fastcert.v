@@ -17,8 +17,8 @@ by rewrite ltintE ltEnat.
 Qed.
 Definition sizelexi_int_wf := sizelexi_wf wf_ltint.
 Definition check_convergence_intP fuel R :
-  is_Ok (check_convergence (@rewrites1 _) <%O fuel R) -> convergent R :=
-  check_convergenceP (@rewrites1P _) lt_sizelexi_stable sizelexi_int_wf
+  is_Ok (check_convergence R (rewrites1 _) <%O fuel) -> convergent R :=
+  check_convergenceP (rewrites1P _) lt_sizelexi_stable sizelexi_int_wf
     (T := int) (fuel := fuel) (R := R).
 
 Theorem isopres_final : isopres present_entry present_final.
@@ -69,15 +69,16 @@ Definition rewrites1_int (R : relat int) :=
 Lemma rewrites1_intE R : @rewrites1 int R = rewrites1_int R.
 Proof. by []. Qed.
 
-Fixpoint norfuel2_int R fuel u :=
-  if fuel is fuel'.+1 then
-    if rewrites1_int R u is Some u1 then
-      let rec := norfuel2_int R fuel' u1 in
-      if rec is (u2, false) then norfuel2_int R fuel' u2 else rec
-    else (u, true)
-  else (u, false).
+Definition norfuel2_int R :=
+  fix nor fuel u :=
+    if fuel is fuel'.+1 then
+      if rewrites1_int R u is Some u1 then
+        let rec := nor fuel' u1 in
+        if rec is (u2, false) then nor fuel' u2 else rec
+      else (u, true)
+    else (u, false).
 
-Lemma norfuel2_intE : norfuel2 rewrites1_int = norfuel2_int.
+Lemma norfuel2_intE R : norfuel2 (rewrites1_int R) = norfuel2_int R.
 Proof. by []. Qed.
 
 Definition all_spairs_rule_int (r1 r2 s1 s2 : seq int) :=
@@ -112,14 +113,14 @@ Definition all_tr {T} (p : T -> bool) :=
 Lemma all_trE : @all = @all_tr.
 Proof. by []. Qed.
 
-Definition spair_confluence_dec_int fuel R :=
+Definition spair_confluence_dec_int R fuel :=
   if all_tr (fun p => eqseq_int p.1 p.2) (all_npairs_int R) then
     let spairs := filter (fun p => ~~ eqseq_int p.1 p.2) (all_spairs_int R) in
     (* all (fun p => norfuel_int R fuel p.1 == norfuel_int R fuel p.2) spairs *)
     all (fun p => eqnor R fuel p.1 p.2) spairs
   else false.
-Lemma spair_confluence_dec_intE :
-  spair_confluence_dec rewrites1_int = spair_confluence_dec_int.
+Lemma spair_confluence_dec_intE R :
+  spair_confluence_dec R (rewrites1_int R) = spair_confluence_dec_int R.
 Proof. by []. Qed.
 
 Section WordRel.
@@ -153,11 +154,11 @@ Definition all_pred_spairs_int R :=
 
 End WordRel.
 
-Definition spair_confluence_loop_int fuel R :=
+Definition spair_confluence_loop_int R fuel :=
   (all_pred_npairs_int eqseq_int R) &&
   (all_pred_spairs_int (fun p1 p2 =>
      if eqseq_int p1 p2 then true else eqnor R fuel p1 p2) R).
 
-Lemma spair_confluence_loop_intE :
-  spair_confluence_loop rewrites1_int = spair_confluence_loop_int.
+Lemma spair_confluence_loop_intE R :
+  spair_confluence_loop R (rewrites1_int R) = spair_confluence_loop_int R.
 Proof. by []. Qed.

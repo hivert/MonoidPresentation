@@ -364,7 +364,7 @@ Qed.
 Theorem final_ok : convergent (prelat present_final).
 Proof.
 apply: (rgen_convergent (reorderK (l := final_order) is_true_true) erefl).
-exact: (check_convergenceP (@rewrites1P _) lt_sizelexi_stable sizelexi_nat_wf
+exact: (check_convergenceP (rewrites1P _) lt_sizelexi_stable sizelexi_nat_wf
          (fuel := 5)).
 Qed.
 

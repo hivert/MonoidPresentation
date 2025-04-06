@@ -3,7 +3,7 @@ From Coq Require Import Znat BinIntDef Uint63.
 From Coq Require Import PrimInt63 PString PArray.
 From mathcomp Require Import all_ssreflect.
 
-Require Import int_seq present.
+Require Import int_seq present fastcert.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -355,107 +355,53 @@ rewrite get_updatetrie //=; last exact: is_flmktrie.
 by case: eqP.
 Qed.
 
-Lemma trie_rewrites1_frontP R w :
+Lemma trie_rewrites1_frontP R :
   correctrelat R (<%O^~ trielen) ->
-  forall u : word int, trie_rewrites1_front (mktrie R) w = Some u ->
-         u \in rewrites_front R w.
+  rewrites1_front_Ok R (trie_rewrites1_front (mktrie R)).
 Proof.
-rewrite /trie_rewrites1_front => /getprefixmktrieE /= /(_ w).
-by case: getprefixtrie => //= [[r1 r2]] /= /(_ _ _ erefl) H u [<-{u}].
+move=> Hcorr w; rewrite /trie_rewrites1_front /=.
+case H : (getprefixtrie (mktrie R) w) => [[v1 v2]|]/=; constructor.
+  exact/rewrites_frontP/getprefixmktrieE.
+move=> /= v /rewrites_frontP.
+rewrite (trie_rewrites1_front0 Hcorr) => //.
+by rewrite /trie_rewrites1_front /= H.
 Qed.
 
-Fixpoint trie_rewrites1 t u :=
-  if trie_rewrites1_front t u is Some u as res then res
-  else if u is a :: u' then option_map (cons a) (trie_rewrites1 t u')
-  else None.
+Definition trie_rewrites1 t :=
+  rewrites1_from_front (trie_rewrites1_front t).
 
-Lemma trie_rewrites10P R u :
-  correctrelat R (<%O^~ trielen) ->
-  trie_rewrites1 (mktrie R) u = None -> rewrites R u = [::].
-Proof.
-move=> Rcorr; elim: u => [| u0 u IHu] //=.
-  have:= trie_rewrites1_front0 Rcorr (w := [::]).
-  by case: trie_rewrites1_front.
-have := trie_rewrites1_frontP Rcorr (w := (u0 :: u)).
-case Hrew: trie_rewrites1_front => //= _ H.
-have {H}/IHu -> /= : trie_rewrites1 (mktrie R) u = None.
-  by case: (trie_rewrites1 _ _) H.
-by rewrite (trie_rewrites1_front0 Rcorr Hrew).
-Qed.
-Lemma trie_rewrite1P R u v :
-  correctrelat R (<%O^~ trielen) ->
-  trie_rewrites1 (mktrie R) u = Some v -> v \in rewrites R u.
-Proof.
-move/trie_rewrites1_frontP => H.
-elim: u v => [| u0 u IHu v] /=.
-  by move/(_ [::]): H; case: trie_rewrites1_front => //= w /[apply].
-move/(_ (u0 :: u)): H; case: trie_rewrites1_front => //= [w /[apply] | _].
-  by rewrite mem_cat => ->.
-move: IHu; case: trie_rewrites1 => //= w /(_ _ erefl) Hrec [{v}<-].
-by rewrite mem_cat orbC map_f.
-Qed.
+Lemma trie_rewrites1P R :
+  correctrelat R (<%O^~ trielen) -> rewrites1_Ok R (trie_rewrites1 (mktrie R)).
+Proof. by move/trie_rewrites1_frontP => H; apply:rewrite1_from_frontP. Qed.
 
-Fixpoint norfuel t fuel u :=
-  if fuel is fuel'.+1 then
-    if trie_rewrites1 t u is Some v then norfuel t fuel' v else (u, true)
-  else (u, false).
 
-Fixpoint norfuel2 t fuel u :=
-  if fuel is fuel'.+1 then
-    if trie_rewrites1 t u is Some u1 then
-      let rec := norfuel2 t fuel' u1 in
-      if rec is (u2, false) then norfuel2 t fuel' u2 else rec
-    else (u, true)
-  else (u, false).
-Definition expfuel fuel := ((2 ^ fuel).-1)%N.
+Definition eqnor tr fuel (p1 p2 : word int) :=
+  let x1 := norfuel2 (trie_rewrites1 tr) fuel p1 in
+  let x2 := norfuel2 (trie_rewrites1 tr) fuel p2 in
+  if eqseq_int x1.1 x2.1 then eqbool x1.2 x2.2 else false.
 
-Lemma norfuelD t f1 f2 u :
-  norfuel t (f1 + f2) u =
-    let rec := norfuel t f1 u in
-    if rec is (u', false) then norfuel t f2 u' else rec.
-Proof.
-elim: f1 u => [|f1 IHf1]//= u; rewrite -/(f1 + f2)%N.
-by case: trie_rewrites1.
-Qed.
-Lemma norfuel2E t fuel : norfuel2 t fuel =1 norfuel t (expfuel fuel).
-Proof.
-rewrite /expfuel.
-elim: fuel => [| fuel IHfuel] u //=.
-rewrite expnSr muln2 -addnn.
-have -> : ((2 ^ fuel + 2 ^ fuel).-1 = 1 + ((2 ^ fuel).-1 + (2 ^ fuel).-1))%N.
-  case: (2 ^ fuel) (expn_non2 fuel) => // n _ /=.
-  by rewrite -/(addn _ _) !add1n addnS.
-rewrite norfuelD /=; case: trie_rewrites1 => // {}u.
-rewrite IHfuel /= norfuelD /= -!IHfuel.
-by case: norfuel2 => v b /=; rewrite IHfuel.
-Qed.
 
-Lemma rewrites_to_norfuel R fuel u :
-  correctrelat R (<%O^~ trielen) ->
-  rewrites_to R u (norfuel (mktrie R) fuel u).1.
-Proof.
-move=> corrR.
-elim: fuel u => [|fuel IHfuel] u /=; first exact: rewrites_to_refl.
-case H : trie_rewrites1 => [a|]; last exact: rewrites_to_refl.
-by move/trie_rewrite1P/rewrites_to1/rewrites_to_trans : H; apply.
-Qed.
-Lemma norfuelT R fuel u :
-  correctrelat R (<%O^~ trielen) ->
-  (norfuel (mktrie R) fuel u).2 -> normalf R u (norfuel (mktrie R) fuel u).1.
-Proof.
-move=> Hcorr.
-have:= (rewrites_to_norfuel fuel u Hcorr).
-case Hnor : norfuel => [v b] /= rew Hb; rewrite {}Hb in Hnor.
-split => // {rew}.
-move: Hnor; elim: fuel u => //= fuel IHfuel u.
-case H : trie_rewrites1 => [w |]; first exact: IHfuel.
-rewrite /normal => [[<-]] {IHfuel}.
-by move/(trie_rewrites10P Hcorr): H => ->.
-Qed.
-Lemma norfuel2T R fuel u :
-  correctrelat R (<%O^~ trielen) ->
-  (norfuel2 (mktrie R) fuel u).2 -> normalf R u (norfuel2 (mktrie R) fuel u).1.
-Proof. rewrite norfuel2E; exact: norfuelT. Qed.
+Definition spair_confluence_dec_trie R fuel :=
+  let tr := (mktrie R) in
+  if all_tr (fun p => eqseq_int p.1 p.2) (all_npairs_int R) then
+    let spairs := filter (fun p => ~~ eqseq_int p.1 p.2) (all_spairs_int R) in
+    (* all (fun p => norfuel_int R fuel p.1 == norfuel_int R fuel p.2) spairs *)
+    all (fun p => eqnor tr fuel p.1 p.2) spairs
+  else false.
+Lemma spair_confluence_dec_intE R :
+  spair_confluence_dec R (trie_rewrites1 (mktrie R)) = spair_confluence_dec_trie R.
+Proof. by []. Qed.
+
+Definition spair_confluence_loop_trie R fuel :=
+  let tr := (mktrie R) in
+  (all_pred_npairs_int eqseq_int R) &&
+  (all_pred_spairs_int (fun p1 p2 =>
+     if eqseq_int p1 p2 then true else eqnor tr fuel p1 p2) R).
+
+Lemma spair_confluence_loop_trieE R :
+  spair_confluence_loop R (trie_rewrites1 (mktrie R)) =
+    spair_confluence_loop_trie R.
+Proof. by []. Qed.
 
 End TrieRewrites.
 

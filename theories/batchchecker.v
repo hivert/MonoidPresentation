@@ -117,7 +117,7 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
           let newg := pord order sorted_ord in
           let newrels := [seq rgen_rels newg i | i <- relfinal] in
           if ~~ decreasing <%O newrels then CPNotDecreasing else
-            if ~~ spair_confluence_loop_int Fuel newrels
+            if ~~ spair_confluence_loop_int newrels Fuel
             then CPConfluenceError
             else CPOk
   | Watier a b u v k =>
@@ -172,7 +172,7 @@ rewrite /check_certpres; case: C => [].
   apply: (rgen_convergent (reorderK uniq_order) erefl).
   apply: diamond.
     exact: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
-  apply: (spair_confluence_loopP (@rewrites1P int)).
+  apply (spair_confluence_loopP (rewrites1P _) (fuel := Fuel)).
   rewrite spair_confluence_loop_intE.
   exact: confl.
 - move=> a b u v k /=.
