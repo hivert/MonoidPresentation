@@ -21,7 +21,7 @@ theories/test/
 # theories/certs/largestcert.v
 # theories/certs/bbaaaabbba_abbbaa.v
 
-# theories/samples/rennertypeD41.v
+theories/samples/rennertypeD41.v
 # theories/samples/rennertypeD51.v
 
 # theories/autocerts/aaaaaa_abaaba.v
