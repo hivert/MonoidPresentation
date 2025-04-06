@@ -172,7 +172,7 @@ rewrite /check_certpres; case: C => [].
   apply: (rgen_convergent (reorderK uniq_order) erefl).
   apply: diamond.
     exact: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
-  apply: spair_confluence_loopP.
+  apply: (spair_confluence_loopP (@rewrites1P int)).
   rewrite spair_confluence_loop_intE.
   exact: confl.
 - move=> a b u v k /=.

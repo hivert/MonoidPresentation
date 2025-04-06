@@ -17,8 +17,8 @@ apply: (rgen_convergent (reorderK (l := final_order) is_true_true) erefl).
 apply: diamond.
   apply: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
   by native_cast_no_check is_true_true.
-apply: (spair_confluenceP (fuel := 100)).
-rewrite -spair_confluence_loopE spair_confluence_loop_intE.
+apply: (spair_confluence_loopP (@rewrites1P int) (fuel := 10)).
+rewrite spair_confluence_loop_intE.
 (* Set NativeCompute Timing.
 Set NativeCompute Profiling.
 Time by native_compute.  *)

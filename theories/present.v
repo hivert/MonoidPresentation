@@ -143,14 +143,25 @@ Variant rewrites_front_spec R u v : Prop :=
       u = rule.1 ++ suf -> v = rule.2 ++ suf -> rule \in R
                -> rewrites_front_spec R u v.
 
+Variant rewrites1_front_spec R u : option word -> Prop :=
+  | Rewrites1FrontRes : forall v, rewrites_front_spec R u v
+                                  -> rewrites1_front_spec R u (Some v)
+  | Rewrites1FrontNone : (forall v, ~ rewrites_front_spec R u v)
+                         -> rewrites1_front_spec R u None.
+
 (* rewrites_spec R u v when a rw rule in R applies rewrite u into v by applying
    a rule in R to an arbitrary subword of u *)
 Variant rewrites_spec R u v : Prop :=
   Rewrites : forall (pre suf : word) (rule : word * word),
       u = pre ++ rule.1 ++ suf -> v = pre ++ rule.2 ++ suf -> rule \in R
                -> rewrites_spec R u v.
+Variant rewrites1_spec R u : option word -> Prop :=
+  | Rewrite1Res : forall v, rewrites_spec R u v
+                            -> rewrites1_spec R u (Some v)
+  | Rewrite1None : (forall v, ~ rewrites_spec R u v)
+                   -> rewrites1_spec R u None.
 
-Lemma rewrite_front_spec_cons R u v r1 r2:
+Lemma rewrites_front_spec_cons R u v r1 r2:
   rewrites_front_spec R u v -> rewrites_front_spec ((r1, r2) :: R) u v.
 Proof.
 case=> suf [s1 s2] /= {u}->{v}-> sinR.
@@ -188,7 +199,7 @@ apply (iffP idP); elim: R => [|[r1 r2] R IHR] //=.
   case=> suf equ; subst u => /=.
   rewrite inE => /orP[/eqP{v IHR}-> | {}/IHR].
     by exists suf (r1, r2); rewrite ?drop_size_cat // inE eqxx.
-  exact: rewrite_front_spec_cons.
+  exact: rewrites_front_spec_cons.
 - by case.
 case=> suf [s1 s2]/= equ eqv; subst u v.
 rewrite inE => /orP[/eqP[{r1}<-{r2}<-] | sinR].
@@ -197,18 +208,26 @@ have {}/IHR : rewrites_front_spec R (s1 ++ suf) (s2 ++ suf) by exists suf (s1, s
 by case: prefixP => _ //; rewrite inE orbC => ->.
 Qed.
 
-Lemma rewrite1_frontE R u :
+Lemma rewrites1_frontE R u :
   rewrites1_front R u = head None [seq Some v | v <- rewrites_front R u].
 Proof. by elim: R => [// | [r1 r2] R IHR] /=; case: prefix. Qed.
 Lemma rewrites_front0P R u :
   (rewrites_front R u == [::]) = (rewrites1_front R u == None).
-Proof. by rewrite rewrite1_frontE; case: rewrites_front. Qed.
-Lemma rewrites1_frontP R u v :
+Proof. by rewrite rewrites1_frontE; case: rewrites_front. Qed.
+Lemma rewrites1_front_SomeP R u v :
   rewrites1_front R u = Some v -> v \in rewrites_front R u.
 Proof.
-rewrite rewrite1_frontE.
+rewrite rewrites1_frontE.
 by case: rewrites_front => [//| w s] /= [<-{v}]; rewrite inE eqxx.
 Qed.
+Lemma rewrites1_frontP R u : rewrites1_front_spec R u (rewrites1_front R u).
+Proof.
+case H: rewrites1_front => [v|]; constructor.
+  by move/rewrites1_front_SomeP/rewrites_frontP: H.
+move=> v /rewrites_frontP.
+by move/eqP: H; rewrite -rewrites_front0P => /eqP->.
+Qed.
+
 
 Section DefRewrites.
 
@@ -216,10 +235,11 @@ Variable (R : relat).
 
 (* Finds the first matching rule in R that matches a subword of u and produces
    the rewritten v, or None. *)
-Fixpoint rewrites1 u :=
-  if rewrites1_front R u is Some u as res then res
-  else if u is a :: u' then option_map (cons a) (rewrites1 u')
-  else None.
+Definition rewrites1_from_front rewfront :=
+  fix loop u := if rewfront R u is Some u as res then res
+                else if u is a :: u' then option_map (cons a) (loop u')
+                else None.
+Definition rewrites1 := rewrites1_from_front rewrites1_front.
 
 (* Produces the list of all words v than can be obtained by rewriting
    u with a (single) rule in R *)
@@ -246,21 +266,39 @@ Qed.
 Lemma rewrite1E u :
   rewrites1 u = head None [seq Some v | v <- rewrites u].
 Proof.
-elim: u => [|a u H /=]; rewrite /= rewrite1_frontE.
+rewrite /rewrites1; elim: u => [|a u H /=]; rewrite /= rewrites1_frontE.
   by case: head.
 case: rewrites_front => //=; rewrite {}H /=.
 by case: rewrites.
 Qed.
-Lemma rewrite1_in u v : rewrites1 u = Some v -> v \in rewrites u.
-Proof.
-by rewrite rewrite1E; case: rewrites => [//| a l [->]/=]; rewrite inE eqxx.
-Qed.
 Lemma rewrites0P u : (rewrites u == [::]) = (rewrites1 u == None).
 Proof. by rewrite rewrite1E; case: rewrites. Qed.
-Lemma rewrites1P u v : rewrites1 u = Some v -> v \in rewrites u.
+Lemma rewrites1SomeP u v : rewrites1 u = Some v -> v \in rewrites u.
 Proof.
 by rewrite rewrite1E; case: rewrites => [//| w s] /= [{v}<-]; rewrite inE eqxx.
 Qed.
+
+Lemma rewrite1_from_frontP rewfront :
+  (forall u, rewrites1_front_spec R u (rewfront R u)) ->
+  forall u, rewrites1_spec R u (rewrites1_from_front rewfront u).
+Proof.
+move=> front_spec; elim => [|u0 u IHu] /=.
+  case: (front_spec [::]) => [v [suf [r1 r2] /= eq {v}->]|].
+    move: eq; case: r1 => //= {suf}<- inR.
+    by constructor; exists [::] [::] ([::], r2).
+  move=> H; constructor => v [[]// /[swap] -[/= []// b []// _ eqv inR]].
+  apply: (H v) => {H}; rewrite {v}eqv.
+  by exists [::] ([::], b).
+case: (front_spec (u0 :: u)) => [w [suf [r1 r2]/= equ0u {w}-> rinR] | norewf].
+  by constructor; rewrite {}equ0u; exists [::] suf (r1, r2).
+case: IHu => [v [pre suf [r1 r2] /= {norewf u}-> {v}-> rinR] | norew /=].
+  by constructor; exists (u0 :: pre) suf (r1, r2).
+constructor => v [[{norew} | {norewf} p0 pre] suf [r1 r2] /= equ0u eqv rinR].
+  by apply: (norewf v); rewrite {norewf}equ0u; exists suf (r1, r2).
+move: equ0u => [eq0 equ]; subst p0.
+by apply: (norew (pre ++ r2 ++ suf)) => {norew}; exists pre suf (r1, r2).
+Qed.
+Definition rewrites1P := rewrite1_from_frontP (rewrites1_frontP R).
 
 Lemma rewrites_rel u v : (u, v) \in R -> v \in rewrites u.
 Proof.
@@ -1384,14 +1422,20 @@ Qed.
 
 End Confluence.
 
+
+Section Normalization.
+
+Variable (rew1 : relat T -> word T -> option (word T)).
+Hypothesis (rew1P : forall R u, rewrites1_spec R u (rew1 R u)).
+
 Fixpoint norfuel R fuel u :=
   if fuel is fuel'.+1 then
-    if rewrites1 R u is Some v then norfuel R fuel' v else (u, true)
+    if rew1 R u is Some v then norfuel R fuel' v else (u, true)
   else (u, false).
 
 Fixpoint norfuel2 R fuel u :=
   if fuel is fuel'.+1 then
-    if rewrites1 R u is Some u1 then
+    if rew1 R u is Some u1 then
       let rec := norfuel2 R fuel' u1 in
       if rec is (u2, false) then norfuel2 R fuel' u2 else rec
     else (u, true)
@@ -1404,7 +1448,7 @@ Lemma norfuelD R f1 f2 u :
     if rec is (u', false) then norfuel R f2 u' else rec.
 Proof.
 elim: f1 u => [|f1 IHf1]//= u; rewrite -/(f1 + f2).
-by case: rewrites1.
+by case: rew1.
 Qed.
 Lemma norfuel2E R fuel : norfuel2 R fuel =1 norfuel R (expfuel fuel).
 Proof.
@@ -1414,7 +1458,7 @@ rewrite expnSr muln2 -addnn.
 have -> : (2 ^ fuel + 2 ^ fuel).-1 = 1 + ((2 ^ fuel).-1 + (2 ^ fuel).-1).
   case: (2 ^ fuel) (expn_non2 fuel) => // n _ /=.
   by rewrite -/(addn _ _) !add1n addnS.
-rewrite norfuelD /=; case: rewrites1 => // {}u.
+rewrite norfuelD /=; case: rew1 => // {}u.
 rewrite IHfuel /= norfuelD /= -!IHfuel.
 by case: norfuel2 => v b /=; rewrite IHfuel.
 Qed.
@@ -1422,8 +1466,8 @@ Qed.
 Lemma rewrites_to_norfuel R fuel u : rewrites_to R u (norfuel R fuel u).1.
 Proof.
 elim: fuel u => [|fuel IHfuel] u /=; first exact: rewrites_to_refl.
-case H : rewrites1 => [a|]; last exact: rewrites_to_refl.
-by move/rewrites1P/rewrites_to1/rewrites_to_trans : H; apply.
+case: rew1P => /= [w|_]; last exact: rewrites_to_refl.
+by move/rewritesP/rewrites_to1/rewrites_to_trans; apply.
 Qed.
 Lemma norfuelT R fuel u :
   (norfuel R fuel u).2 -> normalf R u (norfuel R fuel u).1.
@@ -1432,8 +1476,11 @@ have:= rewrites_to_norfuel R fuel u.
 case Hnor : norfuel => [v b] /= rew Hb; rewrite {}Hb in Hnor.
 split => // {rew}.
 move: Hnor; elim: fuel u => //= fuel IHfuel u.
-case H : rewrites1 => [w |]; first exact: IHfuel.
-by rewrite /normal => [[<-]] {IHfuel}; move/eqP: H; rewrite -rewrites0P.
+case: rew1P => /= [w _ /IHfuel // | {IHfuel} norew [<-{v}]].
+rewrite /normal -(negbK (_ == _)); apply/negP.
+case H: (rewrites R u) => [|a l] //=.
+exfalso; apply: (norew a).
+by have /rewritesP : a \in rewrites R u by rewrite H inE eqxx.
 Qed.
 Lemma norfuel2T R fuel u :
   (norfuel2 R fuel u).2 -> normalf R u (norfuel2 R fuel u).1.
@@ -1444,11 +1491,9 @@ Lemma norfuelF R fuel u :
       (norfuel R fuel u).1 = last u pth & size pth = fuel].
 Proof.
 elim: fuel u => [// | fuel IHfuel] /= u; first by move=> _; exists [::].
-case Hrew : rewrites1 => [a | //] {}/IHfuel[pth [Hpth Hlast szpth]].
-exists (a :: pth); rewrite /= {}szpth; split => //.
-rewrite Hpth andbT.
-move: Hrew; rewrite rewrite1E; case: rewrites => [// | b v] /= [->].
-by rewrite inE eqxx.
+case: rew1P => [v /rewritesP Ruv /IHfuel | norew //].
+move=> [pth [Hpth eqlast szpth]].
+by exists (v :: pth); split; rewrite /= ?szpth //= Ruv Hpth.
 Qed.
 
 Lemma equivalence_fuelP R fuel :
@@ -1746,6 +1791,7 @@ Lemma spair_confluence_loopP fuel R :
   spair_confluence_loop fuel R -> locconfluent R.
 Proof. by rewrite spair_confluence_loopE => /spair_confluenceP. Qed.
 
+
 Section WellFounded.
 
 Variable C : rel (word T).
@@ -1778,7 +1824,7 @@ Theorem convergent_normal R : terminating R -> forall u, {v | normalf R u v}.
 Proof.
 move/well_founded_induction_type=> ind; elim/ind => {ind} u IHu.
 case Hrew : (rewrites1 R u) => [u' | {IHu}].
-  move/rewrites1P: Hrew => /[dup]/rewrites_to1 ruu {}/IHu.
+  move/rewrites1SomeP: Hrew => /[dup]/rewrites_to1 ruu {}/IHu.
   case => v [norv ruv]; exists v; split => //.
   exact: (rewrites_to_trans ruu).
 exists u; split; first by move/eqP: Hrew; rewrite -rewrites0P.
@@ -1796,6 +1842,8 @@ Qed.
 
 Corollary convergent_dec (P : pres T) : convergent (prelat P) -> WPdecidable P.
 Proof. by move/convergentrel_dec => H u v. Qed.
+
+End Normalization.
 
 End RewritingTheory.
 
