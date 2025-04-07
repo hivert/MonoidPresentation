@@ -405,3 +405,22 @@ Proof. by []. Qed.
 
 End TrieRewrites.
 
+
+Section Size.
+
+Variable P : pres int.
+
+Lemma pgen_size sz :
+  all (<%O^~ sz) (pgen P) -> correctrelat (prelat P) (<%O^~ sz).
+Proof.
+move=> /allP /= H.
+have /sub_all {}H : subpred (mem (pgen P)) (<%O^~ sz) by move=> i /H.
+apply/allP => /= [[r1 r2] /=].
+have /allP /= /[apply] /= := wf_relat P.
+by move/andP=> [/H -> /H ->].
+Qed.
+
+Definition pres_triesize := foldl max 0 (pgen P) + 1.
+
+End Size.
+
