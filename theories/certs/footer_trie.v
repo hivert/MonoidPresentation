@@ -19,10 +19,11 @@ apply: (rgen_convergent (reorderK (l := final_order) is_true_true) erefl).
 apply: diamond.
   apply (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
   by native_cast_no_check is_true_true.
-pose trsize := pres_triesize present_final.
-have relbound : correctrelat (prelat present_final) (<%O^~ trsize) by [].
-have sizebound : (trsize <= PArray.max_length)%O by [].
-apply (spair_confluence_loopP (trie_rewrites1P sizebound relbound) (fuel := 10)).
+pose trielen := pres_triesize present_final.
+have lenOk : (trielen <= PArray.max_length)%O by [].
+have relOk : correctrelat (prelat present_final) (<%O^~ trielen)
+  by apply: pgen_size.
+apply (spair_confluence_loopP (trie_rewrites1P lenOk relOk) (fuel := 10)).
 rewrite spair_confluence_loop_trieE.
 (* Set NativeCompute Timing.
 Set NativeCompute Profiling.
