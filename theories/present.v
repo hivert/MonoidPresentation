@@ -1383,6 +1383,16 @@ Proof.
 move/eqP => noru [[_ {v}-> // | w pth /= /andP[/[swap] _ ]]].
 by rewrite noru.
 Qed.
+Lemma infix_normal u v :
+  infix v u -> normal R u -> normal R v.
+Proof.
+rewrite /normal => /infixP[pre][suf] {u}-> /eqP noru.
+apply/negP => /negP.
+case H : (rewrites R v) => [| u r] // _.
+have {H} : u \in rewrites R v by rewrite H inE eqxx.
+by move/(rewrites_stable pre suf); rewrite noru.
+Qed.
+
 Lemma confluentE u v1 v2 : normalf R u v1 -> normalf R u v2 -> v1 = v2.
 Proof.
 case=> /normalE norv1 /Rconfl HC; case=> /normalE norv2 {}/HC.
@@ -1826,7 +1836,7 @@ End WellFounded.
 End Normalization.
 
 
-Theorem convergent_normal R : terminating R -> forall u, {v | normalf R u v}.
+Theorem terminating_normal R : terminating R -> forall u, {v | normalf R u v}.
 Proof.
 move/well_founded_induction_type=> ind; elim/ind => {ind} u IHu.
 case Hrew : (rewrites1 R u) => [u' | {IHu}].
@@ -1837,12 +1847,18 @@ exists u; split; first by move/eqP: Hrew; rewrite -rewrites0P.
 exact: rewrites_to_refl.
 Qed.
 
+Corollary normal0 R : terminating R -> normal R [::].
+Proof.
+move/terminating_normal/(_ [::]) => [u][+ _]; apply: infix_normal.
+exact: infix0s.
+Qed.
+
 Theorem convergentrel_dec R :
   convergent R -> forall u v, decidable (u = v %[mod R]).
 Proof.
 case=> Hconfl Hterm u v.
-case: (convergent_normal Hterm u) => un noru.
-case: (convergent_normal Hterm v) => vn norv.
+case: (terminating_normal Hterm u) => un noru.
+case: (terminating_normal Hterm v) => vn norv.
 exact: decP (normalf_equivP Hconfl noru norv).
 Qed.
 
