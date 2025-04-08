@@ -60,6 +60,23 @@ Fact le0int x : (0 <= x)%O.
 Proof. by rewrite leintE. Qed.
 HB.instance Definition _ := Order.hasBottom.Build int_disp int le0int.
 
+Lemma maxintE x y : to_nat (max x y) = maxn (to_nat x) (to_nat y).
+Proof.
+rewrite max_spec Z2Nat.inj_max; apply anti_leq; apply/andP; split.
+  by apply/leP; apply: Nat.max_lub; apply/leP; [apply: leq_maxl | apply: leq_maxr].
+rewrite geq_max; apply/andP.
+by split; apply/leP; [apply: Nat.le_max_l | apply: Nat.le_max_r].
+Qed.
+
+Lemma minintE x y : to_nat (min x y) = minn (to_nat x) (to_nat y).
+Proof.
+rewrite min_spec Z2Nat.inj_min; apply anti_leq; apply/andP; split.
+  rewrite leq_min; apply/andP.
+  by split; apply/leP; [apply: Nat.le_min_l | apply: Nat.le_min_r].
+by apply/leP; apply: Nat.min_glb; apply/leP; [apply: geq_minl | apply: geq_minr].
+Qed.
+
+
 Local Notation wBnat := (BinInt.Z.to_nat wB).
 
 Lemma to_nat0 : to_nat 0 = 0%N.
