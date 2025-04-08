@@ -52,6 +52,7 @@ Variant prescertificate :=
   (* flip the direction of the relation *)
   | FlipAllRelations of recursive_certificate
   (* params: the word which is kept and sent to a which letter among 0 and 1 *)
+                     (* TODO : Alph & Alph or bool *)
   | StronglyCompressAndReduce of recursive_certificate & word & Alph
   (* We don't recurse here as the special presentation can have *)
   (* more than two generators and thus is not in the database.  *)

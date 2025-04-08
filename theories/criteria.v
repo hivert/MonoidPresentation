@@ -386,13 +386,13 @@ Implicit Type (P : pres Alph).
 Variant piece P u : Prop :=
 | PieceSameWord :
   forall p1 q1 p2 q2,
-    u != p1 ++ u ++ q1 ->
+    u != p1 ++ u ++ q1 -> (* TODO Inutile *)
     p1 != p2 ->
     p1 ++ u ++ q1 = p2 ++ u ++ q2 ->
     p1 ++ u ++ q1 \in relwords P -> piece P u
 | PieceDiffWords :
   forall w1 w2,
-    w1 != w2 ->
+    w1 != w2 ->  (* TODO : really needed ? *)
     w1 \in relwords P ->
     w2 \in relwords P ->
     infix w1 u -> infix w2 u
