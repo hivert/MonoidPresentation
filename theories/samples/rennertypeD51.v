@@ -22475,19 +22475,11 @@ Definition final_order := [::0;1;2;3;4;5;6;7;8;9;10;11].
 Load "footer_trie.v".
 
 
-(* 
 From mathcomp Require Import ssrnat path.
-(* final_ok
-     : convergent (prelat present_final) *)
+Require Import enumnf.
 
-Eval native_compute in
-  foldl (fun acc s => acc + of_nat (seq.size s)) 0
-    (traject (enum_norf_next present_final 12) [:: [::]] 40).
-
-Eval native_compute in
-  map (fun s => of_nat (seq.size s))
-    (traject (enum_norf_next present_final 12) [:: [::]] 36).
-
-Eval native_compute in
-  foldl maxn 0%N [seq seq.size r.1 | r <- prelat present_final].
-*)
+Goal foldl (fun acc s => acc + of_nat (seq.size s)) 0
+  (traject (enum_normal_next_trie present_final 12) [:: [::]] 41) = 258661.
+Proof.
+by native_cast_no_check (erefl 258661).
+Time Qed.

@@ -3,7 +3,7 @@ From Coq Require Import Znat BinIntDef Uint63.
 From Coq Require Import PrimInt63 PString PArray.
 From mathcomp Require Import all_ssreflect.
 
-Require Import int_seq present fastcert.
+Require Import int_seq present fastcert enumnf.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -449,85 +449,31 @@ End Size.
 
 Section EnumNormalForms.
 
-Variable (P: pres int) (trielen : int).
+Variable (P : pres int) (trielen : int).
 Hypothesis convP : convergent (prelat P).
 Hypothesis trielenOk : (trielen <= max_length)%O.
 Hypothesis genPlen : all (<%O^~ trielen) (pgen P).
 
 Implicit Types (u v w : word int) (norf : seq (word int)).
 
-Let corrlen :=  pgen_size genPlen.
 Let Ptrie := mktrie trielen (prelat P).
+Let rew1P := trie_rewrites1P trielenOk (pgen_size genPlen).
 
-Definition normal_sz (n : nat) u :=
-  [&& size u == n, u \in words_of P & normal (prelat P) u].
-Definition enum_normal_next norf :=
-  [seq x <- [seq g :: w | g <- pgen P, w <- norf] |
-    ~~ trie_rewrites1_front Ptrie x].
-Definition enum_normal n := iter n enum_normal_next [:: [::]].
+Definition enum_normal_next_trie := enum_normal_next P (trie_rewrites1 Ptrie).
+Definition enum_normal_trie := enum_normal P (trie_rewrites1 Ptrie).
 
-Lemma normal_sz0 : normal_sz 0 [::].
-Proof. by rewrite /normal_sz /=; apply normal0; case: convP. Qed.
+Lemma normal_sz_enum_normal_trie n : all (normal_sz P n) (enum_normal_trie n).
+Proof. exact: normal_sz_enum_normal. Qed.
 
-Lemma normal_sz_enum_normal n : all (normal_sz n) (enum_normal n).
-Proof.
-elim: n => [| n]; first by rewrite /= normal_sz0.
-rewrite {2}/enum_normal /= -/(enum_normal n).
-move: (enum_normal n) => norf /allP /= allnorf; apply/allP => /= [[| u0 u]].
-  by rewrite mem_filter => /andP[_ /allpairsP[[/= u0 u []]]].
-rewrite mem_filter => /andP[nrew].
-case/allpairsP => /= - [v0 v]/= [ugen unor []] equ0 equ; subst v0 v.
-have := allnorf u unor; rewrite /normal /= /normal_sz /= eqSS.
-case: eqP => //= _.
-have -> : (u0 :: u \in words_of P) = (u \in words_of P).
-  by rewrite !unfold_in /words_of /= ugen.
-case: (u \in _) => //=.
-rewrite /normal /= cat_eq0 map_eq0 => /eqP ->.
-rewrite eqxx andbT.
-have -> // := (trie_rewrites1_front0 trielenOk corrlen).
-by case: trie_rewrites1_front nrew.
-Qed.
+Lemma count_mem_enum_normal_trie n u :
+  normal_sz P n u -> count_mem u (enum_normal_trie n) = 1%N.
+Proof. exact: count_mem_enum_normal. Qed.
 
-Lemma count_mem_enum_normal n u :
-  normal_sz n u -> count_mem u (enum_normal n) = 1%N.
-Proof.
-elim: n u => [|n]; first by case.
-rewrite {2}/enum_normal /= -/(enum_normal n).
-move: (enum_normal n) => norf Hn [|u0 u] //=.
-rewrite /normal_sz /= eqSS.
-have -> : (u0 :: u \in words_of P) = (u0 \in pgen P) && (u \in words_of P).
-  by rewrite !unfold_in /words_of /=.
-case: (boolP (u0 \in pgen P)) => [u0P |]; rewrite ?andbF ?andbT //=.
-rewrite /normal /= cat_eq0 map_eq0 -/(normal _ u) [X in [&& _, _ & X]]andbC.
-rewrite !andbA andbC -!andbA -/(normal_sz n u) andbC.
-case/andP => {}/Hn unorf /eqP rew0.
-rewrite count_filter /normal /= count_flatten sumnE 2!big_map.
-rewrite (bigD1_seq _ u0P (uniq_pgen P)) /= big1_seq ?addn0; first last.
-  move=> /= i /andP[/negbTE neq _].
-  rewrite -count_filter; apply/count_memPn/negP.
-  rewrite mem_filter => /andP[_ /mapP[/= x _ /eqP]].
-  by rewrite eqseq_cons eq_sym neq.
-rewrite count_map -[RHS]unorf; apply eq_count => /= v /=.
-rewrite eqseq_cons eqxx /=; case: eqP => //= {v}->.
-case: trie_rewrites1_frontP => //= w.
-by rewrite rew0.
-Qed.
+Lemma uniq_enum_normal_trie n : uniq (enum_normal_trie n).
+Proof. exact: uniq_enum_normal. Qed.
 
-Lemma uniq_enum_normal n : uniq (enum_normal n).
-Proof.
-have /allP /= allnorf := normal_sz_enum_normal n.
-apply: count_mem_uniq => /= u.
-case: (boolP (u \in _)) => [/allnorf/count_mem_enum_normal -> // | /= unotin].
-exact/count_memPn.
-Qed.
-
-Lemma mem_enum_normalP n u : (u \in enum_normal n) = normal_sz n u.
-Proof.
-have /allP /= allnorf := normal_sz_enum_normal n.
-case: (boolP (u \in _)) => [/allnorf -> // | /= unotin].
-apply/esym; apply/contraNF: unotin => /count_mem_enum_normal.
-by rewrite -has_pred1 has_count => ->.
-Qed.
+Lemma mem_enum_normal_trieP n u : (u \in enum_normal_trie n) = normal_sz P n u.
+Proof. exact: mem_enum_normalP. Qed.
 
 End EnumNormalForms.
 
@@ -557,7 +503,8 @@ rewrite spair_confluence_loop_trieE.
 by native_cast_no_check is_true_true.
 Qed.
 
-Eval compute in flatten (traject (enum_normal_next P 2) [:: [::]] 4).
-Eval compute in (iter 4 (enum_normal_next P 2) [:: [::]]).
+Goal flatten (traject (enum_normal_next_trie P 2) [:: [::]] 4)
+       = [:: [::]; [:: 0]; [:: 1]; [:: 0; 0]; [:: 0; 1]; [:: 0; 0; 1]].
+Proof. by []. Qed.
 
 End Example.
