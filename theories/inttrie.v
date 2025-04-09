@@ -361,8 +361,7 @@ Lemma trie_rewrites1_frontP R :
 Proof.
 move=> Hcorr w; rewrite /trie_rewrites1_front /=.
 case H : (getprefixtrie (mktrie R) w) => [[v1 v2]|]/=; constructor.
-  exact/rewrites_frontP/getprefixmktrieE.
-move=> /= v /rewrites_frontP.
+  exact: getprefixmktrieE.
 rewrite (trie_rewrites1_front0 Hcorr) => //.
 by rewrite /trie_rewrites1_front /= H.
 Qed.
