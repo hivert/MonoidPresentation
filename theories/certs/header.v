@@ -1,5 +1,6 @@
-From mathcomp Require Import ssreflect ssrbool ssrfun seq choice.
 From Coq Require Import (* Znat BinIntDef *) Uint63.
+From mathcomp Require Import ssreflect ssrbool ssrfun seq choice.
+
 Local Open Scope uint63_scope.
 
 Set Implicit Arguments.
