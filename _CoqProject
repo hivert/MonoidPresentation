@@ -9,6 +9,7 @@ theories/wfsizelexi.v
 theories/monoids.v
 theories/factor.v
 theories/present.v
+theories/enumnf.v
 theories/homogeneous.v
 theories/rewcert.v
 theories/fastcert.v
