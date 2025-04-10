@@ -419,12 +419,23 @@ have /allP /= /[apply] /= := wf_relat P.
 by move/andP=> [/H -> /H ->].
 Qed.
 
-Definition pres_triesize := foldl max 0 (pgen P) + 1.
+Definition pres_trielen := foldl max 0 (pgen P) + 1.
 
-Lemma pgen_triesize :
-  all (<%O^~ max_length) (pgen P) -> correctrelat (prelat P) (<%O^~ pres_triesize).
+Hypothesis pgenOk : all (<%O^~ max_length) (pgen P).
+
+Lemma pgen_maxlen : (pres_trielen <= max_length)%O.
 Proof.
-rewrite /pres_triesize => H; apply: pgen_size; move: H.
+rewrite /pres_trielen; apply ltleint.
+have : (0 < max_length)%O by [].
+elim: (pgen P) (0) pgenOk => [|g0 g IHg] //= i /[swap] lti.
+case/andP => ltg0 {}/IHg; apply.
+by rewrite ltintE maxintE gtn_max -!ltintE lti ltg0.
+Qed.
+
+Lemma pgen_trielen :
+  all (<%O^~ max_length) (pgen P) -> all (<%O^~ pres_trielen) (pgen P).
+Proof.
+rewrite /pres_trielen.
 have : (0 < max_length)%O by [].
 elim: (pgen P) (0) => // [g0 g IHg] /= i lti.
 case/andP => ltg0 alllt; apply/andP; split; first last.
@@ -437,12 +448,18 @@ elim: g alllt {IHg} i lti g0 ltg0 => [| g1 g IHg] /=.
   by apply/ltP; rewrite -Z2Nat.inj_lt.
 case/andP => [ltg1 alllt] i lti g0 ltg0.
 have -> : max (max i g0) g1 = max (max i g1) g0.
-  apply: int_to_nat_inj.
+  apply: to_nat_inj.
   rewrite [LHS]maxintE [in LHS]maxintE [RHS]maxintE [in RHS]maxintE.
   by rewrite -!maxnA [maxn (to_nat g1) _]maxnC.
 apply: IHg => //=.
 by rewrite ltintE maxintE gtn_max -!ltintE lti ltg1.
 Qed.
+
+Lemma corrrelat_trielen : correctrelat (prelat P) (<%O^~ pres_trielen).
+Proof. exact/pgen_size/pgen_trielen. Qed.
+
+Definition spair_confluence_loop_trieP :=
+  spair_confluence_loopP (trie_rewrites1P pgen_maxlen corrrelat_trielen).
 
 End Size.
 
@@ -494,11 +511,8 @@ Proof.
 apply: diamond.
   apply (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
   by native_cast_no_check is_true_true.
-pose trielen := pres_triesize P.
-have lenOk : (trielen <= PArray.max_length)%O by [].
-have relOk : correctrelat (prelat P) (<%O^~ trielen)
-  by apply: pgen_size.
-apply (spair_confluence_loopP (trie_rewrites1P lenOk relOk) (fuel := 10)).
+have pgenOk : all (<%O^~ max_length) (pgen P) by [].
+apply: (spair_confluence_loop_trieP pgenOk (fuel := 10)).
 rewrite spair_confluence_loop_trieE.
 by native_cast_no_check is_true_true.
 Qed.

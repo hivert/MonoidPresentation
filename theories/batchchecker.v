@@ -115,17 +115,18 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
   | CompleteRewritingSystem cert order =>
       if ~~ wfpres_cert P cert then CPTietzeSequenceError else
         if ~~ uniq order then CPOrderDup else
+          let genfinal := gen_cert (pgen P) cert in
           let relfinal := rel_cert (prelat P) cert in
           let sorted_ord := sort <%O order in
           let newg := pord order sorted_ord in
           let newrels := [seq rgen_rels newg i | i <- relfinal] in
           if ~~ decreasing <%O newrels then CPNotDecreasing else
-            let trielen := foldl max 0 sorted_ord + 1 in
-            if ~~ (trielen <= PArray.max_length)%O then CPTrieError
-            else if ~~ all (<%O^~ trielen) (gen_cert (pgen P) cert) then CPTrieError
-                 else if ~~ spair_confluence_loop_trie trielen relfinal Fuel
-                      then CPConfluenceError
-                      else CPOk
+            let trielen := foldl max 0 genfinal + 1 in
+            if ~~ all (<%O^~ PArray.max_length) genfinal
+            then CPTrieError
+            else if ~~ spair_confluence_loop_trie trielen relfinal Fuel
+                 then CPConfluenceError
+                 else CPOk
   | Watier a b u v k =>
       if ~~ check_Watier P a b u v k then CPWatierError else CPOk
   | Monogenic =>
@@ -172,8 +173,7 @@ rewrite /check_certpres; case: C => [].
   case: (boolP (wfpres_cert P cert)) => //= wfc.
   case: (boolP (uniq _)) => //= uniq_order.
   case: (boolP (decreasing _ _)) => //= decr.
-  case: (boolP (_ <= _)%O) => //= lenOk.
-  case: (boolP (all _ _)) => //= pgenOk.
+  case: (boolP (all _ _)) => //=; rewrite -pgen_final_pres => pgenOk.
   case: (boolP (spair_confluence_loop_trie _ _ _)) => //= confl _.
   apply: (isopres_dec (@iso_final_pres _ P cert wfc)).
   have final_term : terminating (prelat (final_pres wfc)).
@@ -181,8 +181,7 @@ rewrite /check_certpres; case: C => [].
     rewrite /= prelat_final_pres.
     exact: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
   apply: convergent_dec; apply: (diamond final_term).
-  apply: (spair_confluence_loopP (trie_rewrites1P lenOk _) (fuel := Fuel)).
-    by apply: pgen_size; rewrite pgen_final_pres.
+  apply: (spair_confluence_loop_trieP pgenOk (fuel := Fuel)).
   rewrite spair_confluence_loop_trieE prelat_final_pres /=.
   exact: confl.
 - move=> a b u v k /=.

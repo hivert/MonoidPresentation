@@ -22,7 +22,7 @@ Fact to_natK : cancel (fun i => to_nat i) (fun n => of_nat n).
 Proof. by move=> i; rewrite Z2Nat.id ?of_to_Z // -to_Z_0; exact: le0Z. Qed.
 HB.instance Definition _ := CanIsCountable to_natK.
 
-Lemma int_to_nat_inj : injective (fun i => to_nat i).
+Lemma to_nat_inj : injective (fun i => to_nat i).
 Proof. exact: can_inj to_natK. Qed.
 
 (* Check int : countType. *)
@@ -36,12 +36,12 @@ Proof. by apply/ltbP/ltP; rewrite (Z2Nat.inj_lt _ _ (@le0Z x) (@le0Z y)). Qed.
 
 Fact int_lt_def x y : (x <? y) = (y != x) && (x ≤? y).
 Proof.
-by rewrite ltintbE leintbE -(eqtype.inj_eq int_to_nat_inj) ltn_neqAle eq_sym.
+by rewrite ltintbE leintbE -(eqtype.inj_eq to_nat_inj) ltn_neqAle eq_sym.
 Qed.
 Fact leint_refl x : (x <=? x).
 Proof. by rewrite leintbE leqnn. Qed.
 Fact leint_anti : antisymmetric leb.
-Proof. by move=> x y; rewrite !leintbE -eqn_leq => /eqP/int_to_nat_inj. Qed.
+Proof. by move=> x y; rewrite !leintbE -eqn_leq => /eqP/to_nat_inj. Qed.
 Fact leint_trans : transitive leb.
 Proof. by move=> y x z; rewrite !leintbE => /leq_trans/[apply]. Qed.
 HB.instance Definition _ := Order.isPOrder.Build int_disp int
@@ -77,7 +77,7 @@ by apply/leP; apply: Nat.min_glb; apply/leP; [apply: geq_minl | apply: geq_minr]
 Qed.
 
 
-Local Notation wBnat := (BinInt.Z.to_nat wB).
+Notation wBnat := (BinInt.Z.to_nat wB).
 
 Lemma to_nat0 : to_nat 0 = 0%N.
 Proof. by []. Qed.
@@ -91,6 +91,11 @@ split; first exact: Nat2Z.is_nonneg.
 by rewrite -(Z2Nat.id wB); first exact/inj_lt/ltP.
 Qed.
 
+Lemma ltwBnat i : to_nat i < wBnat.
+Proof.
+by apply/ltP; have := ltZwB i; rewrite (Z2Nat.inj_lt _ _ (le0Z _)).
+Qed.
+
 Lemma to_natD x y :
   to_nat x + to_nat y < wBnat -> to_nat (x + y) = (to_nat x + to_nat y)%N.
 Proof.
@@ -102,6 +107,13 @@ rewrite Z2Nat.inj_lt.
 - by rewrite (Z2Nat.inj_add _ _ lex ley); apply/ltP.
 - exact: lexy.
 - exact: BinInt.Z.lt_le_incl wB_pos.
+Qed.
+
+Lemma ltleint (i j: int) : (i < j)%O -> (i + 1 <= j)%O.
+Proof.
+move=> /[dup] ltij; rewrite ltintE -addn1 -to_nat1 -to_natD ?leintE //.
+move: ltij; rewrite to_nat1 addn1 ltintE => /leq_ltn_trans; apply.
+exact: ltwBnat.
 Qed.
 
 End Int.
