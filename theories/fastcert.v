@@ -101,7 +101,7 @@ Definition eqbool b1 b2 := Eval compute in addb (~~ b1) b2.
 Definition eqnor R fuel (p1 p2 : word int) :=
   let x1 := norfuel2_int R fuel p1 in
   let x2 := norfuel2_int R fuel p2 in
-  if eqseq_int x1.1 x2.1 then eqbool x1.2 x2.2 else false.
+  eqseq_int x1.1 x2.1.
 
 Definition all_tr {T} (p : T -> bool) :=
   fix aux (s : seq T) :=

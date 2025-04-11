@@ -363,7 +363,7 @@ Proof. by move/trie_rewrites1_frontP => H; apply:rewrite1_from_frontP. Qed.
 Definition eqnor tr fuel (p1 p2 : word int) :=
   let x1 := norfuel2 (trie_rewrites1 tr) fuel p1 in
   let x2 := norfuel2 (trie_rewrites1 tr) fuel p2 in
-  if eqseq_int x1.1 x2.1 then eqbool x1.2 x2.2 else false.
+  eqseq_int x1.1 x2.1.
 
 
 Definition spair_confluence_dec_trie R fuel :=

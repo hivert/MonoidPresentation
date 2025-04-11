@@ -1779,7 +1779,7 @@ Definition spair_confluence_dec fuel :=
     let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
     (* if normalisation fails by out of fuel but results agree *)
     (* we do have confluence                                   *)
-    all (fun p => norfuel2 fuel p.1 == norfuel2 fuel p.2) spairs
+    all (fun p => (norfuel2 fuel p.1).1 == (norfuel2 fuel p.2).1) spairs
   else false.
 
 Definition check_convergence_and C fuel : bool :=
@@ -1788,7 +1788,7 @@ Definition check_convergence_and C fuel : bool :=
 Definition spair_confluence_loop fuel :=
   (all_pred_npairs (fun p => p.1 == p.2) R) &&
     (all_pred_spairs (fun p => (p.1 == p.2) ||
-                                 (norfuel2 fuel p.1 == norfuel2 fuel p.2)) R).
+                                 ((norfuel2 fuel p.1).1 == (norfuel2 fuel p.2).1)) R).
 
 Definition check_convergence C fuel : check_convergence_result :=
   if ~~ (decreasing C R) then NotDecreasing
@@ -1797,7 +1797,7 @@ Definition check_convergence C fuel : check_convergence_result :=
   else let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
       (* if normalisation fails by out of fuel but results agree *)
       (* we do have confluence                                   *)
-  let pos := find (fun p => norfuel2 fuel p.1 != norfuel2 fuel p.2) spairs in
+  let pos := find (fun p => (norfuel2 fuel p.1).1 != (norfuel2 fuel p.2).1) spairs in
   if pos < size spairs then HaveSpair (nth ([::], [::]) spairs pos)
   else Ok.
 
@@ -1826,8 +1826,8 @@ Lemma spair_confluenceP fuel :
 Proof.
 rewrite /spair_confluence_dec /=.
 case: allP => [/= nonpair | //].
-rewrite (eq_all (a2 := fun p => norfuel (expfuel fuel) p.1
-                                == norfuel (expfuel fuel) p.2)); first last.
+rewrite (eq_all (a2 := fun p => (norfuel (expfuel fuel) p.1).1
+                                == (norfuel (expfuel fuel) p.2).1)); first last.
   by move=> u; rewrite !norfuel2E.
 have {nonpair}/spair_confluence loc_confl : forall u v, npair R u v -> u = v.
   by move=> u v /all_npairsP /nonpair /= /eqP ->.
