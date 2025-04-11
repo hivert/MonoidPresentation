@@ -47,13 +47,13 @@ Fixpoint prefix_int s1 s2 {struct s2} :=
 Lemma prefix_intE : @prefix int = prefix_int.
 Proof. by []. Qed.
 
-Definition drop_int := Eval compute in @drop int.     (* 7%   speedup ?? *)
-Definition cat_int := Eval compute in @cat int.       (* 3.5% speedup ?? *)
-Definition size_int := Eval compute in @size int.     (* 4%   speedup ?? *)
+Definition drop_seq_int := Eval compute in @drop int.     (* 7%   speedup ?? *)
+Definition cat_seq_int := Eval compute in @cat int.       (* 3.5% speedup ?? *)
+Definition size_seq_int := Eval compute in @size int.     (* 4%   speedup ?? *)
 
 Fixpoint rewrites1_front_int (R : relat int) (u : seq int) :=
   if R is (r1, r2) :: R' then
-    if prefix_int r1 u then Some (cat_int r2 (drop_int (size_int r1) u))
+    if prefix_int r1 u then Some (cat_seq_int r2 (drop_seq_int (size_seq_int r1) u))
     else rewrites1_front_int R' u
   else None.
 Lemma rewrites1_front_intE : @rewrites1_front int = rewrites1_front_int.

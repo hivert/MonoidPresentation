@@ -49,21 +49,7 @@ Fixpoint rectrie t : P t :=
   else HEmpty.
 
 End Recursion.
-Section Induction.
-
-Variables (P : trie -> Prop).
-Hypothesis HEmpty : P Empty.
-Hypothesis IHtrie :
-  forall a : array trie,
-    P (default a) -> (forall i : int, (i < length a)%O -> P a.[i]) ->
-             forall x, P (Trie x a).
-
-Fixpoint indtrie t : P t :=
-  if t is Trie x a
-  then IHtrie (indtrie (default a)) (fun i _ => indtrie a.[i]) x
-  else HEmpty.
-
-End Induction.
+Definition indtrie (P : trie -> Prop) := @rectrie P.
 
 
 Definition eq_trarray (eqtrie : trie -> trie -> bool) (a b : array trie) :=
