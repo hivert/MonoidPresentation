@@ -1,7 +1,7 @@
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 Require Import int_seq wfsizelexi present rewcert fastcert factor
-  criteria compress homogeneous inttrie.
+  criteria compress homogeneous.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -84,8 +84,6 @@ Variant check_certified_presentation_result :=
   | CPStrongCompressNotSpecial
   | CPStrongCompressBadPrefixSuffix
   | CPStrongCompressBadLetter
-  (* TODO: trie construction error *)
-  | CPTrieError
   (* TODO: remove me when done *)
   | CPNotImplemented.
 
@@ -126,12 +124,9 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
           let newg := pord order sorted_ord in
           let newrels := [seq rgen_rels newg i | i <- relfinal] in
           if ~~ decreasing <%O newrels then CPNotDecreasing else
-            let trielen := foldl max 0 genfinal + 1 in
-            if ~~ all (<%O^~ PArray.max_length) genfinal
-            then CPTrieError
-            else if ~~ spair_confluence_loop_trie trielen relfinal Fuel
-                 then CPConfluenceError
-                 else CPOk
+            if ~~ spair_confluence_loop_int newrels Fuel
+            then CPConfluenceError
+            else CPOk
   | Watier a b u v k =>
       if ~~ check_Watier P a b u v k then CPWatierError else CPOk
   | Monogenic =>
@@ -203,16 +198,14 @@ rewrite /check_certpres; case: C => [].
   case: (boolP (wfpres_cert P cert)) => //= wfc.
   case: (boolP (uniq _)) => //= uniq_order.
   case: (boolP (decreasing _ _)) => //= decr.
-  case: (boolP (all _ _)) => //=; rewrite -pgen_final_pres => pgenOk.
-  case: (boolP (spair_confluence_loop_trie _ _ _)) => //= confl _.
+  case: (boolP (spair_confluence_loop_int  _ _)) => //= confl _.
   apply: (isopres_dec (@iso_final_pres _ P cert wfc)).
-  have final_term : terminating (prelat (final_pres wfc)).
-    apply: (rgen_pres_terminating (newgK := reorderK uniq_order)).
-    rewrite /= prelat_final_pres.
+  apply: convergent_dec; rewrite prelat_final_pres.
+  apply: (rgen_convergent (reorderK uniq_order) erefl).
+  apply: diamond.
     exact: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
-  apply: convergent_dec; apply: (diamond final_term).
-  apply: (spair_confluence_loop_trieP pgenOk (fuel := Fuel)).
-  rewrite spair_confluence_loop_trieE prelat_final_pres /=.
+  apply (spair_confluence_loopP (rewrites1P _) (fuel := Fuel)).
+  rewrite spair_confluence_loop_intE.
   exact: confl.
 - move=> a b u v k /=.
   case: (boolP (check_Watier P a b u v k)) => //= cW _.
