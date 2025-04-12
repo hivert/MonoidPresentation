@@ -1907,6 +1907,31 @@ Proof. by move/convergentrel_dec => H u v. Qed.
 End RewritingTheory.
 
 
+Section PermGen.
+
+Context {A : choiceType} (P : pres A) (gens : seq A).
+Hypothesis (perm_gen : perm_eq gens (pgen P)).
+
+Fact pgen_uniq : uniq gens.
+Proof. by rewrite (perm_uniq perm_gen) uniq_pgen. Qed.
+Fact corr_perm_gen : correctrelat (prelat P) (mem gens).
+Proof.
+have := wf_relat P; apply: sub_all => [[r1 r2]] /=.
+by rewrite !(eq_all (perm_mem perm_gen)).
+Qed.
+Definition perm_gen_pres := Pres pgen_uniq corr_perm_gen.
+
+Lemma perm_gen_pres_decK : WPdecidable P -> WPdecidable perm_gen_pres.
+Proof. exact/isopres_dec/pres_irrelevance_perm_eq. Qed.
+Lemma perm_gen_pres_dec : WPdecidable perm_gen_pres -> WPdecidable P.
+Proof.
+apply/isopres_dec/pres_irrelevance_perm_eq => //.
+by rewrite perm_sym.
+Qed.
+
+End PermGen.
+
+
 Section DualRelat.
 
 Context {A : choiceType}.

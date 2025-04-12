@@ -5,7 +5,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import int_seq present rewcert fastcert homogeneous factor.
+Require Import int_seq present rewcert fastcert homogeneous factor criteria.
 
 
 Section AllWords.
@@ -127,7 +127,7 @@ Context {Alph Beta : choiceType}.
 Implicit Type (u v w : word Alph).
 
 (* map A to a and all other to b *)
-Variables (P : pres Alph) (A : Alph) (a b : Beta).
+Variables (P : pres Alph) (A B : Alph) (a b : Beta).
 Hypothesis neqab : a != b.
 
 Definition word_to2letters U :=
@@ -147,8 +147,7 @@ Definition reduce2letters :=
   Pres [:: a; b] rel2letters uniq_ab correct_rel2letters.
 
 Theorem reduce2letters_dec :
-  forall B U V,
-    A != B -> prelat P = [:: (A :: U, B :: V)] ->
+  forall U V, A != B -> prelat P = [:: (A :: U, B :: V)] ->
     WPdecidable reduce2letters -> WPdecidable P.
 Admitted.
 
@@ -238,25 +237,25 @@ Theorem compress_reduce_dec :
   WPdecidable reduced_compressed_pres -> WPdecidable P.
 Proof.
 move=> Hdec.
-have: WPdecidable (strong_compress_pres P k.+1).
-  pose U := strong_compress k.+1 u.
-  pose V := strong_compress k.+1 v.
-  move/(reduce2letters_dec (U := U) (V := V) strcAneqB): Hdec; apply.
-  by rewrite /= Hrel /= !ltnS !ltnNge ltkszu ltkszv /=.
-exact: (strong_compress_dec Hgen Hrel nequv).
+suff: WPdecidable (strong_compress_pres P k.+1).
+    exact: (strong_compress_dec Hgen Hrel nequv).
+pose U := strong_compress k.+1 u.
+pose V := strong_compress k.+1 v.
+move/(reduce2letters_dec (U := U) (V := V) strcAneqB): Hdec; apply.
+by rewrite /= Hrel /= !ltnS !ltnNge ltkszu ltkszv /=.
 Qed.
 
+Definition reduced_compressed_rels :=
+  [:: (compressreduce strcA x y k.+1 (a :: u),
+       compressreduce strcA x y k.+1 (a :: v))].
 Lemma reduced_compressed_presE :
-  prelat reduced_compressed_pres =
-    [:: (compressreduce strcA x y k.+1 (a :: u),
-         compressreduce strcA x y k.+1 (a :: v))].
+  prelat reduced_compressed_pres = reduced_compressed_rels.
 Proof.
-rewrite /= /rel2letters /strong_compress_pres /= Hrel /=.
+rewrite /reduced_compressed_rels /= /rel2letters /strong_compress_pres /= Hrel /=.
 by rewrite !compressreduceE //= !ltnS !ltnNge ltkszu ltkszv /=.
 Qed.
 Fact wf_fast_compressreduce :
-  correctrelat [:: (compressreduce strcA x y k.+1 (a :: u),
-                    compressreduce strcA x y k.+1 (a :: v))] (mem [:: x; y]).
+  correctrelat reduced_compressed_rels (mem [:: x; y]).
 Proof. by rewrite -reduced_compressed_presE wf_relat. Qed.
 Definition fast_reduced_compressed_pres : pres B :=
   Pres [:: x; y] _ (uniq_ab neqxy) wf_fast_compressreduce.
@@ -273,8 +272,11 @@ End StrongCompressAndReduce.
 
 Local Open Scope uint63_scope.
 
+
+Module ExampleCompress.
+
 Definition testpres :=
-  make_pres [:: 1; 0] [:: ([:: 0;0;1;1;1], [:: 0;1;0;1;1;1])].
+  make_pres [:: 0; 1] [:: ([:: 0;0;1;1;1], [:: 0;1;0;1;1;1])].
 Definition compressed := strong_compress_pres testpres 2.
 
 Definition reduced := @reduce2letters _ _ compressed [:: 0; 0] 0 1 is_true_true.
@@ -285,4 +287,52 @@ Definition fast_reduced :=
 (* Reduce to  = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])] which is Watier *)
 Goal prelat reduced = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])]. by []. Qed.
 Goal prelat fast_reduced = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])]. by []. Qed.
+
+Goal WPdecidable testpres.
+Proof.
+have neq : 0 != 1 by [].
+apply: (fast_compress_reduce_dec _ _ (neqxy := neq)) => // eqrel Hpre.
+apply: (perm_gen_pres_dec (gens := [:: 1; 0])).
+exact/is_Watier_dec/(@check_WatierP _ _ 1 0 [:: 1; 1] [:: 1; 1; 1; 1] 1).
+Qed.
+
+End ExampleCompress.
+
+
+Section StrongCompressAndSpecial.
+
+Context {Alph : choiceType}.
+Variable (P : pres Alph).
+Variable (a b : Alph) (u v : word Alph).
+Hypotheses
+  (Hgen : pgen P = [:: a; b])
+  (Hrel : prelat P = [:: (a :: u, a :: v)])
+  (ToSpecial : prefix (a :: v) (a :: u) && suffix (a :: v) (a :: u))
+  (NonTrivial : u != v).
+
+Local Lemma pref : prefix (a :: v) (a :: u).
+Proof. by case/andP: ToSpecial. Qed.
+Local Lemma suff : suffix (a :: v) (a :: u).
+Proof. by case/andP: ToSpecial. Qed.
+
+Lemma prefE : long_cprefix (a :: u) (a :: v) = a :: v.
+Proof.
+apply: (prefix_sizeE (long_cprefixr _ _)).
+apply/size_prefix/long_cprefixP; [exact: pref | exact: prefix_refl].
+Qed.
+
+Lemma suffE : long_csuffix (a :: u) (a :: v) = a :: v.
+Proof.
+apply (suffix_sizeE (long_csuffixr _ _)).
+apply/size_suffix/long_csuffixP; [exact: suff | exact: suffix_refl].
+Qed.
+
+Theorem strong_and_special_dec: WPdecidable P.
+Proof.
+apply: (strong_compress_dec Hgen Hrel NonTrivial).
+  by rewrite prefE suffE.
+by apply: special_dec; rewrite /is_special prefE /= Hrel /= !ltnS leqnn eqxx orbT.
+Qed.
+
+End StrongCompressAndSpecial.
 

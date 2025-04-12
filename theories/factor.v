@@ -16,6 +16,12 @@ Implicit Type (u v w : word Alph).
 Lemma prefix_sizeE u v : prefix u v -> size u >= size v -> u = v.
 Proof. by rewrite prefixE => /eqP {2}<- /take_oversize. Qed.
 
+Lemma suffix_sizeE u v : suffix u v -> size u >= size v -> u = v.
+Proof.
+rewrite -prefix_rev => /prefix_sizeE; rewrite !size_rev => /[apply].
+exact: (can_inj revK).
+Qed.
+
 Fixpoint long_cprefix u v :=
   if (u, v) is (u0 :: u', v0 :: v') then
     if u0 == v0 then u0 :: long_cprefix u' v'

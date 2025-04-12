@@ -1,6 +1,6 @@
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
-Require Import int_seq wfsizelexi present rewcert fastcert
+Require Import int_seq wfsizelexi present rewcert fastcert factor
   criteria compress homogeneous inttrie.
 
 Set Implicit Arguments.
@@ -61,6 +61,7 @@ Variant prescertificate :=
 
 Variant check_certified_presentation_result :=
   | CPOk
+  | CPNot2Gen
   | CPTietzeSequenceError
   | CPOrderDup
   | CPConfluenceError
@@ -79,6 +80,10 @@ Variant check_certified_presentation_result :=
   | CPGeneratorMissmatchError
   | CPRelationMissmatchError
   | CPRecursivePresentationNotFound
+  | CPStrongCompressBadRel
+  | CPStrongCompressNotSpecial
+  | CPStrongCompressBadPrefixSuffix
+  | CPStrongCompressBadLetter
   (* TODO: trie construction error *)
   | CPTrieError
   (* TODO: remove me when done *)
@@ -160,9 +165,34 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
       else if prelat prec != map swap (prelat P) then CPRelationMissmatchError
            else CPOk)
   | StronglyCompressAndReduce c w l => check_recurse c (fun prec =>
-      CPNotImplemented)
+      if pgen P is [:: a; b] then
+        if prelat P is [:: (a':: u, b':: v)] then
+          if ~~ ((a' == a) && (b' == a)) then CPStrongCompressBadRel
+          else if prefix (a :: u) (a :: v) || prefix (a :: v) (a :: u)
+          then CPStrongCompressBadPrefixSuffix
+          else if ~~ (size (long_cprefix (a :: u) (a :: v)) <=
+                        size (long_csuffix (a :: u) (a :: v)))
+          then CPStrongCompressBadPrefixSuffix
+          else if ~~ ((l == 0) || (l == 1))
+          then CPStrongCompressBadLetter
+          else if pgen prec != [:: l; 1 - l]
+          then CPGeneratorMissmatchError
+          else let relcred := @reduced_compressed_rels int a u v int l (1 - l) in
+               if prelat prec != relcred
+               then CPRelationMissmatchError
+               else CPOk
+        else CPStrongCompressBadRel
+      else CPNot2Gen)
   | StronglyCompressToSpecial =>
-      CPNotImplemented
+      if pgen P is [:: a; b] then
+        if prelat P is [:: (a':: u, b':: v)] then
+          if (a' == a) && (b' == a) && (u != v) then
+            if prefix (a :: v) (a :: u) && suffix (a :: v) (a :: u) then
+              CPOk
+            else CPStrongCompressNotSpecial
+          else CPStrongCompressBadRel
+        else CPStrongCompressBadRel
+      else CPNot2Gen
   end.
 
 
@@ -217,8 +247,26 @@ rewrite /check_certpres; case: C => [].
   suff <- : prec = flipped_pres P by [].
   by apply/eqP; rewrite -eqpresE eqgen /= !eqxx /= eqrel.
 - move=> r w i; apply: check_recurseP => prec prec_dec.
-  by []. (* NotImplemented *)
-- by []. (* NotImplemented *)
+  case Hgen : (pgen P) => [| a [| b [|]]] //.
+  case Hrel : (prelat P) => [| [[|a1 r1] [| a2 r2]] [|]] //.
+  case: (boolP (a1 == a)) => // /eqP eq; subst a1.
+  case: (boolP (a2 == a)) => // /eqP eq; subst a2.
+  case: (boolP (prefix _ _ || _)) => //; rewrite negb_or => Hpresuf.
+  case: leqP => // leqsize /=.
+  case (boolP ((i == 0) || (i == 1))) => // eqi.
+  case: eqP => // eqgens; case: eqP => //= eqrels _.
+  have {eqi}neqi : i != 1 - i.
+    by move: eqi; case: eqP => [->|] //; case: eqP => [->|].
+  apply: (fast_compress_reduce_dec Hgen (Hrel := Hrel) leqsize (neqxy := neqi)).
+  suff <- : prec = fast_reduced_compressed_pres Hrel Hpresuf neqi by [].
+  by apply/eqP; rewrite -eqpresE /= eqgens eqrels !eqxx.
+- case Hgen : (pgen P) => [| a [| b [|]]] //.
+  case Hrel : (prelat P) => [| [[|a1 r1] [| a2 r2]] [|]] //.
+  case: (boolP (a1 == a)) => // /eqP eq; subst a1.
+  case: (boolP (a2 == a)) => // /eqP eq; subst a2.
+  case: (boolP (r1 == r2)) => // neqr1r2.
+  case: (boolP (prefix _ _ && _)) => // Hpresuf /= _.
+  exact: (strong_and_special_dec Hgen Hrel).
 Qed.
 
 Variant batchresult :=
@@ -279,11 +327,14 @@ Definition AB_ABB_BA := make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])].
 Definition AB_BAAAABBAAA_ABBBAABA :=
   make_pres [:: 0; 1]
        [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
+Definition AB_ABABA_ABA := make_pres [:: 0; 1]
+                             [:: ([:: 0; 1; 0; 1; 0], [:: 0; 1; 0])].
 Definition list_pres := [:: AB_AAAAAA_ABAABA;
-                        AB_AAAB_A;
-                        A_AAA_A;
-                        AB_ABB_BA;
-                        AB_BAAAABBAAA_ABBBAABA].
+                         AB_AAAB_A;
+                         A_AAA_A;
+                         AB_ABB_BA;
+                         AB_BAAAABBAAA_ABBBAABA;
+                         AB_ABABA_ABA ].
 
 Lemma all_pres_dec (P : pres int) : P \in list_pres -> WPdecidable P.
 Proof.
@@ -303,8 +354,9 @@ apply: (check_batchP (lc :=
    EqualNumberOfOccurences 0;
    SmallOverlap [::
                    [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
-                 [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ]
-       ]])).
+                 [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ];
+   StronglyCompressToSpecial
+       ])).
    by native_cast_no_check (erefl BatchOk).
 Qed.
 
