@@ -84,31 +84,40 @@ Qed.
 HB.instance Definition _ := hasDecEq.Build trie eqtrieP.
 
 
-Hypothesis (le_trielen : (trielen <= max_length)%O).
+Hypothesis (le_trielen : (0 < trielen <= max_length)%O).
+Lemma lt0len : 0 <? trielen.
+Proof. by case/andP: le_trielen. Qed.
+Lemma len_neq0 : trielen != 0.
+Proof.
+case/andP: le_trielen => /[swap] _.
+by apply/contraL => /eqP ->; rewrite Order.POrderTheory.ltxx.
+Qed.
 Lemma lelenmax : trielen ≤? max_length.
-Proof. exact: le_trielen. Qed.
+Proof. by case/andP: le_trielen => _. Qed.
 
 Definition flarray_tr (istrie : trie -> bool) (a : array trie) :=
-  [&& length a == trielen, isEmpty (default a) &
+  [&& (length a == 0) || (length a == trielen), isEmpty (default a) &
     all (fun i => istrie a.[(of_nat i)]) (iota 0 (to_nat trielen))].
 Fixpoint is_fltrie t : bool :=
   if t is Trie v a then flarray_tr is_fltrie a else true.
 Notation flarray := (flarray_tr is_fltrie).
 
 Lemma flarrayP (istrie : trie -> bool) (a : array trie) :
-  reflect [/\ length a = trielen,
+  reflect [/\ length a = 0 \/ length a = trielen,
       default a = Empty &
         forall i, (i < trielen)%O -> istrie a.[i]] (flarray_tr istrie a).
 Proof.
-apply (iffP and3P) => [[/eqP eqlen def0 /allP] | [eqlen def0]] /= trienth.
-- split => //; first by case: (default a) def0.
+apply (iffP and3P) => [[ /orP eqlen def0 /allP] | [eqlen def0]] /= trienth.
+- split => //; first by case: eqlen => [] /eqP ->; [left| right].
+    by case: (default a) def0.
   move=> i ltisz; rewrite -(to_natK i); apply: trienth.
   by rewrite mem_iota /= add0n -ltintE.
-- rewrite eqlen; split => //; first by case: (default a) def0.
+- split; first by case: eqlen => ->; rewrite eqxx // orbT.
+    by case: (default a) def0.
   apply/allP => n; rewrite mem_iota /= add0n => ltnsz.
   have /of_natK eqn : n < wBnat.
     apply: (ltn_trans ltnsz); apply/ltP; rewrite -Z2Nat.inj_lt; last by [].
-    * by move: le_trielen => /lebP/(BinInt.Z.le_lt_trans _); apply.
+    * by case/andP: le_trielen => _ /lebP/(BinInt.Z.le_lt_trans _); apply.
     * by rewrite -to_Z_0; apply/lebP; apply: le0int.
   by move: ltnsz; rewrite -{1}eqn -ltintE => /trienth.
 Qed.
@@ -140,7 +149,11 @@ Hint Resolve is_fltrie_empty : core.
 
 Fixpoint updatetrie t v (upd : option T -> option T) :=
   match v, t with
-  | v0 :: v', Trie x a => Trie x a.[v0 <- updatetrie a.[v0] v' upd]
+  | v0 :: v', Trie x a =>
+      if length a == 0 then
+        Trie x (make trielen Empty).[v0 <- updatetrie Empty v' upd]
+      else
+        Trie x a.[v0 <- updatetrie a.[v0] v' upd]
   | v0 :: v', Empty    => Trie None
                             (make trielen Empty).[v0 <- updatetrie Empty v' upd]
   | [::], Trie x a => Trie (upd x) a
@@ -160,7 +173,7 @@ Fixpoint gettrie t v :=
 Lemma flarray0 : flarray (make trielen Empty).
 Proof.
 apply/flarrayP; split.
-- by rewrite length_make lelenmax.
+- by rewrite length_make lelenmax; right.
 - by rewrite default_make.
 - by move=> /= i lti; rewrite get_make.
 Qed.
@@ -170,19 +183,30 @@ Lemma is_fltrie_updatetrie t v upd :
 Proof.
 elim: v t => [|v0 v IHv] [_ |x t] //=; first exact: flarray0.
   apply/flarrayP; split.
-  + by rewrite length_set length_make lelenmax.
+  + by right; rewrite length_set length_make lelenmax.
   + by rewrite default_set default_make.
   + move=> /= i lti; case: (altP (v0 =P i)) => [{v0}->|/eqP v0neqi].
     * rewrite get_set_same; first exact: IHv.
       by rewrite length_make lelenmax.
     * by rewrite (get_set_other _ _ _ _ _ v0neqi) get_make.
 case/flarrayP => eqlen eqdef /= flti.
+case: eqlen => [-> /= | Hlen].
+  apply/flarrayP; split.
+  - by right; rewrite length_set length_make lelenmax.
+  - by rewrite default_set default_make.
+  - move=> /= i lti.
+    case: (altP (v0 =P i)) => [{v0}->|/eqP v0neqi].
+    + rewrite get_set_same; first exact: IHv.
+      by rewrite length_make lelenmax; exact: lti.
+    + by rewrite (get_set_other _ _ _ _ _ v0neqi) get_make.
+rewrite Hlen (negbTE len_neq0) /=.
 apply/flarrayP; split.
-- by rewrite length_set.
+- by right; rewrite length_set.
 - by rewrite default_set.
-- move=> /= i lti; case: (altP (v0 =P i)) => [{v0}->|/eqP v0neqi].
-  + rewrite get_set_same; first exact (IHv _ (flti _ lti)).
-    by rewrite eqlen.
+- move=> /= i lti.
+  case: (altP (v0 =P i)) => [{v0}->|/eqP v0neqi].
+  + rewrite get_set_same; first exact: (IHv _ (flti _ lti)).
+    by rewrite Hlen; exact: lti.
   + by rewrite (get_set_other _ _ _ _ _ v0neqi) (flti _ lti).
 Qed.
 Canonical updatefltrie (t : fltrie) v upd :=
@@ -195,7 +219,8 @@ Lemma get_updatetrie t v upd w :
   gettrie (updatetrie t v upd) w =
     if w == v then upd (gettrie t w) else gettrie t w.
 Proof.
-elim: w v t => [| w0 w IHw] [|v0 v] [|x t]//=.
+elim: w v t => [| w0 w IHw] [|v0 v] [|x t] //=.
+- by move => _ _; case: eqP => //=.
 - by rewrite get_make /=; case w.
 - move=> _; case/andP=> [ltv0 {}/IHw Hrec].
   rewrite eqseq_cons; case: eqP => /= [{w0}-> | neq].
@@ -204,8 +229,16 @@ elim: w v t => [| w0 w IHw] [|v0 v] [|x t]//=.
   by rewrite (get_set_other _ _ _ _ _ (not_eq_sym neq)) get_make /=; case w.
 - case/flarrayP => eqlen eqdef /= fltrec.
   case/andP=> [ltv0 {}/IHw Hrec].
+  case: eqlen => [len0 | leneq] /=.
+    rewrite len0 /= [t.[w0]]get_out_of_bounds; first last.
+      by rewrite len0 -[w0 <? 0]/(w0 < 0)%O ltintE to_nat0 ltn0.
+    rewrite eqdef eqseq_cons; case: eqP => /= [ {w0}-> | neq] /=.
+      rewrite get_set_same; last by rewrite length_make lelenmax; exact: ltv0.
+      exact: Hrec.
+    by rewrite (get_set_other _ _ _ _ _ (not_eq_sym neq)) get_make /=.
+  rewrite leneq (negbTE len_neq0).
   rewrite eqseq_cons; case: eqP => /= [{w0}-> | neq].
-    rewrite get_set_same; last by rewrite eqlen.
+    rewrite get_set_same; last by rewrite leneq; exact: ltv0.
     by move/(_ _ ltv0): fltrec => /Hrec.
   by rewrite (get_set_other _ _ _ _ _ (not_eq_sym neq)).
 Qed.
@@ -277,7 +310,7 @@ End Defs.
 Section TrieRewrites.
 
 Variable trielen : int.
-Hypothesis (maxlen : (trielen <= max_length)%O).
+Hypothesis (maxlen : (0 < trielen <= max_length)%O).
 
 Definition rewtrie := @trie (word int).
 
@@ -409,13 +442,27 @@ Definition pres_trielen := foldl max 0 (pgen P) + 1.
 
 Hypothesis pgenOk : all (<%O^~ max_length) (pgen P).
 
-Lemma pgen_maxlen : (pres_trielen <= max_length)%O.
+Local Lemma foldlmaxlt : (foldl max 0 (pgen P) < max_length)%O.
 Proof.
-rewrite /pres_trielen; apply ltleint.
 have : (0 < max_length)%O by [].
 elim: (pgen P) (0) pgenOk => [|g0 g IHg] //= i /[swap] lti.
 case/andP => ltg0 {}/IHg; apply.
 by rewrite ltintE maxintE gtn_max -!ltintE lti ltg0.
+Qed.
+
+Lemma pgen_maxlen : (0 < pres_trielen <= max_length)%O.
+Proof.
+have foldlmaxlt : (foldl max 0 (pgen P) < max_length)%O.
+  have : (0 < max_length)%O by [].
+  elim: (pgen P) (0) pgenOk => [|g0 g IHg] //= i /[swap] lti.
+  case/andP => ltg0 {}/IHg; apply.
+  by rewrite ltintE maxintE gtn_max -!ltintE lti ltg0.
+apply/andP; split; first last.
+  by rewrite /pres_trielen; apply ltleint; exact: foldlmaxlt.
+rewrite /pres_trielen ltintE to_nat0 to_natD; first by rewrite addnS ltnS.
+rewrite addn1.
+move: foldlmaxlt; rewrite ltintE => /leq_ltn_trans; apply.
+by apply/ltP; rewrite -Z2Nat.inj_lt.
 Qed.
 
 Lemma pgen_trielen :
@@ -454,7 +501,7 @@ Section EnumNormalForms.
 
 Variable (P : pres int) (trielen : int).
 Hypothesis convP : convergent (prelat P).
-Hypothesis trielenOk : (trielen <= max_length)%O.
+Hypothesis trielenOk : (0 < trielen <= max_length)%O.
 Hypothesis genPlen : all (<%O^~ trielen) (pgen P).
 
 Implicit Types (u v w : word int) (norf : seq (word int)).
