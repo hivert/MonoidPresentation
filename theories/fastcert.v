@@ -24,10 +24,8 @@ Definition check_convergence_intP fuel R :
 Theorem isopres_final : isopres present_entry present_final.
 Proof.
 have wfc : wfpres_cert present_entry cert by vm_cast_no_check (eq_refl true).
-apply: (isopres_trans (@iso_final_pres _ present_entry cert wfc)).
-apply: pres_irrelevance.
-  by rewrite (pgen_final_pres wfc).
-by rewrite (prelat_final_pres wfc).
+suff -> : present_final = final_pres wfc by apply: iso_final_pres.
+by apply/eqP; rewrite -eqpresE pgen_final_pres prelat_final_pres.
 Qed.
 
 Fixpoint eqseq_int (s1 s2 : seq int) {struct s2} :=

@@ -172,12 +172,14 @@ Proof.
 case: t wft => /=.
 - move=> g w /[dup] /andP[gok win] prf /=.
   set newpres := pres_transfo _.
-  have @iso2 : isopres (T2_pres win gok) newpres by apply: pres_irrelevance.
-  by exists (isopres_trans (isopres_Tietze2 win gok) iso2).
+  have -> : newpres = T2_pres win gok
+    by apply/eqP; rewrite -eqpresE /= !eqxx.
+  by exists (isopres_Tietze2 win gok).
 - move=> u v prf /[dup] /and3P[uin vin /check_certP eq_u_v] tok.
   set newpres := pres_transfo _.
-  have @iso2 : isopres (rcons_ext_pres uin vin) newpres by apply: pres_irrelevance.
-  by exists (isopres_trans (isopres_rcons_rule uin vin eq_u_v) iso2).
+  have -> : newpres = rcons_ext_pres uin vin
+    by apply/eqP; rewrite -eqpresE /= !eqxx.
+  by exists (isopres_rcons_rule uin vin eq_u_v).
 - move=> n prf /[dup] /andP[lt_n_sz].
   case Huv : {1}(nth ([::], [::]) (prelat R) n) => [u v] /check_certP eq_u_v prf0.
   set newpres := pres_transfo _.
@@ -242,19 +244,18 @@ Theorem iso_final_pres_ex R c (wfc : wfpres_cert R c) :
   { p : isopres R (final_pres wfc) | p =1 idfun :> (_ -> _) }.
 Proof.
 elim: c R wfc => [| t c IHc] R /= wf.
-  by exists (isopres_sym (pres_irrelevance (pgen_final_pres wf)
-                            (prelat_final_pres wf))).
+  have -> : final_pres wf = R.
+    by apply/eqP; rewrite -eqpresE pgen_final_pres /= prelat_final_pres /= !eqxx.
+  by exists (isopres_refl R).
 have:= wf => /andP[wft wfc].
 set R1 := pres_transfo wft.
 have genR1 : pgen R1 = gen_transfo (pgen R) t by [].
 have relR1 : prelat R1 = rel_transfo (prelat R) t by [].
 move: wfc; rewrite -{1}genR1 -{1}relR1 => wfcR1.
 case: (IHc R1 wfcR1) => iso2 eqiso2.
-have @isof : isopres (final_pres wfcR1) (final_pres wf).
-  apply: pres_irrelevance => //=.
-    by rewrite !pgen_final_pres genR1.
-  by rewrite !prelat_final_pres relR1.
-exists (isopres_trans (isopres_transfo wft) (isopres_trans iso2 isof)).
+have -> : final_pres wf = final_pres wfcR1.
+  by apply/eqP; rewrite -eqpresE !pgen_final_pres !prelat_final_pres /= !eqxx.
+exists (isopres_trans (isopres_transfo wft) iso2).
 by move=> u /=; rewrite eqiso2 isopres_transfoE.
 Qed.
 Definition iso_final_pres R c (wfc : wfpres_cert R c) :
@@ -354,10 +355,9 @@ Definition final_order := [::1;0;2].
 (* Proof that the two presentation defines isomorphic monoids *)
 Theorem isopres_final : isopres present_entry present_final.
 Proof.
-apply: (isopres_trans (@iso_final_pres _ present_entry cert is_true_true)).
-apply: pres_irrelevance.
-  by rewrite pgen_final_pres.
-by rewrite prelat_final_pres.
+have certOk : wfpres_cert present_entry cert by [].
+suff -> : present_final = final_pres certOk by apply: iso_final_pres.
+by apply/eqP; rewrite -eqpresE pgen_final_pres prelat_final_pres.
 Qed.
 
 (* Proof that the presentation is terminating + confluent. *)

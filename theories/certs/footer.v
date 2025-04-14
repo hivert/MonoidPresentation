@@ -1,13 +1,11 @@
-From mathcomp Require Import order.
+From mathcomp Require Import eqtype order.
 
 
 Theorem isopres_final : isopres present_entry present_final.
 Proof.
 have wfc : wfpres_cert present_entry cert by vm_cast_no_check is_true_true.
-apply: (isopres_trans (@iso_final_pres _ present_entry cert wfc)).
-apply: pres_irrelevance.
-  by rewrite (pgen_final_pres wfc).
-by rewrite (prelat_final_pres wfc).
+suff -> : present_final = final_pres wfc by apply: iso_final_pres.
+by apply/eqP; rewrite -eqpresE pgen_final_pres prelat_final_pres.
 Time Qed.
 
 

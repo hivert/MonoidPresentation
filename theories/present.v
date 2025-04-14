@@ -307,8 +307,8 @@ Qed.
    the rewritten v, or None.  rewfront is supposed to match the
    rewrites1_front specification.
 
-   We use is right away with rewrites1_front and will use later with more
-   efficient rewrites search algorihtms, for example using tries
+   We use it right away with rewrites1_front and will use it later with more
+   efficient rewrites search algorihtms, for example using tries.
 *)
 Definition rewrites1_from_front (rewfront : word -> option word) :=
   fix loop u := if rewfront u is Some u as res then res
@@ -1069,19 +1069,6 @@ Proof. by []. Qed.
 End PresEqEquivTheory.
 
 
-Section Irrelevance.
-
-Variable (A : choiceType) (R1 R2 : pres A).
-Hypotheses (eqgen : pgen R1 = pgen R2) (eqrel : prelat R1 = prelat R2).
-
-Definition pres_irrelevance : isopres R1 R2.
-Proof. by apply: isopres_eq => u v; rewrite /words_of eqgen eqrel. Defined.
-Lemma pres_irrelevanceE : pres_irrelevance = id :> (_ -> _).
-Proof. by []. Qed.
-
-End Irrelevance.
-
-
 Section PermIrrelevance.
 
 Variable (A : choiceType) (R1 R2 : pres A).
@@ -1214,8 +1201,8 @@ Lemma Tietze_add_rel  A (R1 R2 : pres A) (u v : word A) :
   u = v %[mod prelat R1] -> isopres R1 R2.
 Proof.
 move=> allu allv eqgen eqrelat newrelat.
-apply: (isopres_trans (isopres_rcons_rule allu allv newrelat)).
-exact: pres_irrelevance.
+suff -> : R2 = rcons_ext_pres allu allv by apply isopres_rcons_rule.
+by apply/eqP; rewrite -eqpresE /= eqrelat eqgen !eqxx.
 Defined.
 
 
@@ -1353,8 +1340,8 @@ Lemma Tietze_add_gen A (R1 R2 : pres A) (g : A) (w : word A) :
   w \in words_of R1 -> g \notin (pgen R1) -> isopres R1 R2.
 Proof.
 move=> eqgen eqrelat allw gok.
-apply: (isopres_trans (isopres_Tietze2 allw gok)).
-exact: pres_irrelevance.
+suff -> : R2 = T2_pres allw gok by apply: isopres_Tietze2.
+by apply/eqP; rewrite -eqpresE /= eqgen eqrelat !eqxx.
 Defined.
 
 Lemma Tietze_add_gen_swap A (R1 R2 : pres A) (g : A) (w : word A) :
