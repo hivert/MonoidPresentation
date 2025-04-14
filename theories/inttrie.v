@@ -95,6 +95,7 @@ Qed.
 Lemma lelenmax : trielen ≤? max_length.
 Proof. by case/andP: le_trielen => _. Qed.
 
+(* Fixed length arrays and tries *)
 Definition flarray_tr (istrie : trie -> bool) (a : array trie) :=
   [&& (length a == 0) || (length a == trielen), isEmpty (default a) &
     all (fun i => istrie a.[(of_nat i)]) (iota 0 (to_nat trielen))].
@@ -157,7 +158,7 @@ Fixpoint updatetrie t v (upd : option T -> option T) :=
   | v0 :: v', Empty    => Trie None
                             (make trielen Empty).[v0 <- updatetrie Empty v' upd]
   | [::], Trie x a => Trie (upd x) a
-  | [::], Empty    => Trie (upd None) (make trielen Empty)
+  | [::], Empty    => Trie (upd None) (make 0 Empty)
   end.
 
 Definition addtrie t v e := updatetrie t v (fun => Some e).
@@ -170,7 +171,20 @@ Fixpoint gettrie t v :=
   | _, _  => None
   end.
 
-Lemma flarray0 : flarray (make trielen Empty).
+Lemma get_empty i : [| | Empty : trie |].[i] = Empty.
+Proof.
+by rewrite get_out_of_bounds //= -[i <? 0]/(i < 0)%O ltintE to_nat0 ltn0.
+Qed.
+
+Lemma flarray_make0 : flarray (make 0 Empty).
+Proof.
+apply/flarrayP; split.
+- by rewrite length_make; left.
+- by rewrite default_make.
+- by move=> i _ /=; rewrite get_empty.
+Qed.
+
+Lemma flarray_make : flarray (make trielen Empty).
 Proof.
 apply/flarrayP; split.
 - by rewrite length_make lelenmax; right.
@@ -181,7 +195,7 @@ Qed.
 Lemma is_fltrie_updatetrie t v upd :
   is_fltrie t -> is_fltrie (updatetrie t v upd).
 Proof.
-elim: v t => [|v0 v IHv] [_ |x t] //=; first exact: flarray0.
+elim: v t => [|v0 v IHv] [_ |x t] //=; first exact: flarray_make0.
   apply/flarrayP; split.
   + by right; rewrite length_set length_make lelenmax.
   + by rewrite default_set default_make.
@@ -221,7 +235,7 @@ Lemma get_updatetrie t v upd w :
 Proof.
 elim: w v t => [| w0 w IHw] [|v0 v] [|x t] //=.
 - by move => _ _; case: eqP => //=.
-- by rewrite get_make /=; case w.
+- by move=> _ _; rewrite get_empty /=; case w.
 - move=> _; case/andP=> [ltv0 {}/IHw Hrec].
   rewrite eqseq_cons; case: eqP => /= [{w0}-> | neq].
     rewrite get_set_same; last by rewrite length_make lelenmax.
