@@ -564,7 +564,7 @@ rewrite spair_confluence_loop_trieE.
 by native_cast_no_check is_true_true.
 Qed.
 
-Goal flatten (traject (enum_normal_next_trie P 2) [:: [::]] 4)
+Goal flatten (traject (enum_normal_next_trie P (pres_trielen P)) [:: [::]] 4)
        = [:: [::]; [:: 0]; [:: 1]; [:: 0; 0]; [:: 0; 1]; [:: 0; 0; 1]].
 Proof. by []. Qed.
 
