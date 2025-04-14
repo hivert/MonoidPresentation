@@ -454,15 +454,23 @@ End Symmetry.
 
 End Rewrites1.
 
+Lemma rewrites_front_cat R1 R2 u :
+  rewrites_front (R1 ++ R2) u = rewrites_front R1 u ++ rewrites_front R2 u.
+Proof. by elim: R1 => [// | [r1 r2] R1 /= ->]; case (prefix _ _). Qed.
+
+Lemma rewrites_cat_perm R1 R2 u :
+  perm_eq (rewrites (R1 ++ R2) u) ((rewrites R1 u) ++ (rewrites R2 u)).
+Proof.
+apply/permP.
+elim: u => [|u0 u IHu] /= p; first by rewrite rewrites_front_cat.
+rewrite !count_cat addnA [X in _ = X + _]addnC addnA [X in _ = X + _ + _]addnC.
+rewrite -[X in _ = X + _ + _]count_cat -rewrites_front_cat -addnA; congr (_ + _).
+by rewrite !count_map IHu -count_cat.
+Qed.
+
 Lemma rewrites_cat R1 R2 u :
   rewrites (R1 ++ R2) u =i (rewrites R1 u) ++ (rewrites R2 u).
-Proof.
-move=> /= v; rewrite mem_cat; apply/idP/orP.
-  move=> /rewritesP[pre suf r {u}->{v}-> ].
-  by rewrite mem_cat => /orP[]; [left|right]; apply/rewritesP; exists pre suf r.
-by case=> /rewritesP[pre suf r {u}->{v}-> rinR];
-       apply/rewritesP; exists pre suf r => //=; rewrite mem_cat rinR ?orbT.
-Qed.
+Proof. exact/perm_mem/rewrites_cat_perm. Qed.
 Lemma rewrites_cons p R u :
   rewrites (p :: R) u =i (rewrites [:: p] u) ++ (rewrites R u).
 Proof. by move=> v; rewrite -cat1s rewrites_cat. Qed.
