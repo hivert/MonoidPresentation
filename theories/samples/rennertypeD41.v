@@ -4124,3 +4124,15 @@ Definition cert : pres_cert := [:: add_rel [::9;6] [::9]
 Definition final_order := [::0;1;2;3;4;5;6;7;8;9].
 
 Load "footer_trie.v".
+
+
+From mathcomp Require Import ssrnat path.
+Require Import enumnf.
+
+Goal foldl (fun acc s => acc + size_int s) 0
+  (traject (enum_normal_next_trie present_final (pres_trielen present_final))
+     [:: [::]] 41) = 10625.
+Proof.
+by native_cast_no_check (erefl 10625).
+Time Qed.
+
