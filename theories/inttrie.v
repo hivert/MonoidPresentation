@@ -426,7 +426,7 @@ Definition spair_confluence_dec_trie R fuel :=
   if all_tr (fun p => eqseq_int p.1 p.2) (all_npairs_int R) then
     let spairs := filter (fun p => ~~ eqseq_int p.1 p.2) (all_spairs_int R) in
     (* all (fun p => norfuel_int R fuel p.1 == norfuel_int R fuel p.2) spairs *)
-    all (fun p => eqnor tr fuel p.1 p.2) spairs
+    all_tr (fun p => eqnor tr fuel p.1 p.2) spairs
   else false.
 Lemma spair_confluence_dec_intE R :
   spair_confluence_dec R (trie_rewrites1 (mktrie R)) = spair_confluence_dec_trie R.
