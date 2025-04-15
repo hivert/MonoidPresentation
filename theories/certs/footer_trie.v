@@ -14,8 +14,9 @@ Require Import inttrie.
 
 Theorem final_ok : convergent (prelat present_final).
 Proof.
-apply: (rgen_convergent (reorderK (l := final_order) is_true_true) erefl).
 apply: diamond.
+  apply: (rgen_pres_terminating
+            (newgK := reorderK (l := final_order) is_true_true)).
   apply (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
   by native_cast_no_check is_true_true.
 have pgenOk : all (<%O^~ PArray.max_length) (pgen present_final) by [].

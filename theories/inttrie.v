@@ -422,7 +422,7 @@ Definition eqnor tr fuel (p1 p2 : word int) :=
 
 
 Definition spair_confluence_dec_trie R fuel :=
-  let tr := (mktrie R) in
+  let tr := mktrie R in
   if all_tr (fun p => eqseq_int p.1 p.2) (all_npairs_int R) then
     let spairs := filter (fun p => ~~ eqseq_int p.1 p.2) (all_spairs_int R) in
     (* all (fun p => norfuel_int R fuel p.1 == norfuel_int R fuel p.2) spairs *)
