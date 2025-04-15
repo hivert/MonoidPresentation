@@ -533,6 +533,7 @@ Let rew1P := trie_rewrites1P trielenOk (pgen_size genPlen).
 
 Definition enum_normal_next_trie := enum_normal_next P (trie_rewrites1 Ptrie).
 Definition enum_normal_trie_sz := enum_normal_sz P (trie_rewrites1 Ptrie).
+Definition enum_normal_trie := enum_normal P (trie_rewrites1 Ptrie).
 
 Lemma normal_sz_enum_normal_trie_sz n : all (normal_sz P n) (enum_normal_trie_sz n).
 Proof. exact: normal_sz_enum_normal_sz. Qed.
@@ -547,6 +548,10 @@ Proof. exact: uniq_enum_normal_sz. Qed.
 Lemma mem_enum_normal_trie_szP n u :
   (u \in enum_normal_trie_sz n) = normal_sz P n u.
 Proof. exact: mem_enum_normalP. Qed.
+
+Lemma enum_normal_trieP bound :
+  let: (l, ok) := enum_normal_trie bound in ok -> is_enum_normal P l.
+Proof. exact: enum_normalP. Qed.
 
 End EnumNormalForms.
 
@@ -573,8 +578,9 @@ rewrite spair_confluence_loop_trieE.
 by native_cast_no_check is_true_true.
 Qed.
 
-Goal flatten (traject (enum_normal_next_trie P (pres_trielen P)) [:: [::]] 4)
-       = [:: [::]; [:: 0]; [:: 1]; [:: 0; 0]; [:: 0; 1]; [:: 0; 0; 1]].
-Proof. by []. Qed.
+Definition nf := [:: [::]; [:: 0]; [:: 1]; [:: 0; 0]; [:: 0; 1]; [:: 0; 0; 1]].
+
+Lemma is_enum_normal_nf : is_enum_normal P nf.
+Proof. exact: (@enum_normal_trieP _ 2 final_ok _ _ 5). Qed.
 
 End Example.

@@ -204,7 +204,7 @@ Context {Alph Beta : choiceType}
   (Qconv : convergent (prelat Q))
   (isoPQ : isopres P Q)
   (lP : seq (word Alph)) (lQ : seq (word Beta))
-  (norlP :   is_enum_normal P lP) (norlQ : is_enum_normal Q lQ).
+  (norlP : is_enum_normal P lP) (norlQ : is_enum_normal Q lQ).
 
 Theorem isopres_perm_eq_enum : perm_eq [seq isocan Qconv isoPQ i | i <- lP] lQ.
 Proof.
