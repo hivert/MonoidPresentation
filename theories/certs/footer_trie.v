@@ -5,7 +5,8 @@ Theorem isopres_final : isopres present_entry present_final.
 Proof.
 have wfc : wfpres_cert present_entry cert by vm_cast_no_check is_true_true.
 suff -> : present_final = final_pres wfc by apply: iso_final_pres.
-by apply/eqP; rewrite -eqpresE pgen_final_pres prelat_final_pres.
+apply/eqP; rewrite -eqpresE pgen_final_pres prelat_final_pres.
+by vm_cast_no_check is_true_true.
 Time Qed.
 
 Require Import inttrie.
