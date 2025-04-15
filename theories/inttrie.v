@@ -1,6 +1,5 @@
 From HB Require Import structures.
-From Coq Require Import Znat BinIntDef Uint63.
-From Coq Require Import PrimInt63 PString PArray.
+From Coq Require Import Znat BinIntDef Uint63 PArray.
 From mathcomp Require Import all_ssreflect.
 
 Require Import int_seq present fastcert enumnf.
@@ -14,6 +13,15 @@ Local Open Scope uint63_scope.
 
 
 Local Notation wBnat := (BinInt.Z.to_nat wB).
+
+
+Lemma lt_lenght_wB (T : Type) (a : array T) : to_nat (length a) < wBnat.
+Proof.
+have /leq_ltn_trans : to_nat (length a) <= to_nat max_length.
+  by rewrite -leintE; exact: leb_length.
+by apply; apply/ltP/Z2Nat.inj_lt.
+Qed.
+
 
 Fixpoint loop {A : Type} (cnt : nat) (i : int) (f : A -> int -> A) (init : A) : A :=
     match cnt with

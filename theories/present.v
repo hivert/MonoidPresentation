@@ -927,6 +927,10 @@ Lemma isopres_symE A B (R : pres A) (S : pres B) (eq : isopres R S) :
   isopres_sym eq =1 inv eq.
 Proof. by []. Qed.
 
+Lemma isopres_word_of A B (R : pres A) (S : pres B) (eq : isopres R S) u :
+  u \in words_of R -> eq u \in words_of S.
+Proof. by move=> H; apply: rewmorph_inP; rewrite words_of_undirected_pres. Qed.
+
 Lemma isopresP A B (R : pres A) (S : pres B) (eq : isopres R S) u v :
   u \in words_of R -> v \in words_of R ->
   eq u = eq v %[mod (prelat S)] <-> u = v %[mod (prelat R)].
@@ -1870,9 +1874,14 @@ End WellFounded.
 End Normalization.
 
 
-Theorem terminating_normal R : terminating R -> forall u, {v | normalf R u v}.
+Section Terminating.
+
+Variable R : relat T.
+Hypothesis termR : terminating R.
+
+Theorem terminating_normal u : {v | normalf R u v}.
 Proof.
-move/well_founded_induction_type=> ind; elim/ind => {ind} u IHu.
+move/well_founded_induction_type: termR => ind; elim/ind: u => {ind} u IHu.
 case Hrew : (rewrites1 R u) => [u' | {IHu}].
   move/rewrites1SomeP: Hrew => /[dup]/rewrites_to1 ruu {}/IHu.
   case => v [norv ruv]; exists v; split => //.
@@ -1880,12 +1889,17 @@ case Hrew : (rewrites1 R u) => [u' | {IHu}].
 exists u; split; first by move/eqP: Hrew; rewrite -rewrites0P.
 exact: rewrites_to_refl.
 Qed.
+Definition normal_of u := let: exist res _ := terminating_normal u in res.
+Lemma normal_ofP u : normalf R u (normal_of u).
+Proof. by rewrite /normal_of; case: terminating_normal. Qed.
 
-Corollary normal0 R : terminating R -> normal R [::].
+Corollary normal0 : normal R [::].
 Proof.
-move/terminating_normal/(_ [::]) => [u][+ _]; apply: infix_normal.
+case: (terminating_normal [::]) => u [+ _]; apply: infix_normal.
 exact: infix0s.
 Qed.
+
+End Terminating.
 
 Theorem convergentrel_dec R :
   convergent R -> forall u v, decidable (u = v %[mod R]).
