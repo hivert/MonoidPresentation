@@ -532,19 +532,20 @@ Let Ptrie := mktrie trielen (prelat P).
 Let rew1P := trie_rewrites1P trielenOk (pgen_size genPlen).
 
 Definition enum_normal_next_trie := enum_normal_next P (trie_rewrites1 Ptrie).
-Definition enum_normal_trie := enum_normal P (trie_rewrites1 Ptrie).
+Definition enum_normal_trie_sz := enum_normal_sz P (trie_rewrites1 Ptrie).
 
-Lemma normal_sz_enum_normal_trie n : all (normal_sz P n) (enum_normal_trie n).
-Proof. exact: normal_sz_enum_normal. Qed.
+Lemma normal_sz_enum_normal_trie_sz n : all (normal_sz P n) (enum_normal_trie_sz n).
+Proof. exact: normal_sz_enum_normal_sz. Qed.
 
-Lemma count_mem_enum_normal_trie n u :
-  normal_sz P n u -> count_mem u (enum_normal_trie n) = 1%N.
-Proof. exact: count_mem_enum_normal. Qed.
+Lemma count_mem_enum_normal_trie_sz n u :
+  normal_sz P n u -> count_mem u (enum_normal_trie_sz n) = 1%N.
+Proof. exact: count_mem_enum_normal_sz. Qed.
 
-Lemma uniq_enum_normal_trie n : uniq (enum_normal_trie n).
-Proof. exact: uniq_enum_normal. Qed.
+Lemma uniq_enum_normal_trie_sz n : uniq (enum_normal_trie_sz n).
+Proof. exact: uniq_enum_normal_sz. Qed.
 
-Lemma mem_enum_normal_trieP n u : (u \in enum_normal_trie n) = normal_sz P n u.
+Lemma mem_enum_normal_trie_szP n u :
+  (u \in enum_normal_trie_sz n) = normal_sz P n u.
 Proof. exact: mem_enum_normalP. Qed.
 
 End EnumNormalForms.
