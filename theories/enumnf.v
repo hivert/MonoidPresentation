@@ -162,7 +162,7 @@ Definition isocan u := normal_of Qconv.2 (isoPQ u).
 Local Lemma isocan_words w : w \in words_of P -> isocan w \in words_of Q.
 Proof.
 have [_ /rewrites_to_words_ofE <-] := normal_ofP Qconv.2 (isoPQ w).
-by move/(isopres_word_of isoPQ).
+by move/(isopres_words_of isoPQ).
 Qed.
 Local Lemma isocanP u : normalf (prelat Q) (isoPQ u) (isocan u).
 Proof. exact: normal_ofP. Qed.
@@ -189,7 +189,7 @@ have norfPu : normalf (prelat P) u u by split => //; apply: rewrites_to_refl.
 have /equiv_sym := canmor isoPQ uinP; rewrite -(normalf_equivE Pconv.1 norfPu).
 move/(confluentE Pconv.1 _); apply.
 rewrite (normalf_equivE Pconv.1 (isocanP Pconv (isopres_sym isoPQ) (P2Q u))).
-rewrite (isopres_invP _ (isocan_words _ _ uinP) (isopres_word_of _ uinP)).
+rewrite (isopres_invP _ (isocan_words _ _ uinP) (isopres_words_of _ uinP)).
 by have [_ /rewrites_to_equiv/equiv_sym] := isocanP Qconv isoPQ u.
 Qed.
 

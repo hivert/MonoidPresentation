@@ -927,7 +927,7 @@ Lemma isopres_symE A B (R : pres A) (S : pres B) (eq : isopres R S) :
   isopres_sym eq =1 inv eq.
 Proof. by []. Qed.
 
-Lemma isopres_word_of A B (R : pres A) (S : pres B) (eq : isopres R S) u :
+Lemma isopres_words_of A B (R : pres A) (S : pres B) (eq : isopres R S) u :
   u \in words_of R -> eq u \in words_of S.
 Proof. by move=> H; apply: rewmorph_inP; rewrite words_of_undirected_pres. Qed.
 
