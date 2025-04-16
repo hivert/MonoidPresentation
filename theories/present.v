@@ -1889,17 +1889,54 @@ case Hrew : (rewrites1 R u) => [u' | {IHu}].
 exists u; split; first by move/eqP: Hrew; rewrite -rewrites0P.
 exact: rewrites_to_refl.
 Qed.
-Definition normal_of u := let: exist res _ := terminating_normal u in res.
-Lemma normal_ofP u : normalf R u (normal_of u).
-Proof. by rewrite /normal_of; case: terminating_normal. Qed.
-
 Corollary normal0 : normal R [::].
 Proof.
 case: (terminating_normal [::]) => u [+ _]; apply: infix_normal.
 exact: infix0s.
 Qed.
 
+Definition normal_of u := let: exist res _ := terminating_normal u in res.
+Lemma normalf_ofP u : normalf R u (normal_of u).
+Proof. by rewrite /normal_of; case: terminating_normal. Qed.
+Lemma normal_ofP u : normal R (normal_of u).
+Proof. by case: (normalf_ofP u). Qed.
+Lemma normal_of_normal u : normal R u -> normal_of u = u.
+Proof.
+move/eqP => noru; case: (normalf_ofP u) => _.
+by case => [[|p0 p]] //= /andP[]; rewrite noru.
+Qed.
+
 End Terminating.
+
+Section NormalOf.
+
+Variables (R : relat T) (cvR : convergent R).
+
+Lemma normal_of_id u : normal_of cvR.2 (normal_of cvR.2 u) = normal_of cvR.2 u.
+Proof.
+apply: (confluentE cvR.1 (normalf_ofP cvR.2 _)).
+exact/normalf_rewrite0/normal_ofP.
+Qed.
+
+Lemma normal_of_cat u v :
+  normal_of cvR.2 (normal_of cvR.2 u ++ normal_of cvR.2 v) =
+    normal_of cvR.2 (u ++ v).
+Proof.
+apply: (confluentE cvR.1 (normalf_ofP cvR.2 _)).
+rewrite (normalf_equivE cvR.1 (normalf_ofP cvR.2 _)).
+apply: rewrites_to_cat.
+- by have [_ /rewrites_to_equiv] := normalf_ofP cvR.2 u.
+- by have [_ /rewrites_to_equiv] := normalf_ofP cvR.2 v.
+Qed.
+Lemma normal_of_catl u v :
+  normal_of cvR.2 (u ++ normal_of cvR.2 v) = normal_of cvR.2 (u ++ v).
+Proof. by rewrite -normal_of_cat normal_of_id normal_of_cat. Qed.
+Lemma normal_of_catr u v :
+  normal_of cvR.2 (normal_of cvR.2 u ++ v) = normal_of cvR.2 (u ++ v).
+Proof. by rewrite -normal_of_cat normal_of_id normal_of_cat. Qed.
+
+End NormalOf.
+
 
 Theorem convergentrel_dec R :
   convergent R -> forall u v, decidable (u = v %[mod R]).

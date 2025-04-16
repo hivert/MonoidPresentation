@@ -24,6 +24,61 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 
+Section NormalFormMonoid.
+
+Context {Alph : choiceType} (P : pres Alph).
+Hypothesis convP : convergent (prelat P).
+
+Definition normalword u := (u \in words_of P) && (normal (prelat P) u).
+
+Structure presmon := PresMon {
+    presval :> word Alph;
+    _ : normalword presval
+  }.
+
+HB.instance Definition _ := [isSub of presmon for presval].
+
+Implicit Type (x y : presmon).
+
+Fact normalword_onepm : normalword [::].
+Proof. by rewrite /normalword /= (normal0 convP.2). Qed.
+Definition onepm := PresMon normalword_onepm.
+
+Let mulpmval x y : word Alph :=
+      normal_of convP.2 ((x : word Alph) ++ (y : word Alph)).
+Fact normalword_mulpm x y : normalword (mulpmval x y).
+Proof.
+case: x y => [x px][y py]; move: px py.
+rewrite /normalword /mulpmval /= => /andP[xP norx] /andP[yP nory].
+have [-> /rewrites_to_words_ofE <-] := normalf_ofP convP.2 (x ++ y).
+by rewrite words_of_cat xP yP.
+Qed.
+Definition mulpm x y := PresMon (normalword_mulpm x y).
+
+Fact mult1pm : left_id onepm mulpm.
+Proof.
+case => [x norx] /=; apply val_inj => /=.
+rewrite /mulpmval /=; apply (confluentE convP.1 (normalf_ofP convP.2 _)).
+by apply: normalf_rewrite0; case/andP: norx.
+Qed.
+Fact multpm1 : right_id onepm mulpm.
+Proof.
+case => [x norx] /=; apply val_inj => /=.
+rewrite /mulpmval /=; apply (confluentE convP.1 (normalf_ofP convP.2 _)).
+by rewrite cats0; apply: normalf_rewrite0; case/andP: norx.
+Qed.
+Fact multpmA : associative mulpm.
+Proof.
+move=> [x norx][y nory][z norz]; apply val_inj => /=.
+repeat rewrite /mulpmval /=.
+by rewrite normal_of_catl normal_of_catr catA.
+Qed.
+HB.instance Definition _ := [Choice of presmon by <:].
+HB.instance Definition _ := isMonoid.Build presmon multpmA mult1pm multpm1.
+
+End NormalFormMonoid.
+
+
 Section EnumNormalForms.
 
 Context {Alph : choiceType} (P : pres Alph).
@@ -34,8 +89,7 @@ Hypothesis (rew1P : forall u, rewrites1_spec (prelat P) u (rew1 u)).
 
 Implicit Types (u v w : word Alph) (norf : seq (word Alph)).
 
-Definition normal_sz (n : nat) u :=
-  [&& size u == n, u \in words_of P & normal (prelat P) u].
+Definition normal_sz (n : nat) u := (size u == n) && (normalword P u).
 Definition enum_normal_next norf :=
   [seq x <- [seq g :: w | g <- pgen P, w <- norf] | ~~ rew1 x].
 Definition enum_normal_sz n := iter n enum_normal_next [:: [::]].
@@ -52,7 +106,7 @@ move: (enum_normal_sz n) => norf /allP /= allnorf; apply/allP => /= [[| u0 u]].
 rewrite mem_filter => /andP[]; case: rew1P => nrew // _.
 case/allpairsP => /= - [v0 v]/= [ugen unor []] equ0 equ; subst v0 v.
 have := allnorf u unor; rewrite /normal /= /normal_sz /= eqSS.
-case: eqP => //= _.
+case: eqP => //= _; rewrite /normalword.
 have -> : (u0 :: u \in words_of P) = (u \in words_of P).
   by rewrite !unfold_in /words_of /= ugen.
 by case: (u \in _).
@@ -64,7 +118,7 @@ Proof.
 elim: n u => [|n]; first by case.
 rewrite {2}/enum_normal_sz /= -/(enum_normal_sz n).
 move: (enum_normal_sz n) => norf Hn [|u0 u] //=.
-rewrite /normal_sz /= eqSS.
+rewrite /normal_sz /= eqSS /normalword.
 have -> : (u0 :: u \in words_of P) = (u0 \in pgen P) && (u \in words_of P).
   by rewrite !unfold_in /words_of /=.
 case: (boolP (u0 \in pgen P)) => [u0P |]; rewrite ?andbF ?andbT //=.
@@ -101,9 +155,8 @@ Qed.
 
 Lemma enum_normalE n :
   enum_normal_sz n = [::] ->
-  forall u,
-    (u \in words_of P) && (normal (prelat P) u) =
-      (u \in flatten (traject enum_normal_next [:: [::]] n)).
+  forall u, normalword P u =
+              (u \in flatten (traject enum_normal_next [:: [::]] n)).
 Proof.
 move=> Hiter u.
 have gt m : m >= n -> enum_normal_sz m = [::].
@@ -114,14 +167,15 @@ have gt m : m >= n -> enum_normal_sz m = [::].
   by rewrite /enum_normal_next /=; elim: (pgen P).
 apply/idP/idP.
   case/andP => uin noru.
-  have {uin}noru : normal_sz (size u) u by rewrite /normal_sz eqxx uin noru.
+  have {uin}noru : normal_sz (size u) u.
+    by rewrite /normal_sz /normalword eqxx uin noru.
   apply/flattenP => /=; exists (iter (size u) enum_normal_next [:: [::]]).
     apply/trajectP; exists (size u) => //.
     apply/negP => /negP; rewrite -leqNgt => {}/gt eqnor.
     by rewrite -mem_enum_normalP eqnor in noru.
   by rewrite mem_enum_normalP.
 case/flattenP => /= l /trajectP[m ltmn {l}->].
-by rewrite mem_enum_normalP => /and3P[_ -> ->].
+by rewrite /normalword mem_enum_normalP => /and3P[_ -> ->].
 Qed.
 
 (** Given a bound returns the list of normal forms of size less than bound
@@ -130,7 +184,7 @@ Definition enum_normal bound :=
   let l := traject enum_normal_next [:: [::]] bound in
   (flatten l, last [::[::]] l == [::]).
 Definition is_enum_normal l :=
-  uniq l /\ forall u, (u \in words_of P) && (normal (prelat P) u) = (u \in l).
+  uniq l /\ forall u, (normalword P u) = (u \in l).
 
 Lemma enum_normalP bound :
   let: (l, ok) := enum_normal bound in ok -> is_enum_normal l.
@@ -161,11 +215,11 @@ Context {Alph Beta : choiceType}
 Definition isocan u := normal_of Qconv.2 (isoPQ u).
 Local Lemma isocan_words w : w \in words_of P -> isocan w \in words_of Q.
 Proof.
-have [_ /rewrites_to_words_ofE <-] := normal_ofP Qconv.2 (isoPQ w).
+have [_ /rewrites_to_words_ofE <-] := normalf_ofP Qconv.2 (isoPQ w).
 by move/(isopres_words_of isoPQ).
 Qed.
 Local Lemma isocanP u : normalf (prelat Q) (isoPQ u) (isocan u).
-Proof. exact: normal_ofP. Qed.
+Proof. exact: normalf_ofP. Qed.
 
 End IsoCan.
 
@@ -215,14 +269,14 @@ have P2QK : {in lP, cancel P2Q Q2P} by move=> u; rewrite -memlP; exact: isocanK.
 have Q2PK : {in lQ, cancel Q2P P2Q} by move=> v; rewrite -memlQ; exact: isocanK.
 apply: uniq_perm => //.
   rewrite map_inj_in_uniq => //; first exact: (can_in_inj P2QK).
-move=> /= v; rewrite -memlQ; apply/mapP/idP => [[u]|].
-  rewrite -memlP => /andP[uinP _ {v}->].
+move=> /= v; rewrite -memlQ; apply/mapP/idP => [[/= u]|].
+  rewrite /normalword -memlP => /andP[uinP _ {v}->].
   rewrite (isocan_words _ _ uinP) /=.
   by have[] := isocanP Qconv isoPQ u.
 case/andP => vinQ norv; exists (Q2P v).
-  rewrite -memlP; rewrite (isocan_words _ _ vinQ) /=.
+  rewrite -memlP /normalword; rewrite (isocan_words _ _ vinQ) /=.
   by have[] := isocanP Pconv (isopres_sym isoPQ) v.
-by rewrite Q2PK // -memlQ vinQ norv.
+by rewrite Q2PK // -memlQ /normalword vinQ norv.
 Qed.
 Corollary isopres_size_enum : size lP = size lQ.
 Proof. by have /perm_size := isopres_perm_eq_enum; rewrite size_map. Qed.
