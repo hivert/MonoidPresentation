@@ -4,7 +4,7 @@ From mathcomp Require Import choice bigop fintype finfun finset ssralg.
 (*From mathcomp Require Import order.
 From mathcomp Require Import all_ssreflect. *)
 
-Require Import monoids present.
+Require Import monoids present enumnf.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -114,3 +114,11 @@ Definition converse_presentation : PC \present M^c :=
 
 End ConverseMonoid.
 
+
+Section MorphPresentation.
+
+Context (M N : monoidType) {I J : choiceType}
+  (P : pres I) (presP : P \present M)
+  (Q : pres J) (presQ : Q \present N) (phi : {mmorphism M -> N}).
+
+End MorphPresentation.
