@@ -22479,8 +22479,7 @@ From mathcomp Require Import ssrnat path.
 Require Import enumnf.
 
 Goal foldl (fun acc s => acc + size_int s) 0
-  (traject (enum_normal_next_trie present_final (pres_trielen present_final))
-     [:: [::]] 41) = 258661.
+  (traject (enum_normal_next_trie present_final) [:: [::]] 41) = 258661.
 Proof.
 by native_cast_no_check (erefl 258661).
 Time Qed.

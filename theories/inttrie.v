@@ -523,13 +523,13 @@ Section EnumNormalForms.
 
 Variable (P : pres int) (trielen : int).
 Hypothesis convP : convergent (prelat P).
-Hypothesis trielenOk : (0 < trielen <= max_length)%O.
-Hypothesis genPlen : all (<%O^~ trielen) (pgen P).
+Hypothesis genPlen : all (<%O^~ max_length) (pgen P).
 
 Implicit Types (u v w : word int) (norf : seq (word int)).
 
-Let Ptrie := mktrie trielen (prelat P).
-Let rew1P := trie_rewrites1P trielenOk (pgen_size genPlen).
+Let Ptrie := mktrie (pres_trielen P) (prelat P).
+Let rew1P : rewrites1_Ok (prelat P) (trie_rewrites1 Ptrie)
+    := trie_rewrites1P (pgen_maxlen genPlen) (corrrelat_trielen genPlen).
 
 Definition enum_normal_next_trie := enum_normal_next P (trie_rewrites1 Ptrie).
 Definition enum_normal_trie_sz := enum_normal_sz P (trie_rewrites1 Ptrie).
@@ -581,6 +581,6 @@ Qed.
 Definition nf := [:: [::]; [:: 0]; [:: 1]; [:: 0; 0]; [:: 0; 1]; [:: 0; 0; 1]].
 
 Lemma is_enum_normal_nf : is_enum_normal P nf.
-Proof. exact: (@enum_normal_trieP _ 2 final_ok _ _ 5). Qed.
+Proof. exact: (@enum_normal_trieP _ final_ok _ 5 _). Qed.
 
 End Example.
