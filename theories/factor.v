@@ -1,17 +1,45 @@
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice ssrnat seq.
 
-Require Import monoids present.
-
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+(* Potential PRs to MathComp *)
+Section Compl.
+Context {T : Type}.
+Definition swap (p : T * T) := (p.2, p.1).
+Lemma swapK : involutive swap. Proof. by move => [i j]. Qed.
+Lemma swap_inj : injective swap. Proof. exact: (can_inj swapK). Qed.
+Implicit Type u v : seq T.
+Lemma catl_inj u : injective (cat u).
+Proof. by elim: u => [|a u IHu] //= v1 v2 []; exact: IHu. Qed.
+Lemma catr_inj u : injective (cat^~ u).
+Proof.
+move=> v1 v2 /(congr1 rev) /[!rev_cat] /catl_inj.
+exact: (can_inj revK).
+Qed.
+End Compl.
+
+Lemma cat_eq0 (T : eqType) (u v : seq T) :
+  (u ++ v == [::]) = (u == [::]) && (v == [::]).
+Proof. by case: u. Qed.
+Lemma map_eq0 (T1 T2 : eqType) (u : seq T1) (f : T1 -> T2):
+  (map f u == [::]) = (u == [::]).
+Proof. by case: u. Qed.
+
 
 Section LongestPrefix.
 
-Context {Alph : choiceType}.
+Context {Alph : eqType}.
 
-Implicit Type (u v w : word Alph).
+Implicit Type (u v w : seq Alph).
+
+Lemma prefix_drop_nil (u v : seq Alph) :
+  prefix u v -> (u == v) = (drop (size u) v == [::]).
+Proof.
+case/prefixP=> w {v}->.
+by rewrite -{1}(cats0 u) drop_size_cat // (inj_eq (@catl_inj _ u)) eq_sym.
+Qed.
 
 Lemma prefix_sizeE u v : prefix u v -> size u >= size v -> u = v.
 Proof. by rewrite prefixE => /eqP {2}<- /take_oversize. Qed.
@@ -72,8 +100,7 @@ Section Infixes.
 
 Context {Alph : choiceType}.
 
-Implicit Type (u v w : word Alph).
-Implicit Type (P : pres Alph).
+Implicit Type (u v w : seq Alph).
 
 Definition prefixes u := [seq take i u | i <- iota 0 (size u).+1].
 Definition non_empty_prefixes u := behead (prefixes u).

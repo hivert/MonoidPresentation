@@ -17,7 +17,7 @@ From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat seq eqtype
   choice path bigop.
 
-Require Import monoids present.
+Require Import factor monoids present.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

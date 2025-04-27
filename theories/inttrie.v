@@ -2,7 +2,7 @@ From HB Require Import structures.
 From Coq Require Import Znat BinIntDef Uint63 PArray.
 From mathcomp Require Import all_ssreflect.
 
-Require Import int_seq present fastcert enumnf.
+Require Import factor int_seq present fastcert enumnf.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -102,6 +102,9 @@ by apply/contraL => /eqP ->; rewrite Order.POrderTheory.ltxx.
 Qed.
 Lemma lelenmax : trielen ≤? max_length.
 Proof. by case/andP: le_trielen => _. Qed.
+Lemma length_make_trielen :
+  length (make trielen Empty) = trielen.
+Proof. by rewrite length_make lelenmax. Qed.
 
 (* Fixed length arrays and tries *)
 Definition flarray_tr (istrie : trie -> bool) (a : array trie) :=
@@ -195,7 +198,7 @@ Qed.
 Lemma flarray_make : flarray (make trielen Empty).
 Proof.
 apply/flarrayP; split.
-- by rewrite length_make lelenmax; right.
+- by rewrite length_make_trielen; right.
 - by rewrite default_make.
 - by move=> /= i lti; rewrite get_make.
 Qed.
@@ -255,7 +258,7 @@ elim: w v t => [| w0 w IHw] [|v0 v] [|x t] //=.
 - move=> _; case/andP=> [ltv0 {}/IHw Hrec].
   (* Duplication here *)
   case: eqP => /= [{w0}-> | neq].
-    rewrite get_set_same; last by rewrite length_make lelenmax.
+    rewrite get_set_same; last by rewrite length_make_trielen.
     by rewrite {}Hrec /=; case: (w == v) => /=; case w.
   by rewrite (get_set_other _ _ _ _ _ (not_eq_sym neq)) get_make /=; case w.
 - case/flarrayP => eqlen eqdef /= fltrec.
@@ -265,7 +268,7 @@ elim: w v t => [| w0 w IHw] [|v0 v] [|x t] //=.
       by rewrite len0 -[w0 <? 0]/(w0 < 0)%O ltintE to_nat0 ltn0.
     (* Duplication here *)
     case: eqP => /= [{w0}-> | neq] /=.
-      rewrite get_set_same; last by rewrite length_make lelenmax; exact: ltv0.
+      rewrite get_set_same; last by rewrite length_make_trielen; exact: ltv0.
       by rewrite -Hrec eqdef.
     rewrite (get_set_other _ _ _ _ _ (not_eq_sym neq)) get_make /= eqdef.
     by case w.
@@ -294,11 +297,11 @@ have step x a u0 u :
     by rewrite ?get_set_same ?lena // length_set.
   by rewrite !get_set_other.
 elim: v t => [| v0 v IHv] [|x] //=.
-  rewrite length_set length_make lelenmax (negbTE len_neq0).
+  rewrite length_set length_make_trielen (negbTE len_neq0).
   have:= step None (make trielen Empty) v0 v IHv.
   by rewrite !get_make.
 move=> a; case: eqP => /= [lena | /eqP lena].
-  rewrite length_set length_make lelenmax (negbTE len_neq0).
+  rewrite length_set length_make_trielen (negbTE len_neq0).
   have:= step x (make trielen Empty) v0 v IHv.
   by rewrite !get_make.
 rewrite length_set (negbTE lena).
@@ -320,20 +323,20 @@ apply: array_ext => [|i|].
 - by rewrite !length_set.
 - rewrite !length_set.
   case: (altP (v0 =P i)) => [{i}<- | /eqP neqv0i] lti.
-    rewrite ?get_set_same ?length_make ?lelenmax //; first last.
+    rewrite ?get_set_same ?length_make_trielen //; first last.
       by rewrite length_set.
     case: (altP (w0 =P v0)) => [eqv0w0 | /eqP neqv0w0].
-      subst w0; rewrite ?get_set_same ?length_make ?lelenmax //.
+      subst w0; rewrite ?get_set_same ?length_make_trielen //.
         by apply IH => //; move: neq; apply contra => /eqP ->.
       by rewrite length_set.
-    rewrite get_set_other // get_set_same ?length_make ?lelenmax //.
+    rewrite get_set_other // get_set_same ?length_make_trielen //.
     by rewrite get_set_other // get_make.
   rewrite (get_set_other _ _ v0 i) //.
   case: (altP (w0 =P v0)) => [eqv0w0 | /eqP neqv0w0].
     by subst w0; rewrite !get_set_other.
   case: (altP (w0 =P i)) => [eq1 | /eqP neqw0i].
     subst w0; rewrite (get_set_other _ _ v0 i) //.
-    by rewrite !get_set_same ?length_set ?length_make ?lelenmax // get_make.
+    by rewrite !get_set_same ?length_set ?length_make_trielen // get_make.
   by rewrite !get_set_other.
 - by rewrite !default_set.
 Qed.
@@ -345,12 +348,12 @@ Proof.
 elim: v t w => [| v0 v IHv] [|x a] [|w0 w] //=.
 - by move=> _; case: eqP.
 - move=> neq.
-  rewrite !length_set length_make lelenmax (negbTE len_neq0).
+  rewrite !length_set length_make_trielen (negbTE len_neq0).
   have:= updatetrieC_step None (make trielen Empty) neq IHv.
   by rewrite !get_make.
 - by move=> _; case: eqP.
 - move=> neq; case: eqP => [lena | /eqP/negbTE lena].
-    rewrite !length_set length_make lelenmax (negbTE len_neq0).
+    rewrite !length_set length_make_trielen (negbTE len_neq0).
     have:= updatetrieC_step x (make trielen Empty) neq IHv.
     by rewrite !get_make.
   rewrite !length_set lena.
@@ -669,3 +672,92 @@ Lemma is_enum_normal_nf : is_enum_normal P nf.
 Proof. exact: (@enum_normal_trieP _ final_ok _ 5 _). Qed.
 
 End Example.
+
+
+Section Prefix.
+
+Variable trielen : int.
+Hypothesis (maxlen : (0 < trielen <= max_length)%O).
+
+Implicit Type (R : relat int) (t : rewtrie) (u v w : seq int).
+
+Lemma getsub_mktrie R v :
+  correctrelat R (<%O^~ trielen) ->
+  all (<%O^~ trielen)%O v ->
+  getsubtrie (mktrie trielen R) v =
+    mktrie trielen [seq (drop (size v) r.1, r.2) | r <- R & prefix v r.1].
+Proof.
+case: v => [corr _ | v0 v] /=.
+  suff -> : [seq (drop 0 r.1, r.2) | r <- R & prefix [::] r.1] = R.
+    by case: mktrie.
+  rewrite (eq_filter (a2 := xpredT)); last by move=> [r1 r2]; apply: prefix0s.
+  rewrite filter_predT (eq_map (g := id)) ?map_id // => -[r1 r2] /=.
+  by rewrite drop0.
+elim: R => [| [r1 r2] R IHR] //=.
+case/andP => /andP[allr1 allr2 corrR] allv.
+rewrite /addpair /addtrie /= getsub_updatetrie //; last exact: is_flmktrie.
+case (boolP (prefix (v0 :: v) r1)) => [pref | _] /=; last exact: IHR.
+by rewrite /addpair /addtrie /= IHR.
+Qed.
+
+End Prefix.
+
+
+Section LHSPrefix.
+
+Variable (trielen : int).
+Hypothesis (maxlen : (0 < trielen <= max_length)%O).
+Variable (P : pres int).
+Hypothesis genPlen : all (<%O^~ trielen) (pgen P).
+
+Implicit Types (u v w : word int) (r : word int * word int).
+
+Let Ptrie := mktrie trielen (prelat P).
+
+Definition islhsprefix u :=
+  if getsubtrie Ptrie u is Trie x a then length a != 0 else false.
+
+Lemma islhsprefixP u :
+  all (<%O^~ trielen) u ->
+  reflect
+    (exists r, [&& r \in (prelat P), prefix u r.1 & u != r.1])
+    (islhsprefix u).
+Proof.
+move=> allu; rewrite /islhsprefix /Ptrie.
+rewrite getsub_mktrie //; last exact: pgen_size.
+apply (iffP idP).
+  have /= : all (fun r => (r \in (prelat P)) && (prefix u r.1))
+              [seq r <- prelat P | prefix u r.1].
+    by apply/allP => [/= [r1 r2]]; rewrite mem_filter /= => /andP[-> ->].
+  elim: (filter _ _) => [//| /= [r1 r2] R IHR] /=.
+  case/andP => /andP[inR pref] {}/IHR; case: mktrie => [//= _| x a Hrec].
+    case Hdrop : (drop (size u) r1) (prefix_drop_nil pref) => [// | i v] /= Heq.
+    by move=> _; exists (r1, r2); rewrite /= inR pref /= Heq.
+  rewrite /addpair /addtrie /=.
+  case Hdrop : (drop (size u) r1) (prefix_drop_nil pref) => [// | i v] /= Heq.
+  case: eqP Hrec => [_ _ _| /= _ /(_ is_true_true) + _ //].
+  by exists (r1, r2); rewrite /= inR pref /= Heq.
+case=> [[r1 r2] /and3P[/= rinR pref nequr1]].
+elim: (prelat P) rinR => [// |[s1 s2] R IHR] /=.
+  rewrite inE => /orP[/eqP[{s1}<- {s2}<- {IHR}] | ] /=.
+  rewrite pref /= /addpair /addtrie /=.
+  case Hdrop : (drop (size u) r1) (prefix_drop_nil pref) => [| i v] /= Heq.
+    exfalso; move: Heq nequr1; rewrite eq_refl => /eqP ->.
+    by rewrite eqxx.
+  move=> {Heq}; case: mktrie => [| x a]/=.
+    by rewrite length_set length_make_trielen // (negbTE (len_neq0 _)).
+  case: eqP => [lena | /eqP/negbTE].
+    by rewrite  !length_set length_make_trielen // (negbTE (len_neq0 _)).
+  by rewrite length_set => ->.
+move=> {}/IHR IHR; case: (prefix u s1) => //=.
+rewrite /addpair /addtrie /=.
+case Hdrop : (drop (size u) s1) => [// | i v] /=.
+  by case: mktrie IHR.
+case: mktrie {IHR} => [| x a]/=.
+  by rewrite length_set length_make_trielen // (negbTE (len_neq0 _)).
+case: eqP => [lena | /eqP/negbTE].
+  by rewrite  !length_set length_make_trielen // (negbTE (len_neq0 _)).
+by rewrite length_set => ->.
+Qed.
+
+End LHSPrefix.

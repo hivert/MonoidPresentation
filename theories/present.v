@@ -19,7 +19,7 @@ From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat seq eqtype
 (*From mathcomp Require Import order.
 From mathcomp Require Import all_ssreflect. *)
 
-Require Import monoids.
+Require Import monoids factor.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -38,30 +38,6 @@ Reserved Notation "x '~>*' y" (at level 0, format "x '~>*' y").
 #[warning="-postfix-notation-not-level-1"]
 Reserved Notation "x = y %[mod e ]" (at level 70, y at next level,
   no associativity,   format "'[hv ' x '/'  =  y '/'  %[mod  e ] ']'").
-
-(* Potential PRs to MathComp *)
-Section Compl.
-Context {T : Type}.
-Definition swap (p : T * T) := (p.2, p.1).
-Lemma swapK : involutive swap. Proof. by move => [i j]. Qed.
-Lemma swap_inj : injective swap. Proof. exact: (can_inj swapK). Qed.
-Implicit Type u v : seq T.
-Lemma catl_inj u : injective (cat u).
-Proof. by elim: u => [|a u IHu] //= v1 v2 []; exact: IHu. Qed.
-Lemma catr_inj u : injective (cat^~ u).
-Proof.
-move=> v1 v2 /(congr1 rev) /[!rev_cat] /catl_inj.
-exact: (can_inj revK).
-Qed.
-End Compl.
-
-
-Lemma cat_eq0 (T : eqType) (u v : seq T) :
-  (u ++ v == [::]) = (u == [::]) && (v == [::]).
-Proof. by case: u. Qed.
-Lemma map_eq0 (T1 T2 : eqType) (u : seq T1) (f : T1 -> T2):
-  (map f u == [::]) = (u == [::]).
-Proof. by case: u. Qed.
 
 
 Lemma expn_non2 n : 2 ^ n > 0.
