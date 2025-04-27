@@ -72,7 +72,7 @@ Fixpoint eq_trie s t : bool :=
   | _, _ => false
   end.
 
-Lemma eqtrieP : Equality.axiom eq_trie.
+Lemma eqtrie_subproof : Equality.axiom eq_trie.
 Proof.
 move=> s t; apply (iffP idP) => [|{s}->].
   elim/rectrie: s t => [[] //|a IHdef IHa] x [//| y] b /= /andP[/eqP {y}<-].
@@ -89,7 +89,7 @@ have /leq_trans: to_nat (length a) <= to_nat max_length.
   by rewrite -leintE; exact: leb_length.
 by apply; apply/leP; rewrite -Z2Nat.inj_le.
 Qed.
-HB.instance Definition _ := hasDecEq.Build trie eqtrieP.
+HB.instance Definition _ := hasDecEq.Build trie eqtrie_subproof.
 
 
 Hypothesis (le_trielen : (0 < trielen <= max_length)%O).
@@ -157,27 +157,27 @@ Hint Resolve is_fltrie_empty : core.
 
 
 Fixpoint updatetrie t v (upd : option T -> option T) :=
-  match v, t with
-  | v0 :: v', Trie x a =>
-      if length a == 0 then
-        Trie x (make trielen Empty).[v0 <- updatetrie Empty v' upd]
-      else
-        Trie x a.[v0 <- updatetrie a.[v0] v' upd]
-  | v0 :: v', Empty    => Trie None
-                            (make trielen Empty).[v0 <- updatetrie Empty v' upd]
-  | [::], Trie x a => Trie (upd x) a
-  | [::], Empty    => Trie (upd None) (make 0 Empty)
-  end.
+  if v is v0 :: v' then
+    let: (x, a, sub) := if t is Trie x a then
+                          if length a == 0 then (x, make trielen Empty, Empty)
+                          else (x, a, a.[v0])
+                   else (None, make trielen Empty, Empty)
+    in Trie x a.[v0 <- updatetrie sub v' upd]
+  else
+    let: (x, a) := if t is Trie x a then (x, a)
+                   else (None, make 0 Empty)
+    in Trie (upd x) a.
 
 Definition addtrie t v e := updatetrie t v (fun => Some e).
 Definition deltrie t v := updatetrie t v (fun => None).
 
-Fixpoint gettrie t v :=
+Fixpoint getsubtrie t v :=
   match v, t with
-  | v0 :: v', Trie x a => gettrie a.[v0] v'
-  | [::], Trie x a => x
-  | _, _  => None
+  | v0 :: v', Trie x a => getsubtrie a.[v0] v'
+  | [::], t => t
+  | _, _  => Empty
   end.
+Definition gettrie t v := if getsubtrie t v is Trie x a then x else None.
 
 Lemma get_empty i : [| | Empty : trie |].[i] = Empty.
 Proof.
@@ -199,53 +199,62 @@ apply/flarrayP; split.
 - by rewrite default_make.
 - by move=> /= i lti; rewrite get_make.
 Qed.
+Lemma fltrie_get a i : flarray a -> is_fltrie a.[i].
+Proof.
+move/flarrayP => [lena defa /= flt].
+case: (boolP (i < trielen)%O) => [| /negbTE H]; first exact: flt.
+rewrite get_out_of_bounds ?defa //=; case: lena => [] -> //.
+by rewrite -[i <? 0]/(i < 0)%O ltintE ltn0.
+Qed.
+Lemma flarray_set a i t :
+  flarray a -> is_fltrie t -> flarray a.[i <- t].
+Proof.
+case/flarrayP => [lena defa /= flta] flt.
+apply/flarrayP; split.
+- by case: lena => lena; [left | right]; rewrite length_set.
+- by rewrite default_set.
+- move=> /= j ltj; case: (altP (i =P j)) => [{i}->|/eqP ineqj].
+    case: lena => lena; last by rewrite get_set_same // lena.
+    rewrite get_out_of_bounds ?default_set ?defa //.
+    by rewrite length_set lena -[j <? 0]/(j < 0)%O ltintE ltn0.
+  by rewrite get_set_other // flta.
+Qed.
 
 Lemma is_fltrie_updatetrie t v upd :
   is_fltrie t -> is_fltrie (updatetrie t v upd).
 Proof.
-elim: v t => [|v0 v IHv] [_ |x t] //=; first exact: flarray_make0.
-  apply/flarrayP; split.
-  + by right; rewrite length_set length_make lelenmax.
-  + by rewrite default_set default_make.
-  + move=> /= i lti; case: (altP (v0 =P i)) => [{v0}->|/eqP v0neqi].
-    * rewrite get_set_same; first exact: IHv.
-      by rewrite length_make lelenmax.
-    * by rewrite (get_set_other _ _ _ _ _ v0neqi) get_make.
-case/flarrayP => eqlen eqdef /= flti.
-case: eqlen => [-> /= | Hlen].
-  apply/flarrayP; split.
-  - by right; rewrite length_set length_make lelenmax.
-  - by rewrite default_set default_make.
-  - move=> /= i lti.
-    case: (altP (v0 =P i)) => [{v0}->|/eqP v0neqi].
-    + rewrite get_set_same; first exact: IHv.
-      by rewrite length_make lelenmax; exact: lti.
-    + by rewrite (get_set_other _ _ _ _ _ v0neqi) get_make.
-rewrite Hlen (negbTE len_neq0) /=.
-apply/flarrayP; split.
-- by right; rewrite length_set.
-- by rewrite default_set.
-- move=> /= i lti.
-  case: (altP (v0 =P i)) => [{v0}->|/eqP v0neqi].
-  + rewrite get_set_same; first exact: (IHv _ (flti _ lti)).
-    by rewrite Hlen; exact: lti.
-  + by rewrite (get_set_other _ _ _ _ _ v0neqi) (flti _ lti).
+elim: v t => [|v0 v IHv] [_ |x a] //=; first exact: flarray_make0.
+  by apply: flarray_set; [exact: flarray_make | exact: IHv].
+move=> /[dup] fla /flarrayP[+ _ _]; case => -> /=.
+  by apply: flarray_set; [exact: flarray_make | exact: IHv].
+rewrite (negbTE len_neq0) /=.
+by apply: flarray_set => //; apply: IHv; apply: fltrie_get.
 Qed.
 Canonical updatefltrie (t : fltrie) v upd :=
   FLTrie (is_fltrie_updatetrie v upd (fltrieP t)).
 
+Lemma is_fltrie_getsubtrie t v : is_fltrie t -> is_fltrie (getsubtrie t v).
+Proof.
+by elim: v t => [|v0 v IHv] [_ |x a] //= fla; apply: IHv; apply: fltrie_get.
+Qed.
+Canonical getsubfltrie (t : fltrie) v :=
+  FLTrie (is_fltrie_getsubtrie v (fltrieP t)).
 
-Lemma get_updatetrie t v upd w :
+Lemma getsub_updatetrie t v upd w :
   is_fltrie t ->
   all (<%O^~ trielen)%O v ->
-  gettrie (updatetrie t v upd) w =
-    if w == v then upd (gettrie t w) else gettrie t w.
+  getsubtrie (updatetrie t v upd) w =
+    if prefix w v then
+      updatetrie (getsubtrie t w) (drop (size w) v) upd else getsubtrie t w.
 Proof.
+(* Note refactoring leads to a too complicated step lemma *)
+rewrite /gettrie /=.
 elim: w v t => [| w0 w IHw] [|v0 v] [|x t] //=.
 - by move => _ _; case: eqP => //=.
-- by move=> _ _; rewrite get_empty /=; case w.
+- by move=> _ _; rewrite get_empty; case w.
 - move=> _; case/andP=> [ltv0 {}/IHw Hrec].
-  rewrite eqseq_cons; case: eqP => /= [{w0}-> | neq].
+  (* Duplication here *)
+  case: eqP => /= [{w0}-> | neq].
     rewrite get_set_same; last by rewrite length_make lelenmax.
     by rewrite {}Hrec /=; case: (w == v) => /=; case w.
   by rewrite (get_set_other _ _ _ _ _ (not_eq_sym neq)) get_make /=; case w.
@@ -254,45 +263,121 @@ elim: w v t => [| w0 w IHw] [|v0 v] [|x t] //=.
   case: eqlen => [len0 | leneq] /=.
     rewrite len0 /= [t.[w0]]get_out_of_bounds; first last.
       by rewrite len0 -[w0 <? 0]/(w0 < 0)%O ltintE to_nat0 ltn0.
-    rewrite eqdef eqseq_cons; case: eqP => /= [ {w0}-> | neq] /=.
+    (* Duplication here *)
+    case: eqP => /= [{w0}-> | neq] /=.
       rewrite get_set_same; last by rewrite length_make lelenmax; exact: ltv0.
-      exact: Hrec.
-    by rewrite (get_set_other _ _ _ _ _ (not_eq_sym neq)) get_make /=.
+      by rewrite -Hrec eqdef.
+    rewrite (get_set_other _ _ _ _ _ (not_eq_sym neq)) get_make /= eqdef.
+    by case w.
   rewrite leneq (negbTE len_neq0).
-  rewrite eqseq_cons; case: eqP => /= [{w0}-> | neq].
+  (* Duplication here *)
+  case: eqP => /= [{w0}-> | neq].
     rewrite get_set_same; last by rewrite leneq; exact: ltv0.
     by move/(_ _ ltv0): fltrec => /Hrec.
   by rewrite (get_set_other _ _ _ _ _ (not_eq_sym neq)).
 Qed.
-Definition get_updatefltrie (t : fltrie) v upd w :=
-  get_updatetrie (v := v) upd w (fltrieP t).
-
 
 Lemma updatetrie_comp t v u1 u2 :
-  is_fltrie t ->
-  all (<%O^~ trielen) v ->
-  gettrie (updatetrie t v (u1 \o u2))
-  =1 gettrie (updatetrie (updatetrie t v u2) v u1).
+  updatetrie t v (u1 \o u2) = updatetrie (updatetrie t v u2) v u1.
 Proof.
-move=> flt allv w; rewrite !get_updatetrie //=; last exact: is_fltrie_updatetrie.
-by case: eqP.
+have step x a u0 u :
+  (forall t, updatetrie t u (u1 \o u2) = updatetrie (updatetrie t u u2) u u1) ->
+    Trie x a.[u0<-updatetrie a.[u0] u (u1 \o u2)] =
+    Trie x a.[u0<-updatetrie a.[u0] u u2].[
+        u0<-updatetrie a.[u0<-updatetrie a.[u0] u u2].[u0] u u1].
+  move=> IH; congr Trie.
+  apply: array_ext => [|i|]; last 1 first.
+  + by rewrite !default_set.
+  + by rewrite !length_set.
+  rewrite !length_set.
+  case: (altP (u0 =P i)) => [{i}<- | /eqP neqv0i] lti.
+    by rewrite ?get_set_same ?lena // length_set.
+  by rewrite !get_set_other.
+elim: v t => [| v0 v IHv] [|x] //=.
+  rewrite length_set length_make lelenmax (negbTE len_neq0).
+  have:= step None (make trielen Empty) v0 v IHv.
+  by rewrite !get_make.
+move=> a; case: eqP => /= [lena | /eqP lena].
+  rewrite length_set length_make lelenmax (negbTE len_neq0).
+  have:= step x (make trielen Empty) v0 v IHv.
+  by rewrite !get_make.
+rewrite length_set (negbTE lena).
+exact: step.
 Qed.
-Definition updatefltrie_comp (t : fltrie) v u1 u2 :=
-  updatetrie_comp (v := v) u1 u2 (fltrieP t).
 
+
+Local Lemma updatetrieC_step x a (v0 w0 : int) v w u1 u2 :
+  v0 :: v != w0 :: w ->
+  (forall t w', v != w' ->
+   updatetrie (updatetrie t v u1) w' u2 = updatetrie (updatetrie t w' u2) v u1) ->
+  Trie x a.[v0 <- updatetrie a.[v0] v u1].[
+      w0 <- updatetrie a.[v0<-updatetrie a.[v0] v u1].[w0] w u2] =
+  Trie x a.[w0 <- updatetrie a.[w0] w u2].[
+      v0<-updatetrie a.[w0 <- updatetrie a.[w0] w u2].[v0] v u1].
+Proof.
+move=> neq IH; congr Trie.
+apply: array_ext => [|i|].
+- by rewrite !length_set.
+- rewrite !length_set.
+  case: (altP (v0 =P i)) => [{i}<- | /eqP neqv0i] lti.
+    rewrite ?get_set_same ?length_make ?lelenmax //; first last.
+      by rewrite length_set.
+    case: (altP (w0 =P v0)) => [eqv0w0 | /eqP neqv0w0].
+      subst w0; rewrite ?get_set_same ?length_make ?lelenmax //.
+        by apply IH => //; move: neq; apply contra => /eqP ->.
+      by rewrite length_set.
+    rewrite get_set_other // get_set_same ?length_make ?lelenmax //.
+    by rewrite get_set_other // get_make.
+  rewrite (get_set_other _ _ v0 i) //.
+  case: (altP (w0 =P v0)) => [eqv0w0 | /eqP neqv0w0].
+    by subst w0; rewrite !get_set_other.
+  case: (altP (w0 =P i)) => [eq1 | /eqP neqw0i].
+    subst w0; rewrite (get_set_other _ _ v0 i) //.
+    by rewrite !get_set_same ?length_set ?length_make ?lelenmax // get_make.
+  by rewrite !get_set_other.
+- by rewrite !default_set.
+Qed.
 
 Lemma updatetrieC t v w u1 u2 :
-  is_fltrie t ->
-  all (<%O^~ trielen) v -> all (<%O^~ trielen) w -> v != w ->
-  gettrie (updatetrie (updatetrie t v u1) w u2)
-  =1 gettrie (updatetrie (updatetrie t w u2) v u1).
+  v != w ->
+  updatetrie (updatetrie t v u1) w u2 = updatetrie (updatetrie t w u2) v u1.
 Proof.
-move=> flt allv allw /negbTE neqvw x.
-rewrite !get_updatetrie //=; try exact: is_fltrie_updatetrie.
-by case: (altP (x =P v)) => [{x}->|]; first by rewrite neqvw.
+elim: v t w => [| v0 v IHv] [|x a] [|w0 w] //=.
+- by move=> _; case: eqP.
+- move=> neq.
+  rewrite !length_set length_make lelenmax (negbTE len_neq0).
+  have:= updatetrieC_step None (make trielen Empty) neq IHv.
+  by rewrite !get_make.
+- by move=> _; case: eqP.
+- move=> neq; case: eqP => [lena | /eqP/negbTE lena].
+    rewrite !length_set length_make lelenmax (negbTE len_neq0).
+    have:= updatetrieC_step x (make trielen Empty) neq IHv.
+    by rewrite !get_make.
+  rewrite !length_set lena.
+  exact: updatetrieC_step.
 Qed.
-Definition updatefltrieC (t : fltrie) v w u1 u2 :=
-  updatetrieC (v := v) (w := w) u1 u2 (fltrieP t).
+
+
+Lemma get_updatetrie t v upd w :
+  is_fltrie t ->
+  all (<%O^~ trielen)%O v ->
+  gettrie (updatetrie t v upd) w =
+    if w == v then upd (gettrie t w) else gettrie t w.
+Proof.
+rewrite /gettrie /= => /getsub_updatetrie/[apply] ->.
+case: (boolP (prefix w v)) => [| npref]; first last.
+  suff /negbTE -> : w != v by [].
+  by apply/contra: npref => /eqP ->; rewrite prefix_refl.
+move/prefixP => [/= suf {v}->]; rewrite drop_size_cat //.
+case: suf => [| s0 s] /=.
+  by rewrite cats0 eqxx; case: (getsubtrie t w).
+have /negbTE -> : w != w ++ s0 :: s.
+  apply/negP => /eqP/(congr1 size)/eqP.
+  by rewrite size_cat /= addnS ltn_eqF // ltnS leq_addr.
+by case: (getsubtrie t w) => // r a; case: eqP.
+Qed.
+Definition get_updatefltrie (t : fltrie) v upd w :=
+  get_updatetrie (v := v) upd w (fltrieP t).
 
 
 Fixpoint getprefixtrie t w :=
