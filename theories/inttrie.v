@@ -183,9 +183,7 @@ Fixpoint getsubtrie t v :=
 Definition gettrie t v := if getsubtrie t v is Trie x a then x else None.
 
 Lemma get_empty i : [| | Empty : trie |].[i] = Empty.
-Proof.
-by rewrite get_out_of_bounds //= -[i <? 0]/(i < 0)%O ltintE to_nat0 ltn0.
-Qed.
+Proof. by rewrite get_out_of_bounds //= ltintbE ltn0. Qed.
 
 Lemma flarray_make0 : flarray (make 0 Empty).
 Proof.
@@ -207,7 +205,7 @@ Proof.
 move/flarrayP => [lena defa /= flt].
 case: (boolP (i < trielen)%O) => [| /negbTE H]; first exact: flt.
 rewrite get_out_of_bounds ?defa //=; case: lena => [] -> //.
-by rewrite -[i <? 0]/(i < 0)%O ltintE ltn0.
+by rewrite ltintbE.
 Qed.
 Lemma flarray_set a i t :
   flarray a -> is_fltrie t -> flarray a.[i <- t].
@@ -219,7 +217,7 @@ apply/flarrayP; split.
 - move=> /= j ltj; case: (altP (i =P j)) => [{i}->|/eqP ineqj].
     case: lena => lena; last by rewrite get_set_same // lena.
     rewrite get_out_of_bounds ?default_set ?defa //.
-    by rewrite length_set lena -[j <? 0]/(j < 0)%O ltintE ltn0.
+    by rewrite length_set lena ltintbE.
   by rewrite get_set_other // flta.
 Qed.
 
@@ -265,7 +263,7 @@ elim: w v t => [| w0 w IHw] [|v0 v] [|x t] //=.
   case/andP=> [ltv0 {}/IHw Hrec].
   case: eqlen => [len0 | leneq] /=.
     rewrite len0 /= [t.[w0]]get_out_of_bounds; first last.
-      by rewrite len0 -[w0 <? 0]/(w0 < 0)%O ltintE to_nat0 ltn0.
+      by rewrite len0 ltintbE.
     (* Duplication here *)
     case: eqP => /= [{w0}-> | neq] /=.
       rewrite get_set_same; last by rewrite length_make_trielen; exact: ltv0.

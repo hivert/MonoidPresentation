@@ -1,4 +1,3 @@
-(** Native int is a well founded choice and type **)
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 
@@ -10,6 +9,7 @@ Unset Printing Implicit Defensive.
 
 Local Open Scope uint63_scope.
 
+(** Native int is a well founded choice and ordered type **)
 Lemma wf_ltint : well_founded (<%O : rel int).
 Proof.
 apply: (wf_f to_natK _ wf_ltnat) => x y.
