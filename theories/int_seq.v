@@ -60,7 +60,7 @@ Proof. by apply/lebP/leP; rewrite Z2Nat.inj_le. Qed.
 Lemma ltintbE x y : (x <? y) = (to_nat x < to_nat y).
 Proof. by apply/ltbP/ltP; rewrite Z2Nat.inj_lt. Qed.
 
-Fact int_lt_def x y : (x <? y) = (y != x) && (x ≤? y).
+Fact ltint_def x y : (x <? y) = (y != x) && (x ≤? y).
 Proof.
 by rewrite ltintbE leintbE -(inj_eq to_nat_inj) ltn_neqAle eq_sym.
 Qed.
@@ -71,7 +71,7 @@ Proof. by move=> x y; rewrite !leintbE -eqn_leq => /eqP/to_nat_inj. Qed.
 Fact leint_trans : transitive leb.
 Proof. by move=> y x z; rewrite !leintbE => /leq_trans/[apply]. Qed.
 HB.instance Definition _ := Order.isPOrder.Build int_disp int
-                              int_lt_def leint_refl leint_anti leint_trans.
+                              ltint_def leint_refl leint_anti leint_trans.
 
 Lemma leintE x y : (x <= y)%O = (to_nat x <= to_nat y).
 Proof. exact: leintbE. Qed.
