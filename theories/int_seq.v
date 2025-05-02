@@ -3,6 +3,31 @@ From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 
 
+Section Nat.
+
+Implicit Type (m n p q : nat).
+
+Lemma add_natE m n : (m + n)%coq_nat = m + n.
+Proof. by []. Qed.
+Lemma mul_natE m n : (m * n)%coq_nat = m * n.
+Proof. by []. Qed.
+Lemma mod_natE m n : m mod n = m %% n.
+Proof.
+case: (altP (n =P 0)) => [->|/eqP neq]; first by rewrite Nat.mod_0_r modn0.
+rewrite {2}(Nat.div_mod_eq m n) add_natE mul_natE mulnC modnMDl modn_small //.
+by apply/ltP; apply: Nat.mod_upper_bound.
+Qed.
+Lemma div_natE m n : m / n = m %/ n.
+Proof.
+case: (altP (n =P 0)) => [-> | /negbTE neq]; first by rewrite Nat.div_0_r divn0.
+apply/eqP; have := (eqn_mul2r n (m / n) (m %/ n)); rewrite neq /= => <-.
+rewrite -mul_natE -(eqn_add2r (m mod n)) mod_natE -divn_eq.
+by rewrite mul_natE mulnC -mul_natE -add_natE -mod_natE -Nat.Div0.div_mod.
+Qed.
+
+End Nat.
+
+
 Section Int.
 
 Implicit Type (x y : int).
@@ -17,9 +42,10 @@ Lemma le0Z x : BinInt.Z.le 0 φ(x).
 Proof. by have [] := to_Z_bounded x. Qed.
 Lemma ltZwB x : BinInt.Z.lt φ(x) wB.
 Proof. by have [] := to_Z_bounded x. Qed.
+Hint Resolve le0Z ltZwB : core.
 
 Fact to_natK : cancel (fun i => to_nat i) (fun n => of_nat n).
-Proof. by move=> i; rewrite Z2Nat.id ?of_to_Z // -to_Z_0; exact: le0Z. Qed.
+Proof. by move=> i; rewrite Z2Nat.id ?of_to_Z // -to_Z_0. Qed.
 HB.instance Definition _ := CanIsCountable to_natK.
 
 Lemma to_nat_inj : injective (fun i => to_nat i).
@@ -30,13 +56,13 @@ Proof. exact: can_inj to_natK. Qed.
 Fact int_disp : Order.disp_t. by []. Qed.
 
 Lemma leintbE x y : (x ≤? y) = (to_nat x <= to_nat y).
-Proof. by apply/lebP/leP; rewrite (Z2Nat.inj_le _ _ (@le0Z x) (@le0Z y)). Qed.
+Proof. by apply/lebP/leP; rewrite Z2Nat.inj_le. Qed.
 Lemma ltintbE x y : (x <? y) = (to_nat x < to_nat y).
-Proof. by apply/ltbP/ltP; rewrite (Z2Nat.inj_lt _ _ (@le0Z x) (@le0Z y)). Qed.
+Proof. by apply/ltbP/ltP; rewrite Z2Nat.inj_lt. Qed.
 
 Fact int_lt_def x y : (x <? y) = (y != x) && (x ≤? y).
 Proof.
-by rewrite ltintbE leintbE -(eqtype.inj_eq to_nat_inj) ltn_neqAle eq_sym.
+by rewrite ltintbE leintbE -(inj_eq to_nat_inj) ltn_neqAle eq_sym.
 Qed.
 Fact leint_refl x : (x <=? x).
 Proof. by rewrite leintbE leqnn. Qed.
@@ -92,22 +118,16 @@ by rewrite -(Z2Nat.id wB); first exact/inj_lt/ltP.
 Qed.
 
 Lemma ltwBnat i : to_nat i < wBnat.
-Proof.
-by apply/ltP; have := ltZwB i; rewrite (Z2Nat.inj_lt _ _ (le0Z _)).
-Qed.
+Proof. by apply/ltP; have := ltZwB i; rewrite Z2Nat.inj_lt. Qed.
 
+Lemma to_natDE x y : to_nat (x + y) = (to_nat x + to_nat y) %% wBnat.
+Proof.
+rewrite add_spec Z2Nat.inj_mod //; last exact: BinInt.Z.add_nonneg_nonneg.
+by rewrite Z2Nat.inj_add // mod_natE.
+Qed.
 Lemma to_natD x y :
   to_nat x + to_nat y < wBnat -> to_nat (x + y) = (to_nat x + to_nat y)%N.
-Proof.
-have lex := le0Z x; have ley := le0Z y.
-have lexy := BinInt.Z.add_nonneg_nonneg _ _ lex ley.
-move=> lt; rewrite add_spec Zdiv.Zmod_small; first by rewrite Z2Nat.inj_add.
-split; first exact: lexy.
-rewrite Z2Nat.inj_lt.
-- by rewrite (Z2Nat.inj_add _ _ lex ley); apply/ltP.
-- exact: lexy.
-- exact: BinInt.Z.lt_le_incl wB_pos.
-Qed.
+Proof. by move=> lt; rewrite to_natDE modn_small. Qed.
 
 Lemma ltleint (i j: int) : (i < j)%O -> (i + 1 <= j)%O.
 Proof.
@@ -115,6 +135,21 @@ move=> /[dup] ltij; rewrite ltintE -addn1 -to_nat1 -to_natD ?leintE //.
 move: ltij; rewrite to_nat1 addn1 ltintE => /leq_ltn_trans; apply.
 exact: ltwBnat.
 Qed.
+
+Lemma to_natME x y : to_nat (x * y) = (to_nat x * to_nat y) %% wBnat.
+Proof.
+rewrite mul_spec Z2Nat.inj_mod //; last exact: BinInt.Z.mul_nonneg_nonneg.
+by rewrite Z2Nat.inj_mul // mod_natE.
+Qed.
+Lemma to_natM x y :
+  to_nat x * to_nat y < wBnat -> to_nat (x * y) = (to_nat x * to_nat y)%N.
+Proof. by move=> lt; rewrite to_natME modn_small. Qed.
+
+Lemma to_nat_mod x y : to_nat (x mod y) = (to_nat x %% to_nat y)%N.
+Proof. by rewrite mod_spec Z2Nat.inj_mod // mod_natE. Qed.
+
+Lemma to_nat_div x y : to_nat (x / y) = (to_nat x %/ to_nat y)%N.
+Proof. by rewrite div_spec Z2Nat.inj_div // div_natE. Qed.
 
 End Int.
 
