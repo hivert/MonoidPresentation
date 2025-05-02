@@ -1,7 +1,7 @@
 From Coq Require Import Znat BinIntDef Uint63 PArray.
 From mathcomp Require Import all_ssreflect.
 
-Require Import factor int_seq wfsizelexi present rewcert inttrie.
+Require Import factor int_seq present rewcert inttrie.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -9,53 +9,49 @@ Unset Printing Implicit Defensive.
 
 Local Open Scope uint63_scope.
 
+Import Order.TTheory.
 
 
 Lemma cons_nnil (T : eqType) (i : T) (u : seq T) : (i :: u == rev [::]) = false.
 Proof. by apply/negP => /eqP. Qed.
 
 
-Section LHSPrefix.
+Section LHSPrefixes.
 
 Variable trielen : int.
 Hypothesis (maxlen : (0 < trielen <= max_length)%O).
 
-Implicit Type (R : relat int) (t : rewtrie) (u v w : seq int).
+Implicit Types (i j : int) (u v w : word int) (r : word int * word int)
+  (P : pres int) (R : relat int) (tr : rewtrie).
 
-Lemma getsub_mktrie R v :
-  correctrelat R (<%O^~ trielen) ->
+Variable (R : relat int).
+Hypothesis Rcorr : correctrelat R (<%O^~ trielen).
+
+Lemma getsub_mktrie v :
   getsubtrie (mktrie trielen R) v =
     mktrie trielen [seq (drop (size v) r.1, r.2) | r <- R & prefix v r.1].
 Proof.
-case: v => [corr | v0 v] /=.
+case: v => [| v0 v] /=.
   suff -> : [seq (drop 0 r.1, r.2) | r <- R & prefix [::] r.1] = R.
     by case: mktrie.
   rewrite (eq_filter (a2 := xpredT)); last by move=> [r1 r2]; apply: prefix0s.
   rewrite filter_predT (eq_map (g := id)) ?map_id // => -[r1 r2] /=.
   by rewrite drop0.
-elim: R => [| [r1 r2] R IHR] //=.
+elim: R Rcorr => [| [r1 r2] R' IHR] //=.
 case/andP => /andP[allr1 allr2 corrR].
 rewrite /addpair /addtrie /= getsub_updatetrie //; last exact: is_flmktrie.
 case (boolP (prefix (v0 :: v) r1)) => [pref | _] /=; last exact: IHR.
 by rewrite /addpair /addtrie /= IHR.
 Qed.
 
-
-Variable (R : relat int).
-Hypothesis genRlen : correctrelat R (<%O^~ trielen).
-
-
-Let Ptrie := mktrie trielen R.
-
-Definition islhsprefix u :=
-  if getsubtrie Ptrie u is Trie x a then length a != 0 else false.
-
+Definition islhsprefix tr u :=
+  if getsubtrie tr u is Trie x a then length a != 0 else false.
 
 Lemma islhsprefixP u :
   reflect (exists r, [&& r \in R, prefix u r.1 & u != r.1])
-    (islhsprefix u).
+    (islhsprefix (mktrie trielen R) u).
 Proof.
-rewrite /islhsprefix /Ptrie getsub_mktrie //.
+rewrite /islhsprefix getsub_mktrie //.
 apply (iffP idP).
   have : all (fun r => (r \in R) && (prefix u r.1)) [seq r <- R | prefix u r.1].
     by apply/allP => [/= [r1 r2]]; rewrite mem_filter /= => /andP[-> ->].
@@ -89,12 +85,6 @@ case: eqP => [lena | /eqP/negbTE].
   by rewrite  !length_set length_make_trielen // (negbTE (len_neq0 _)).
 by rewrite length_set => ->.
 Qed.
-
-End LHSPrefix.
-
-Implicit Types (i j : int) (u v w : word int) (r : word int * word int)
-  (P : pres int) (R : relat int) (tr : @trie (word int)).
-
 
 Fixpoint prefixes_trie_rec rpre tr : seq (word int) :=
   match tr with
@@ -145,7 +135,7 @@ Proof.
 move=> defa.
 rewrite {1}/prefixes_trie /=; case: (boolP (length a == 0)) => [/eqP|] lena /=.
   rewrite get_out_of_bounds; first last.
-    by rewrite lena; apply: (Order.BPOrderTheory.ltx0 i).
+    by rewrite lena; apply: (ltx0 i).
   by rewrite /prefixes_trie defa.
 rewrite inE cons_nnil /=.
 rewrite -(revK (i :: u)) rev_cons (mem_map (can_inj revK)).
@@ -159,67 +149,71 @@ apply/flatten_mapP/idP => [[ /= j /mapP[/= n]] | uin].
 exists i.
   apply/mapP; exists (to_nat i); last by rewrite to_natK.
   rewrite mem_iota /= add0n -ltintE.
-  apply/contraLR: uin => /negbTE/get_out_of_bounds => ->.
-  by rewrite /prefixes_trie defa.
+  apply: get_not_default_lt; apply/eqP; rewrite defa.
+  by case: eqP uin => // ->.
 rewrite -cats1 prefixes_trie_recE.
 by apply/mapP; exists u.
 Qed.
 
-Lemma prefixes_trie_rec_uniq rpre tr : uniq (prefixes_trie_rec rpre tr).
+Section Sorted.
+
+Import DefaultSeqLexiOrder.
+
+Lemma catl_ltxiE u v w : (u ++ v < u ++ w)%O = (v < w)%O.
 Proof.
-move: tr rpre; apply: indtrie => //= a HE IH _ rpre.
-case eqP => //= _; apply/andP; split.
-  apply/negP => /flatten_mapP[/= i] /mapP[/= n].
-  rewrite mem_iota add0n => /= ltn {i}->.
-  move/suffix_prefixes_trie_rec => /size_suffix /=.
-  by rewrite ltnn.
+elim: u => [| u0 u]; first by rewrite !cat0s.
+by rewrite /= eqhead_ltxiE.
+Qed.
+
+Lemma ltxirev_trans : transitive (fun u v => rev u < rev v)%O.
+Proof. by move=> y x z; apply: lt_trans. Qed.
+
+Lemma prefixes_trie_rec_sorted rpre tr :
+  sorted (fun u v => rev u < rev v)%O (prefixes_trie_rec rpre tr).
+Proof.
+move: tr rpre; apply: indtrie => //= a _ IH _ rpre.
+case eqP => //= _.
 have := leqnn (to_nat (length a)).
 elim: {1 3}(to_nat (length a)) => [//| n IHn] ltn.
-rewrite -(addn1) iotaD /= add0n !map_cat flatten_cat cat_uniq.
-rewrite {}IHn /=; last exact: ltnW.
-rewrite cats0 andbC {}IH /=; first last.
-  rewrite ltintE of_natK //; exact/(ltn_trans ltn)/lt_lenght_wB.
-apply/negP => /hasP/=[u] /suffix_prefixes_trie_rec sufnu.
-case/flatten_mapP => /= i /mapP[/= m].
-rewrite mem_iota /= add0n => ltmn {i}-> /suffix_prefixes_trie_rec sufmu.
-move: sufnu sufmu; rewrite !suffixE /= => /eqP ->.
-rewrite eqseq_cons => /andP[+ _] => /eqP/(congr1 (fun i => to_nat i))/eqP.
-rewrite !of_natK; first last.
+rewrite -(addn1) iotaD /= add0n !map_cat flatten_cat cat_path /= cats0.
+rewrite {}IHn ?(ltnW ltn) //=.
+rewrite (path_sortedE ltxirev_trans) {}IH; first last.
+  rewrite ltintE of_natK //.
+  exact/(ltn_trans ltn)/lt_lenght_wB.
+rewrite andbT; apply/allP => /= u /suffix_prefixes_trie_rec.
+rewrite -prefix_rev rev_cons -cats1 => /prefixP[/= suf ->].
+case/lastP Hflat : (flatten _) => [|f fn] /=.
+  by rewrite -{1}(cats0 (rev rpre)) -catA catl_ltxiE ltxi0s.
+have : fn \in rcons f fn by rewrite mem_rcons inE eqxx.
+rewrite last_rcons -{}Hflat => /flatten_mapP[/= i] /mapP[/= m].
+rewrite mem_iota /= add0n => ltmn {i}->.
+have {}ltmn : (of_nat m < of_nat n)%O.
+  rewrite ltintE !of_natK //.
   exact/(ltn_trans ltn)/lt_lenght_wB.
   exact/(ltn_trans ltmn)/(ltn_trans ltn)/lt_lenght_wB.
-by rewrite gtn_eqF.
+move/suffix_prefixes_trie_rec.
+rewrite -prefix_rev rev_cons -cats1 => /prefixP[/= s2] ->.
+rewrite -!catA catl_ltxiE neqhead_ltxiE //.
+by move: ltmn; rewrite lt_neqAle => /andP[].
 Qed.
+Lemma prefixes_trie_sorted tr : sorted <%O (prefixes_trie tr).
+Proof. by rewrite /prefixes_trie sorted_map (prefixes_trie_rec_sorted _ _). Qed.
+End Sorted.
+
 Lemma prefixes_trie_uniq tr : uniq (prefixes_trie tr).
 Proof.
-rewrite (map_inj_uniq (can_inj revK)).
-exact: prefixes_trie_rec_uniq.
+exact: (sorted_uniq lt_trans lt_irreflexive (prefixes_trie_sorted _)).
 Qed.
 
-Section Mktrie.
-
-Variable trielen : int.
-Hypothesis le_trielen : (0 < trielen <= max_length)%O.
-
-(*
-Lemma prefixes_trie_len u :
-  u \in prefixes_trie (mktrie trielen R) -> all (<%O^~ trielen) u.
-Proof.
-move: (mktrie trielen R) (is_flmktrie le_trielen R) u.
-apply: indtrie => [//|a _ IHtr x] /= fla u.
-case: u => [// | u0 u].
-*)
-
-Variable R : relat int.
-Hypothesis Rcorr : correctrelat R (<%O^~ trielen).
 
 Lemma prefixes_mktrieE u :
-  (islhsprefix trielen R u) = (u \in prefixes_trie (mktrie trielen R)).
+  (islhsprefix (mktrie trielen R) u) = (u \in prefixes_trie (mktrie trielen R)).
 Proof.
 rewrite /islhsprefix.
-move: (mktrie trielen R) (is_flmktrie le_trielen R) u.
+move: (mktrie trielen R) (is_flmktrie maxlen R) u.
 apply: indtrie => [|a _ IHtr x] /= fla [|u0 u] //=.
   exact: nil_in_prefixes_trie.
-case/(flarrayP le_trielen): fla => /= lena defa flta.
+case/(flarrayP maxlen): fla => /= lena defa flta.
 rewrite mem_prefixes_trieE //.
 case: (boolP (u0 < length a)%O) => [ltu0 | /negbTE]; first last.
   move/get_out_of_bounds ->; rewrite defa /= /prefixes_trie /=.
@@ -227,21 +221,20 @@ case: (boolP (u0 < length a)%O) => [ltu0 | /negbTE]; first last.
 apply: (IHtr u0 ltu0); apply: flta.
 apply: (Order.POrderTheory.lt_le_trans ltu0).
 move: lena => []-> //; apply: Order.POrderTheory.ltW.
-by case/andP : le_trielen.
+by case/andP : maxlen.
 Qed.
 
 Lemma prefixes_mktrieP u :
   reflect (exists r, [&& r \in R, prefix u r.1 & u != r.1])
     (u \in prefixes_trie (mktrie trielen R)).
-Proof. by rewrite -prefixes_mktrieE; exact/(islhsprefixP le_trielen Rcorr). Qed.
+Proof. by rewrite -prefixes_mktrieE; exact/islhsprefixP. Qed.
 
-End Mktrie.
+End LHSPrefixes.
 
 
 Module Example.
 
 Section Example.
-
 
 Definition P := make_pres [::0; 1]
   [::
@@ -251,7 +244,8 @@ Definition P := make_pres [::0; 1]
   ].
 
 Let tr := mktrie (pres_trielen P) (prelat P).
-Eval compute in (prefixes_trie tr).
+Goal (prefixes_trie tr) = [:: [::]; [:: 0]; [:: 0; 0]; [:: 1]].
+Proof. by []. Qed.
 
 Definition AB_AAAAAA_ABAABA :=
   make_pres [::0;1] [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])].
@@ -271,16 +265,46 @@ Definition Pres := @Pres _
 
 Let tr2 := mktrie (pres_trielen Pres) (prelat Pres).
 
-Eval compute in (prelat Pres).
-(* [:: ([:: 0; 1; 0; 0; 1; 0], [:: 0; 0; 0; 0; 0; 0]);
-       ([:: 0; 1; 0; 0; 0; 0; 0; 0; 0], [:: 0; 0; 0; 0; 0; 0; 0; 1; 0])] *)
+Goal (prelat Pres) =
+       [:: ([:: 0; 1; 0; 0; 1; 0], [:: 0; 0; 0; 0; 0; 0]);
+        ([:: 0; 1; 0; 0; 0; 0; 0; 0; 0], [:: 0; 0; 0; 0; 0; 0; 0; 1; 0])].
+Proof. by []. Qed.
 
-Eval compute in (prefixes_trie tr2).
+
+Goal (prefixes_trie tr2) =
+       [:: [::]; [:: 0]; [:: 0; 1]; [:: 0; 1; 0]; [:: 0; 1; 0; 0];
+        [:: 0; 1; 0; 0; 0]; [:: 0; 1; 0; 0; 0; 0];
+        [:: 0; 1; 0; 0; 0; 0; 0]; [:: 0; 1; 0; 0; 0; 0; 0; 0];
+        [:: 0; 1; 0; 0; 1]].
+Proof. by []. Qed.
+
+Goal sorted <%O (prefixes_trie tr2 : seq (seqlexi _)).
+Proof. by []. Qed.
 
 End Example.
+
 End Example.
 
+Module Example2.
+
+Section Largest.
+
+Load "largest.v".
+
+Let Ptrie := mktrie (pres_trielen present_final) (prelat present_final).
+
+Goal sorted <%O (prefixes_trie Ptrie : seq (seqlexi _)).
+Proof. by vm_compute. Qed.
+
+Goal size (prefixes_trie Ptrie : seq (seqlexi _)) = 465%N.
+Proof. by []. Qed.
+
+End Largest.
+
+End Example2.
+
+(*
 Definition is_reduced R :=
   all (fun rel => (size (rewrites R rel.1) == 1%N)
                   && (size (rewrites R rel.2) == 0%N)) R.
-
+*)
