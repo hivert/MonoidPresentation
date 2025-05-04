@@ -15,6 +15,20 @@ Import Order.TTheory.
 Lemma cons_nnil (T : eqType) (i : T) (u : seq T) : (i :: u == rev [::]) = false.
 Proof. by apply/negP => /eqP. Qed.
 
+Section RevMap.
+
+Variables (T1 T2 : Type) (f : T1 -> T2).
+
+Definition revmap := foldl (fun s x => f x :: s).
+
+Lemma revmapE acc s : revmap acc s = rev (map f s) ++ acc.
+Proof.
+rewrite /revmap; elim: s acc => [// | s0 s IHs] /= acc.
+by rewrite IHs rev_cons -cats1 -catA.
+Qed.
+
+End RevMap.
+
 
 Section LHSPrefixes.
 
@@ -96,6 +110,42 @@ Fixpoint prefixes_trie_rec rpre tr : seq (word int) :=
   | Empty => [::]
   end.
 Definition prefixes_trie tr := [seq rev s | s <- prefixes_trie_rec [::] tr].
+
+Fixpoint prefixes_trie_acc acc rpre tr : seq (word int) :=
+  match tr with
+  | Trie x a =>
+      if length a == 0 then acc
+      else foldl (fun ac g => prefixes_trie_acc ac (g :: rpre) a.[g])
+             (rpre :: acc)
+             [seq of_nat n | n <- iota 0 (to_nat (length a))]
+  | Empty => acc
+  end.
+Definition prefixes_trie_fast tr :=
+  revmap rev [::] (prefixes_trie_acc [::] [::] tr).
+
+Lemma prefixes_trie_fast_accE tr :
+  prefixes_trie_fast tr = rev (map rev (prefixes_trie_acc [::] [::] tr)).
+Proof. by rewrite /prefixes_trie_fast revmapE cats0. Qed.
+
+Lemma prefixes_trie_accE acc rpre tr :
+  prefixes_trie_acc acc rpre tr = rev (prefixes_trie_rec rpre tr) ++ acc.
+Proof.
+move: tr rpre acc; apply: indtrie => [| a _ IHa x] rpre acc //=.
+case: eqP => // _.
+have := leqnn (to_nat (length a)).
+elim: {1 3 4}(to_nat (length a)) => [//| n IHn] ltn.
+rewrite -(addn1) iotaD /= add0n !map_cat flatten_cat /= cats0.
+rewrite cats1 foldl_rcons {}IHn ?(@ltnW n) // {}IHa; first last.
+  rewrite ltintE of_natK //.
+  exact/(ltn_trans ltn)/lt_lenght_wB.
+by rewrite catA /= !rev_cons -rcons_cat rev_cat.
+Qed.
+
+Lemma prefixes_trie_fastE tr : prefixes_trie_fast tr = prefixes_trie tr.
+Proof.
+by rewrite prefixes_trie_fast_accE prefixes_trie_accE cats0 map_rev revK.
+Qed.
+
 
 Lemma nil_in_prefixes_trie x a :
   (length a != 0) = ([::] \in prefixes_trie (Trie x a)).
@@ -247,6 +297,9 @@ Let tr := mktrie (pres_trielen P) (prelat P).
 Goal (prefixes_trie tr) = [:: [::]; [:: 0]; [:: 0; 0]; [:: 1]].
 Proof. by []. Qed.
 
+Goal prefixes_trie_fast tr = prefixes_trie tr.
+Proof. by []. Qed.
+
 Definition AB_AAAAAA_ABAABA :=
   make_pres [::0;1] [:: ([::0;0;0;0;0;0], [::0;1;0;0;1;0])].
 Definition cert :=
@@ -281,6 +334,9 @@ Proof. by []. Qed.
 Goal sorted <%O (prefixes_trie tr2 : seq (seqlexi _)).
 Proof. by []. Qed.
 
+Goal prefixes_trie_fast tr2 = prefixes_trie tr2.
+Proof. by []. Qed.
+
 End Example.
 
 End Example.
@@ -298,6 +354,9 @@ Proof. by vm_compute. Qed.
 
 Goal size (prefixes_trie Ptrie : seq (seqlexi _)) = 465%N.
 Proof. by []. Qed.
+
+Goal prefixes_trie_fast Ptrie = prefixes_trie Ptrie.
+Proof. by vm_compute. Qed.
 
 End Largest.
 
