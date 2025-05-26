@@ -86,6 +86,8 @@ Variant check_certified_presentation_result :=
   | CPStrongCompressBadLetter
   (* TODO: trie construction error *)
   | CPTrieError
+  (* TODO: used to add parameter for debug *)
+  | ReportError of (relat int * relat int)
   (* TODO: remove me when done *)
   | CPNotImplemented.
 
@@ -179,7 +181,8 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
           then CPGeneratorMissmatchError
           else let relcred := @reduced_compressed_rels int a u v int l (1 - l) in
                if prelat prec != relcred
-               then CPRelationMissmatchError
+(*               then CPRelationMissmatchError (prelat prec) relcred *)
+               then ReportError (prelat prec, relcred)
                else CPOk
         else CPStrongCompressBadRel
       else CPNot2Gen)
@@ -329,12 +332,20 @@ Definition AB_BAAAABBAAA_ABBBAABA :=
        [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
 Definition AB_ABABA_ABA := make_pres [:: 0; 1]
                              [:: ([:: 0; 1; 0; 1; 0], [:: 0; 1; 0])].
+Definition BA_ABBB_BBBBB := make_pres [:: 1; 0]
+                           [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])].
+Definition AB_BAAA_AAAAA := make_pres [:: 0; 1]
+                           [:: ([:: 1; 0; 0; 0], [:: 0; 0; 0; 0; 0])].
+
 Definition list_pres := [:: AB_AAAAAA_ABAABA;
                          AB_AAAB_A;
                          A_AAA_A;
                          AB_ABB_BA;
                          AB_BAAAABBAAA_ABBBAABA;
-                         AB_ABABA_ABA ].
+                         AB_ABABA_ABA;
+                         BA_ABBB_BBBBB;
+                         AB_BAAA_AAAAA
+  ].
 
 Lemma all_pres_dec (P : pres int) : P \in list_pres -> WPdecidable P.
 Proof.
@@ -355,7 +366,9 @@ apply: (check_batchP (lc :=
    SmallOverlap [::
                    [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
                  [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ];
-   StronglyCompressToSpecial
+   StronglyCompressToSpecial;
+   Watier 1 0 [:: 1; 1] [:: 1; 1; 1; 1] 1;
+   Watier 0 1 [:: 0; 0] [:: 0; 0; 0; 0] 1
        ])).
    by native_cast_no_check (erefl BatchOk).
 Qed.
@@ -368,7 +381,28 @@ Definition BA_BBBABBA_A :=
   make_pres [:: 1; 0] [:: ([:: 1;1;1;0;1;1;0], [:: 0])].
 Definition AB_BA_ABB :=
   make_pres [:: 0; 1] [:: ([:: 1; 0], [:: 0; 1; 1])].
-Definition list_recpres := [:: AB_BBA_AB; AB_ABBABBB_A; BA_BBBABBA_A; AB_BA_ABB].
+Definition AB_AABBB_ABABBB :=
+  make_pres [:: 0; 1] [:: ([:: 0; 0; 1; 1; 1], [:: 0; 1; 0; 1; 1; 1])].
+
+
+Definition list_recpres :=
+  [:: AB_BBA_AB; AB_ABBABBB_A; BA_BBBABBA_A; AB_BA_ABB; AB_AABBB_ABABBB].
+
+
+(*          else let relcred := @reduced_compressed_rels int a u v int l (1 - l) in
+               if prelat prec != relcred
+               then CPRelationMissmatchError
+               else CPOk *)
+
+Eval compute in prelat AB_AABBB_ABABBB.
+(* [:: ([:: 0; 0; 1; 1; 1], [:: 0; 1; 0; 1; 1; 1])] *)
+
+
+Eval compute in
+  check_certpres
+    AB_AABBB_ABABBB
+    (StronglyCompressAndReduce (RecCert all_pres_dec 6) [::] 1).
+
 
 Lemma all_recpres_dec (P : pres int) : P \in list_recpres -> WPdecidable P.
 Proof.
@@ -377,7 +411,10 @@ apply: (check_batchP (lc :=
    Reverse (RecCert all_pres_dec 3);
    Reverse (RecCert all_pres_dec 1);
    Reorder (RecCert all_pres_dec 1);
-   FlipAllRelations (RecCert all_pres_dec 3)
+   FlipAllRelations (RecCert all_pres_dec 3);
+   (* params: the word which is kept and sent to a which letter among 0 and 1 *)
+                     (* TODO : Alph & Alph or bool *)
+   StronglyCompressAndReduce (RecCert all_pres_dec 6) [:: 1; 1; 1] 0
   ])).
 by native_cast_no_check (erefl BatchOk).
 Qed.
