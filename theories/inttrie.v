@@ -49,7 +49,7 @@ Qed.
 (** Data structure for tries *)
 Section Defs.
 
-Context {T : eqType} (trielen : int).
+Context (T : eqType) (trielen : int).
 
 Unset Elimination Schemes.
 Inductive trie := Empty | Trie : option T -> array trie -> trie.
@@ -441,7 +441,7 @@ by rewrite eqseq_cons eqxx /=.
 Qed.
 
 End Defs.
-
+Arguments Empty {T}.
 
 (** Rewriting and normal forms using trie            *)
 (* Could be made even faster with a Gilman automaton *)
