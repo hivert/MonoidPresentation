@@ -407,6 +407,7 @@ apply: (check_batchP (lc :=
    FlipAllRelations (RecCert all_pres_dec 3);
    (* params: the word which is kept and sent to a which letter among 0 and 1 *)
                      (* TODO : Alph & Alph or bool *)
+   (* http://127.0.0.1:5000/proof/654489/ *)
    StronglyCompressAndReduce (RecCert all_pres_dec 6) [:: 1; 1; 1] 0
   ])).
 by native_cast_no_check (erefl BatchOk).
