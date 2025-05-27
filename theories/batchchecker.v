@@ -337,8 +337,6 @@ Definition AB_ABABA_ABA := make_pres [:: 0; 1]
                              [:: ([:: 0; 1; 0; 1; 0], [:: 0; 1; 0])].
 Definition BA_ABBB_BBBBB := make_pres [:: 1; 0]
                            [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])].
-Definition AB_BAAA_AAAAA := make_pres [:: 0; 1]
-                           [:: ([:: 1; 0; 0; 0], [:: 0; 0; 0; 0; 0])].
 
 Definition list_pres := [:: AB_AAAAAA_ABAABA;
                          AB_AAAB_A;
@@ -346,8 +344,7 @@ Definition list_pres := [:: AB_AAAAAA_ABAABA;
                          AB_ABB_BA;
                          AB_BAAAABBAAA_ABBBAABA;
                          AB_ABABA_ABA;
-                         BA_ABBB_BBBBB;
-                         AB_BAAA_AAAAA
+                         BA_ABBB_BBBBB
   ].
 
 Lemma all_pres_dec (P : pres int) : P \in list_pres -> WPdecidable P.
@@ -370,8 +367,7 @@ apply: (check_batchP (lc :=
                    [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
                  [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ];
    StronglyCompressToSpecial;
-   Watier 1 0 [:: 1; 1] [:: 1; 1; 1; 1] 1;
-   Watier 0 1 [:: 0; 0] [:: 0; 0; 0; 0] 1
+   Watier 1 0 [:: 1; 1] [:: 1; 1; 1; 1] 1
        ])).
    by native_cast_no_check (erefl BatchOk).
 Qed.
