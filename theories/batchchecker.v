@@ -177,7 +177,7 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
           then CPStrongCompressBadPrefixSuffix
           else if ~~ ((l == 0) || (l == 1))
           then CPStrongCompressBadLetter
-          else if pgen prec != [:: l; 1 - l]
+          else if pgen prec != [:: 1 - l; l]
           then CPGeneratorMissmatchError
           else let relcred := @reduced_compressed_rels int a u v int l (1 - l) in
                if prelat prec != relcred
@@ -261,7 +261,10 @@ rewrite /check_certpres; case: C => [].
   have {eqi}neqi : i != 1 - i.
     by move: eqi; case: eqP => [->|] //; case: eqP => [->|].
   apply: (fast_compress_reduce_dec Hgen (Hrel := Hrel) leqsize (neqxy := neqi)).
-  suff <- : prec = fast_reduced_compressed_pres Hrel Hpresuf neqi by [].
+  apply: (perm_gen_pres_dec (gens := [:: 1 - i; i])).
+    by rewrite /=; apply/permP => j /=; rewrite !addn0 addnC.
+  move => Hyp.
+  suff <- : prec = (perm_gen_pres Hyp) by [].
   by apply/eqP; rewrite -eqpresE /= eqgens eqrels !eqxx.
 - case Hgen : (pgen P) => [| a [| b [|]]] //.
   case Hrel : (prelat P) => [| [[|a1 r1] [| a2 r2]] [|]] //.
@@ -389,20 +392,14 @@ Definition list_recpres :=
   [:: AB_BBA_AB; AB_ABBABBB_A; BA_BBBABBA_A; AB_BA_ABB; AB_AABBB_ABABBB].
 
 
-(*          else let relcred := @reduced_compressed_rels int a u v int l (1 - l) in
-               if prelat prec != relcred
-               then CPRelationMissmatchError
-               else CPOk *)
-
-Eval compute in prelat AB_AABBB_ABABBB.
-(* [:: ([:: 0; 0; 1; 1; 1], [:: 0; 1; 0; 1; 1; 1])] *)
-
+(* Eval compute in prelat AB_AABBB_ABABBB.
+[:: ([:: 0; 0; 1; 1; 1], [:: 0; 1; 0; 1; 1; 1])]
 
 Eval compute in
   check_certpres
     AB_AABBB_ABABBB
-    (StronglyCompressAndReduce (RecCert all_pres_dec 6) [::] 1).
-
+    (StronglyCompressAndReduce (RecCert all_pres_dec 6) [:: 0] 1).
+*)
 
 Lemma all_recpres_dec (P : pres int) : P \in list_recpres -> WPdecidable P.
 Proof.
