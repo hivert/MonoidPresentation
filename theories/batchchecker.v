@@ -49,6 +49,10 @@ Variant prescertificate :=
   | Reverse of recursive_certificate
   (* reorder the generator and relation -- WARNING: very slow if needed *)
   | Reorder of recursive_certificate
+  (* alphabet isomorphism [a -> b, b -> a] *)
+  | AlphabetIsom of recursive_certificate
+  (* alphabet reordering [a, b] -> [b, a] *)
+  | AlphabetReorder of recursive_certificate
   (* flip the direction of the relation *)
   | FlipAllRelations of recursive_certificate
   (* params: the word which is kept and sent to a which letter among 0 and 1 *)
@@ -162,6 +166,12 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
       if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
       else if ~~ perm_eq (prelat P) (prelat prec) then CPRelationMissmatchError
            else CPOk)
+  | AlphabetIsom c => CPNotImplemented
+  | AlphabetReorder c => (* TODO : To opimize if needed *)
+      check_recurse c (fun prec =>
+      if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
+      else if (prelat P) != (prelat prec) then CPRelationMissmatchError
+           else CPOk)
   | FlipAllRelations c => check_recurse c (fun prec =>
       if pgen P != (pgen prec) then CPGeneratorMissmatchError
       else if prelat prec != map swap (prelat P) then CPRelationMissmatchError
@@ -245,6 +255,12 @@ rewrite /check_certpres; case: C => [].
   case: (boolP (perm_eq _ _)) => permgen //=.
   case: (boolP (perm_eq _ _)) => permrel //= _.
   exact: (isopres_dec (pres_irrelevance_perm_eq permgen permrel)).
+- by [].  (* Not Implemented *)
+- move=> r; apply: check_recurseP => prec prec_dec.
+  case: (boolP (perm_eq _ _)) => permgen //=.
+  case: eqP => eqrel //= _.
+  apply: (isopres_dec (pres_irrelevance_perm_eq permgen _)) => //.
+  by rewrite eqrel; apply: perm_refl.
 - move=> r; apply: check_recurseP => prec prec_dec.
   case: eqP => eqgen //=; case: eqP => eqrel //= _; apply: flipped_pres_dec.
   suff <- : prec = flipped_pres P by [].
