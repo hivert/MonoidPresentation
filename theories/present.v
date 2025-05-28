@@ -2292,6 +2292,23 @@ Definition rgen_pres_terminating := rgen_terminating prelat_rgenE newgK.
 Definition rgen_pres_confluent := rgen_confluent newgK prelat_rgenE.
 Definition rgen_pres_convergent := rgen_convergent newgK prelat_rgenE.
 
+Lemma word_of_rgen_pres u :
+  (map newg u \in words_of rgen_pres) = (u \in words_of R).
+Proof.
+rewrite /words_of !unfold_in /= !all_map.
+apply: eq_all => i; rewrite /= /gens mem_map //.
+exact: can_inj.
+Qed.
+
+Lemma rgen_pres_decK : WPdecidable rgen_pres -> WPdecidable R.
+Proof.
+move=> Hdec u v uR vR.
+have /(_ (prelat R)) [Hnew Hinv] := rgen_equiv newgK erefl u v.
+case: (Hdec (map newg u) (map newg v)); rewrite ?word_of_rgen_pres // => eq_uv.
+  by left; apply Hinv.
+by right => H1; apply: eq_uv; apply: Hnew.
+Qed.
+
 End RenameGenDefs.
 
 

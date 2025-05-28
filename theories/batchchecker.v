@@ -22,6 +22,15 @@ Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
 Local Notation word := (word Alph).
 
+Definition switch (a b x : Alph) := if x == a then b else if x == b then a else x.
+Lemma switchK a b : involutive (switch a b).
+Proof.
+rewrite /switch => l; case (altP (l =P a)) => [{l}-> | /negbTE Hneq].
+  by rewrite eqxx; case (altP (b =P a)) => [-> | _].
+case (altP (l =P b)) => [-> | /negbTE ->]; first by rewrite eqxx.
+by rewrite Hneq.
+Qed.
+
 Record recursive_certificate := RecCert
   { lpres : seq (pres Alph);
     _ : forall P, P \in lpres -> WPdecidable P;
@@ -166,12 +175,22 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
       if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
       else if ~~ perm_eq (prelat P) (prelat prec) then CPRelationMissmatchError
            else CPOk)
-  | AlphabetIsom c => CPNotImplemented
-  | AlphabetReorder c => (* TODO : To opimize if needed *)
+  | AlphabetIsom c =>
       check_recurse c (fun prec =>
-      if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
-      else if (prelat P) != (prelat prec) then CPRelationMissmatchError
-           else CPOk)
+      if (pgen P) is [:: u; v] then
+        if (pgen prec) == [:: v; u] then
+          if map (rgen_rels (switch u v)) (prelat P) == (prelat prec) then CPOk
+          else CPRelationMissmatchError
+        else CPGeneratorMissmatchError
+      else CPGeneratorMissmatchError)
+  | AlphabetReorder c =>
+      check_recurse c (fun prec =>
+      if (pgen P) is [:: u; v] then
+        if (pgen prec) == [:: v; u] then
+          if (prelat P) == (prelat prec) then CPOk
+          else CPRelationMissmatchError
+        else CPGeneratorMissmatchError
+      else CPGeneratorMissmatchError)
   | FlipAllRelations c => check_recurse c (fun prec =>
       if pgen P != (pgen prec) then CPGeneratorMissmatchError
       else if prelat prec != map swap (prelat P) then CPRelationMissmatchError
@@ -255,11 +274,20 @@ rewrite /check_certpres; case: C => [].
   case: (boolP (perm_eq _ _)) => permgen //=.
   case: (boolP (perm_eq _ _)) => permrel //= _.
   exact: (isopres_dec (pres_irrelevance_perm_eq permgen permrel)).
-- by [].  (* Not Implemented *)
 - move=> r; apply: check_recurseP => prec prec_dec.
-  case: (boolP (perm_eq _ _)) => permgen //=.
-  case: eqP => eqrel //= _.
-  apply: (isopres_dec (pres_irrelevance_perm_eq permgen _)) => //.
+  case pgenP : (pgen P) => [//|a [//| b [|//]]].
+  case: eqP => eqgen //=; case: eqP => eqrel //= _.
+  pose newgK := switchK a b.
+  apply: (rgen_pres_decK (newgK := newgK)).
+  suff -> : rgen_pres P newgK = prec by [].
+  apply/eqP; rewrite -eqpresE /= pgenP eqgen /switch /= !eqxx.
+  by case: (altP (b =P a)) => [eqab | _]; rewrite ?eqab !eqxx /= -eqrel ?eqab.
+- move=> r; apply: check_recurseP => prec prec_dec.
+  case pgenP : (pgen P) => [//|u [//| v [|//]]].
+  case: eqP => eqgen //=; case: eqP => eqrel //= _.
+  move: prec_dec; apply: (isopres_dec (pres_irrelevance_perm_eq _ _)).
+    rewrite {}pgenP {}eqgen.
+    by apply/permP => x; rewrite /= !addn0 addnC.
   by rewrite eqrel; apply: perm_refl.
 - move=> r; apply: check_recurseP => prec prec_dec.
   case: eqP => eqgen //=; case: eqP => eqrel //= _; apply: flipped_pres_dec.
