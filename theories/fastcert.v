@@ -12,8 +12,8 @@ Local Open Scope uint63_scope.
 (** Native int is a well founded choice and ordered type **)
 Lemma wf_ltint : well_founded (<%O : rel int).
 Proof.
-apply: (wf_f to_natK _ wf_ltnat) => x y.
-by rewrite ltintE ltEnat.
+apply: (wf_f _ wf_ltnat) => x y.
+by rewrite ltintE ltEnat; apply.
 Qed.
 Definition sizelexi_int_wf := sizelexi_wf wf_ltint.
 Definition check_convergence_intP fuel R :

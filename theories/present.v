@@ -1342,21 +1342,13 @@ case: (_ \in prelat R1); rewrite ?orbT //= !orbF orbC.
 by rewrite !xpair_eqE ![_ && (y == _)]andbC.
 Defined.
 
-
-Lemma wf_f (T1 T2 : Type) (R : T1 -> T1 -> Prop) (S : T2 -> T2 -> Prop)
-  (f : T1 -> T2) (f_inv : T2 -> T1) (fK : cancel f f_inv) :
-  (forall x y : T1, R x y -> S (f x) (f y))
-  -> well_founded S -> well_founded R.
+Lemma wf_f T1 T2 (R : T1 -> T1 -> Prop) (S : T2 -> T2 -> Prop) (f : T1 -> T2) :
+  (forall x y : T1, R x y -> S (f x) (f y)) -> well_founded S -> well_founded R.
 Proof.
-move=> RS WfS.
-suff impl x : Acc S (f x) -> Acc R x by move=> x; apply/impl/WfS.
-rewrite -{2}(fK x). move eq_fxy : (f x) => y.
-elim/(well_founded_induction_type WfS): y x eq_fxy => x HAcc y eq_fxy ASx.
-apply: Acc_intro => z Rzx; rewrite -(fK z); apply: HAcc.
-- by rewrite -eq_fxy; apply RS; rewrite -(fK y) eq_fxy.
-- exact: erefl.
-- apply: (Acc_inv ASx).
-  by rewrite -eq_fxy; apply: RS; move: Rzx; rewrite -eq_fxy fK.
+move=> RS WfS x.
+move: {2}(f x) (erefl (f x)) => a; move: a x.
+apply: (well_founded_induction_type WfS) => a IHa x Hx.
+by apply: Acc_intro => y {}/RS; rewrite Hx => /IHa; apply.
 Qed.
 
 Lemma wf_impl (T : Type) (R : T -> T -> Prop) (S : T -> T -> Prop) :
@@ -2191,7 +2183,7 @@ by case/andP => /rgen_rewritesE[v {p0}-> {}/IHpth].
 Qed.
 
 Lemma rgen_terminating : terminating RB -> terminating RA.
-Proof. by apply: (wf_f (mapK newgK)) => x y; apply: rgen_rewrites_impl. Qed.
+Proof. by apply: wf_f => x y; apply: rgen_rewrites_impl. Qed.
 
 End RenameGenImpl.
 
@@ -2256,7 +2248,7 @@ move=> conflRB u v1 v2.
 by rewrite !rgen_rewrites_to => /conflRB/[apply]/rgen_joinable.
 Qed.
 Lemma rgen_convergent : convergent RB -> convergent RA.
-Proof. by case=> /rgen_confluent cRA /(rgen_terminating rrelatE newgK). Qed.
+Proof. by case=> /rgen_confluent cRA /(rgen_terminating rrelatE). Qed.
 
 End RenameGenRelat.
 
@@ -2288,7 +2280,7 @@ Definition rgen_pres := Pres gens_uniq wf_rels.
 Lemma pgen_rgenE : pgen rgen_pres = gens. Proof. by []. Qed.
 Lemma prelat_rgenE : prelat rgen_pres = rels. Proof. by []. Qed.
 
-Definition rgen_pres_terminating := rgen_terminating prelat_rgenE newgK.
+Definition rgen_pres_terminating := rgen_terminating prelat_rgenE.
 Definition rgen_pres_confluent := rgen_confluent newgK prelat_rgenE.
 Definition rgen_pres_convergent := rgen_convergent newgK prelat_rgenE.
 
