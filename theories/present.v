@@ -591,7 +591,7 @@ Implicit Types (u v w x y : word A).
 
 Variable f : {mmorphism {freemon A} -> {freemon B}}.
 
-Lemma mmorph_cat u v : {morph f: x y  / x ++ y}.
+Lemma mmorph_cat : {morph f: x y  / x ++ y}.
 Proof. exact: mmorphM. Qed.
 Lemma mmorph_flatten (s : seq (word A)) :
   f (flatten s) = flatten [seq f l | l <- s].
