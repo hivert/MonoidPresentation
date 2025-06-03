@@ -1,8 +1,8 @@
 From Coq Require Import Uint63.
-From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice ssrnat seq.
+From HB Require Import structures.
+From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice ssrnat seq order.
 
-
-Require Import monoids present factor rewcert.
+Require Import monoids present factor rewcert wfsizelexi.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -229,6 +229,47 @@ Proof. by move=> H; apply: trivial_relats_dec; rewrite /trivial_relats H. Qed.
 End Trivial.
 
 
+Section Rel1Unit.
+
+Let Alph := unit.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
+
+Lemma sequnitE u : u = nseq (size u) tt.
+Proof. by elim: u => [// |/= [u {1}->]]. Qed.
+
+Theorem unit_1rel_dec P : size (prelat P) = 1 -> WPdecidable P.
+Proof.
+case Hrel : (prelat P) => [|[r1 r2] []] // _; move: Hrel.
+rewrite (sequnitE r1); move: (size r1) => {r1} l1.
+rewrite (sequnitE r2); move: (size r2) => {r2} l2.
+wlog lt12 : l1 l2 P / l1 > l2.
+  move=> Hdec; case: (ltngtP l1 l2) => [lt12 | lt21 | eq12] Hrel.
+  - by apply: flipped_pres_dec; apply: (Hdec l2 l1) => {Hdec} //= /[!Hrel].
+  - exact: (Hdec _ _ _ _ Hrel).
+  - by apply: trivial_relats_dec; rewrite /trivial_relats Hrel eq12 /= eqxx.
+move=> Hrel; apply: convergent_dec; apply: diamond.
+  apply: (wf_f (f := size) _ wf_ltnat) => u v.
+  case/rewritesP => pre suf [r1 r2] {u}-> {v}->.
+  rewrite Hrel inE => /eqP[{r1}-> {r2}->] /=.
+  by rewrite ltEnat /= !size_cat ltn_add2l ltn_add2r !size_nseq.
+rewrite {}Hrel => u v1 v2.
+case/rewritesP => pre1 suf1 [r1 r2] /= equ1 {v1}->.
+rewrite inE => /eqP[eqr {r2}->]; subst r1.
+case/rewritesP => pre2 suf2 [r1 r2] /= equ2 {v2}->.
+rewrite inE => /eqP[eqr {r2}->]; subst r1.
+exists (pre1 ++ nseq l2 tt ++ suf1); first exact: rewrites_to_refl.
+suff Hsz : size (pre2 ++ nseq l2 tt ++ suf2) = size (pre1 ++ nseq l2 tt ++ suf1).
+  rewrite (sequnitE (pre2 ++ _ ++ _)) Hsz -sequnitE.
+  exact: rewrites_to_refl.
+apply/eqP; move: equ1; rewrite {}equ2 => /(congr1 size)/eqP.
+by rewrite !size_cat ![_ + (_ + _)]addnC -!addnA !eqn_add2l.
+Qed.
+
+End Rel1Unit.
+
+
 Section Monogenic.
 
 Context {Alph : choiceType}.
@@ -238,7 +279,114 @@ Implicit Type (P : pres Alph).
 
 Definition monogenic P : bool := size (pgen P) == 1.
 
+Section Defs.
+
+Variables (P : pres Alph) (HP : monogenic P).
+Lemma mono_genP : {a : Alph | (pgen P) == [:: a]}.
+Proof.
+move: HP; rewrite /monogenic; case: (pgen P) => [//| a [|//]] _.
+by exists a.
+Qed.
+Definition mono_gen := val mono_genP.
+Lemma mon_exE : (pgen P) = [:: mono_gen].
+Proof. by rewrite /mono_gen; case: mono_genP => /= a /eqP. Qed.
+Lemma monogenicP w : w \in words_of P -> w = nseq (size w) mono_gen.
+Proof.
+rewrite unfold_in /= mon_exE.
+by elim: w => [// | w0 w IHw] /= /andP[/[!inE]/eqP {w0}-> {}/IHw <-].
+Qed.
+
+Let to_unit (u : {freemon Alph}) : {freemon unit} := nseq (size u) tt.
+Let from_unit (l : {freemon unit}) : {freemon Alph} := nseq (size l) mono_gen.
+
+Lemma to_unitK u :
+  u \in words_of P -> from_unit (to_unit u) = u.
+Proof.
+by rewrite /from_unit /to_unit /= size_nseq => /monogenicP <-.
+Qed.
+Lemma from_unitK l : to_unit (from_unit l) = l.
+Proof. by rewrite /from_unit /to_unit /= size_nseq -sequnitE. Qed.
+
+Definition unit_relats := [seq (to_unit r.1, to_unit r.2) | r <- prelat P].
+Fact correctrelat_unit_relats : correctrelat unit_relats (mem [:: tt]).
+Proof.
+apply/allP => /= [[r1 r2]] /= _.
+by rewrite (sequnitE r1) (sequnitE r2) !all_nseq !inE eqxx !orbT.
+Qed.
+Definition unit_pres : pres unit :=
+  Pres [:: tt] _ is_true_true correctrelat_unit_relats.
+
+Fact to_unit_monmorphism : monmorphism to_unit.
+Proof.
+rewrite /to_unit; split => [// | u v].
+by rewrite size_cat nseqD.
+Qed.
+HB.instance Definition _ :=
+  isMonMorphism.Build {freemon Alph} {freemon unit}
+    to_unit to_unit_monmorphism.
+Fact to_unit_presmorphism : rewmorphism P unit_pres to_unit.
+Proof.
+move=> u v _ _ /rewritesP[pre suf [r1 r2] {u}-> {v}-> /= rin].
+apply: rewrites_to1; apply/rewritesP.
+exists (to_unit pre) (to_unit suf) (to_unit r1, to_unit r2) => /=.
+- by rewrite /to_unit /= !size_cat !nseqD.
+- by rewrite /to_unit /= !size_cat !nseqD.
+exact: (map_f (fun r => (to_unit r.1, to_unit r.2)) rin).
+Qed.
+Fact to_unit_in_presmorphism : rewmorphism_in P unit_pres to_unit.
+Proof.
+by move=> u _; rewrite unfold_in /= /to_unit all_nseq !inE eqxx orbT.
+Qed.
+HB.instance Definition _ :=
+  isPresMorphism.Build _ _ P unit_pres to_unit
+    to_unit_presmorphism to_unit_in_presmorphism.
+
+
+Fact from_unit_monmorphism : monmorphism from_unit.
+Proof.
+rewrite /from_unit; split => [// | u v].
+by rewrite size_cat nseqD.
+Qed.
+HB.instance Definition _ :=
+  isMonMorphism.Build {freemon unit} {freemon Alph} from_unit
+    from_unit_monmorphism.
+Fact from_unit_presmorphism : rewmorphism unit_pres P from_unit.
+Proof.
+move=> u v uin vin /rewritesP[pre suf [s1 s2] /= equ eqv /=].
+case/mapP => /= [[r1 r2] inP /= [eqs1 eqs2]]; subst u v s1 s2.
+rewrite !mmorph_cat /=; apply: rewrites_to1.
+have /allP/(_ _ inP)/=/andP[r1P r2P] := wf_relat P.
+rewrite !to_unitK //.
+by apply/rewritesP; exists (from_unit pre) (from_unit suf) (r1, r2).
+Qed.
+Fact from_unit_in_presmorphism : rewmorphism_in unit_pres P from_unit.
+Proof.
+by move=> u _; rewrite unfold_in /= /to_unit all_nseq mon_exE !inE eqxx orbT.
+Qed.
+HB.instance Definition _ :=
+  isPresMorphism.Build _ _ unit_pres P from_unit
+    from_unit_presmorphism from_unit_in_presmorphism.
+
+Fact to_unit_eq u :
+  u \in words_of P -> from_unit (to_unit u) = u %[mod prelat P].
+Proof. by move/to_unitK ->; exact: equiv_refl. Qed.
+Fact from_unit_eq l :
+  to_unit (from_unit l) = l %[mod prelat unit_pres].
+Proof. by rewrite from_unitK; exact: equiv_refl. Qed.
+Definition monogenic_isopres_unit : isopres P unit_pres :=
+  IsoPres (fun a b => to_unit_eq b) (fun _ _ => from_unit_eq _).
+
+Theorem monogenic_1rel_dec : size (prelat P) = 1 -> WPdecidable P.
+Proof.
+move=> Hsz; apply: (isopres_dec monogenic_isopres_unit).
+apply: unit_1rel_dec; rewrite -{}Hsz.
+by rewrite /= /unit_relats size_map.
+Qed.
+
+End Defs.
+
 Theorem monogenic_dec P : monogenic P -> WPdecidable P.
+Proof.
 (* TODO : Confined in a^m where m is the size of the largest relation word *)
 Admitted.
 
