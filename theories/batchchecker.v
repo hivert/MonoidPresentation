@@ -75,6 +75,7 @@ Variant prescertificate :=
 Variant check_certified_presentation_result :=
   | CPOk
   | CPNot2Gen
+  | CPNot1Rel
   | CPTietzeSequenceError
   | CPOrderDup
   | CPConfluenceError
@@ -150,13 +151,17 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
   | Watier a b u v k =>
       if ~~ check_Watier P a b u v k then CPWatierError else CPOk
   | Monogenic =>
-      if ~~ monogenic P then CPMonogenicError else CPOk
+      if size (prelat P) != 1%N then CPNot1Rel
+      else
+        if ~~ monogenic P then CPMonogenicError else CPOk
   | CycleFree =>
       if ~~ is_cycle_free_1rel P then CPCycleFreeError else CPOk
   | FreeProductMonogenicAndFree =>
-      if ~~ free_product_monogenic_free P then
-        CPFreeProductMonogenicAndFreeError
-      else CPOk
+      if size (prelat P) != 1%N then CPNot1Rel
+      else
+        if ~~ free_product_monogenic_free P then
+          CPFreeProductMonogenicAndFreeError
+        else CPOk
   | EqualNumberOfOccurences l =>
       if ~~ is_left_cycle_free_1rel P then CPLeftCycleFree1RelError else
       if ~~ has_same_number_of_occ P l then CPOccError else CPOk
@@ -249,12 +254,14 @@ rewrite /check_certpres; case: C => [].
 - move=> a b u v k /=.
   case: (boolP (check_Watier P a b u v k)) => //= cW _.
   exact: (check_Watier_dec cW).
-- case: (boolP (monogenic P)) => //= mono _.
-  exact: monogenic_dec.
+- case: eqP => //= rel1.
+  case: (boolP (monogenic P)) => //= mono _.
+  exact: monogenic_1rel_dec.
 - case: (boolP (is_cycle_free_1rel P)) => //= cf1r _.
   exact: is_cycle_free_1rel_dec.
-- case: (boolP (free_product_monogenic_free P)) => //= fp _.
-  exact: free_product_monogenic_free_dec.
+- case: eqP => //= rel1.
+  case: (boolP (free_product_monogenic_free P)) => //= fp _.
+  exact: free_product_monogenic_free_1rel_dec.
 - move=> l.
   case: (boolP (is_left_cycle_free_1rel P)) => //= free.
   case: (boolP (has_same_number_of_occ P l)) => //= nbocc _.

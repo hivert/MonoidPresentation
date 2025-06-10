@@ -279,8 +279,6 @@ Implicit Type (P : pres Alph).
 
 Definition monogenic P : bool := size (pgen P) == 1.
 
-Section Defs.
-
 Variables (P : pres Alph) (HP : monogenic P).
 Lemma mono_genP : {a : Alph | (pgen P) == [:: a]}.
 Proof.
@@ -299,8 +297,7 @@ Qed.
 Let to_unit (u : {freemon Alph}) : {freemon unit} := nseq (size u) tt.
 Let from_unit (l : {freemon unit}) : {freemon Alph} := nseq (size l) mono_gen.
 
-Lemma to_unitK u :
-  u \in words_of P -> from_unit (to_unit u) = u.
+Lemma to_unitK u : u \in words_of P -> from_unit (to_unit u) = u.
 Proof.
 by rewrite /from_unit /to_unit /= size_nseq => /monogenicP <-.
 Qed.
@@ -376,19 +373,31 @@ Proof. by rewrite from_unitK; exact: equiv_refl. Qed.
 Definition monogenic_isopres_unit : isopres P unit_pres :=
   IsoPres (fun a b => to_unit_eq b) (fun _ _ => from_unit_eq _).
 
-Theorem monogenic_1rel_dec : size (prelat P) = 1 -> WPdecidable P.
+Theorem monogenic_1rel_dec :
+  (* TODO: remove this assumption *) size (prelat P) = 1 -> WPdecidable P.
 Proof.
 move=> Hsz; apply: (isopres_dec monogenic_isopres_unit).
 apply: unit_1rel_dec; rewrite -{}Hsz.
 by rewrite /= /unit_relats size_map.
 Qed.
 
-End Defs.
+(* This should be provable by reducing to the 1 relation case but is not
+   needed for the database. On can reduce 2 relations to 1 relations :
 
+     < a | u1 = v1, u2 = v2 >
+
+  where ui >= vi reduces to
+
+     < a | gcd(u1 - v1, u2 - v2) + min(v1, v2) = min(v1, v2) >
+
+  Iteratively reducing the first two relations prove that
+
+     < a | gcd(ui - vi | i = 1..n) + min(vi) = min(vi) >
+
+*)
+(*
 Theorem monogenic_dec P : monogenic P -> WPdecidable P.
-Proof.
-(* TODO : Confined in a^m where m is the size of the largest relation word *)
-Admitted.
+*)
 
 End Monogenic.
 
@@ -403,10 +412,11 @@ Implicit Type (P : pres Alph).
 Definition free_product_monogenic_free P :=
   size (undup (flatten (relwords P))) == 1.
 
-Theorem free_product_monogenic_free_dec P :
+Theorem free_product_monogenic_free_1rel_dec P :
+  (* TODO: remove this assumption *) size (prelat P) = 1 ->
   free_product_monogenic_free P -> WPdecidable P.
 Proof.
-rewrite /free_product_monogenic_free.
+rewrite /free_product_monogenic_free => rel1.
 case Hgs : (undup (flatten (relwords P))) => [//|g [|//]] _.
 have gsrel : correctrelat (prelat P) (mem [:: g]).
   apply/allP => /= -[r1 r2] /= /mem_relatwords.
@@ -419,7 +429,7 @@ have gsrel : correctrelat (prelat P) (mem [:: g]).
   by rewrite -Hgs mem_undup; apply/flattenP => /=; exists r.
 pose Q := Pres [:: g] _ is_true_true gsrel.
 apply: (eqrelat_dec (P1 := Q)) => //.
-exact: monogenic_dec.
+exact: monogenic_1rel_dec.
 Qed.
 
 End FreeProductMonogenicFree.
@@ -691,7 +701,7 @@ Proof. exact: (@check_Watier_dec _ _ 0 1 [:: 1; 1; 0] [::] 3). Qed.
 
 Definition A_AAA_A := make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])].
 Lemma A_AAA_A_dec : WPdecidable A_AAA_A.
-Proof. exact: monogenic_dec. Qed.
+Proof. exact: monogenic_1rel_dec. Qed.
 
 Definition AB_ABB_BA := make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])].
 Lemma AB_ABB_BA_dec : WPdecidable AB_ABB_BA.
