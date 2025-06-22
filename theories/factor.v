@@ -28,6 +28,15 @@ Lemma map_eq0 (T1 T2 : eqType) (u : seq T1) (f : T1 -> T2):
 Proof. by case: u. Qed.
 
 
+Lemma catRL_eq (T : eqType) (x y z : word T) :
+  (x ++ y ++ z == y) = (x == [::]) && (z == [::]).
+Proof.
+apply/eqP/andP => [/(congr1 size)/eqP | [/eqP-> /eqP-> /= /[!cats0]] //].
+rewrite !size_cat addnC -[X in _ == X]addn0 -addnA eqn_add2l addn_eq0.
+by case/andP => /nilP -> /nilP ->.
+Qed.
+
+
 Section LongestPrefix.
 
 Context {Alph : eqType}.
@@ -103,22 +112,46 @@ Context {Alph : choiceType}.
 Implicit Type (u v w : seq Alph).
 
 Definition prefixes u := [seq take i u | i <- iota 0 (size u).+1].
-Definition non_empty_prefixes u := behead (prefixes u).
+Definition non_empty_prefixes u := [seq take i u | i <- iota 1 (size u)].
+Definition cut2 u := [seq (take i u, drop i u) | i <- iota 1 (size u)].
 
 Lemma head_prefixes x0 u : head x0 (prefixes u) = [::].
 Proof. by rewrite -nth0 (nth_map 0) ?size_iota //= take0. Qed.
+Lemma behead_prefixes u : behead (prefixes u) = non_empty_prefixes u.
+Proof. by []. Qed.
+Lemma prefixes_cut2E u : non_empty_prefixes u = [seq p.1 | p <- cut2 u].
+Proof. by rewrite /prefixes /cut2 -map_comp; apply eq_map => i. Qed.
 
-Lemma uniq_prefixes u : uniq (prefixes u).
+Lemma prefixes_uniq u : uniq (prefixes u).
 Proof.
 rewrite map_inj_in_uniq ?iota_uniq // => i j.
 rewrite !mem_iota /= add0n !ltnS => lti ltj /(congr1 size).
 by rewrite !size_take_min (minn_idPl lti) (minn_idPl ltj) => ->.
 Qed.
+Lemma non_empty_prefixes_uniq u : uniq (non_empty_prefixes u).
+Proof. by rewrite -behead_prefixes -drop1 drop_uniq // prefixes_uniq. Qed.
+Lemma cut2_uniq u : uniq (cut2 u).
+Proof.
+by have := non_empty_prefixes_uniq u; rewrite prefixes_cut2E => /map_uniq.
+Qed.
+
+Lemma cat_cut2E r : all (fun p => p.1 ++ p.2 == r) (cut2 r).
+Proof. by rewrite /cut2 all_mapT //= => i; rewrite cat_take_drop. Qed.
+Lemma mem_cut2 r u v : (u, v) \in cut2 r = (u != [::]) && (u ++ v == r).
+Proof.
+apply/mapP/andP => /=[[i] | [uneq /eqP equ]].
+  rewrite mem_iota add1n ltnS => Hi [{u}-> {v}->].
+  split; last by rewrite cat_take_drop.
+  by case: i r Hi => [|i] [|r0 r].
+rewrite -{}equ; exists (size u).
+  by rewrite mem_iota add1n ltnS size_cat leq_addr; case: u uneq.
+by rewrite take_size_cat // drop_size_cat.
+Qed.
 
 Lemma non_empty_prefixes0 u : [::] \notin (non_empty_prefixes u).
 Proof.
 case: u => [// | u0 u].
-rewrite /non_empty_prefixes /prefixes /=.
+rewrite /non_empty_prefixes /=.
 by apply/negP=> /mapP[/= [|i]]; rewrite mem_iota.
 Qed.
 Lemma prefixes_non_emtpyE u : prefixes u = [::] :: (non_empty_prefixes u).
@@ -140,23 +173,72 @@ rewrite prefixesP prefixes_non_emtpyE.
 by case: u => //=; rewrite (negbTE (non_empty_prefixes0 _)).
 Qed.
 
-Fixpoint infixes u :=
-  prefixes u ++ if u is _ :: u' then behead (infixes u') else [::].
-Definition non_empty_infixes u := behead (infixes u).
+Fixpoint non_empty_infixes u :=
+  non_empty_prefixes u ++ if u is _ :: u' then non_empty_infixes u' else [::].
+Fixpoint cut3 u :=
+  [seq ([::], p.1, p.2) | p <- cut2 u]
+    ++
+    if u is u0 :: u' then [seq (u0 :: p.1.1, p.1.2, p.2) | p <- cut3 u']
+    else [::].
+Definition infixes u := [::] :: non_empty_infixes u.
 
 Lemma infixe0s u : [::] \in infixes u.
-Proof. by case: u. Qed.
+Proof. by rewrite inE eqxx. Qed.
 Lemma head_infixes x0 u : head x0 (infixes u) = [::].
 Proof. by case: u. Qed.
 Lemma infixes_cons (u0 : Alph) u :
   infixes (u0 :: u) = prefixes (u0 :: u) ++ behead (infixes u).
 Proof. by []. Qed.
 
+Lemma infixes_cut3E u : non_empty_infixes u = [seq t.1.2 | t <- cut3 u].
+Proof. by elim: u => // u0 u /= ->; rewrite !map_cat /= -!map_comp. Qed.
+Lemma cat_cut3E u : all (fun p => p.1.1 ++ p.1.2 ++ p.2 == u) (cut3 u).
+Proof.
+elim: u => // u0 u IHu /=.
+rewrite cat_take_drop !eqxx /= all_cat -!map_comp; apply/andP; split.
+  by rewrite all_mapT //= => i; rewrite cat_take_drop.
+by move: IHu; rewrite all_map; apply: sub_all => [[[pre mid] suf]] /= /eqP ->.
+Qed.
+Lemma cut_consE a u :
+  cut3 (a :: u) =
+    [seq ([::], p.1, p.2) | p <- cut2 (a :: u)]
+      ++ [seq (a :: p.1.1, p.1.2, p.2) | p <- cut3 u].
+Proof. by []. Qed.
+Lemma cut3_uniq u : uniq (cut3 u).
+Proof.
+elim: u => // u0 u IHu; rewrite cut_consE cat_uniq.
+apply/and3P; split.
+- rewrite map_inj_uniq; first exact: cut2_uniq.
+  by move=> /= -[v1 v2][w1 w2]/= [-> ->].
+- apply/negP => /hasP[x]/mapP[y _ {x}->].
+  by case/mapP=> [z _ []].
+- by rewrite map_inj_uniq // => /= -[[a1 a2] a3][[b1 b2] b3]/= [-> -> ->].
+Qed.
+Lemma mem_cut3 r u v w :
+  (u, v, w) \in cut3 r = (v != [::]) && (u ++ v ++ w == r).
+Proof.
+elim: r u v w => [/= | r0 r IHr] u v w.
+  by rewrite in_nil; case: u; case: v.
+rewrite cut_consE mem_cat.
+apply/orP/andP => [[|]|].
+- case/mapP => /= -[a b].
+  by rewrite mem_cut2 => /andP[/= aneq0 eqr] [{u}->{v}->{w}->].
+- case/mapP => /= -[[a b] c].
+  by rewrite {}IHr => /andP[bneq0 /eqP eqr] [{u}->{v}->{w}->] /=; rewrite eqr.
+case=> vneq0 /eqP eqr; case: u eqr => [|u0 u] eqr.
+  left; apply/mapP => /=; exists (v, w) => //=.
+  by rewrite mem_cut2 vneq0 -eqr /=.
+move: eqr => [{u0}-> eqr].
+right; apply/mapP => /=; exists (u, v, w) => //=.
+by rewrite IHr vneq0 /= eqr.
+Qed.
+
 Lemma non_empty_infixes0 u : [::] \notin non_empty_infixes u.
 Proof.
-rewrite /non_empty_infixes; elim: u => [|u0 u IHu] //.
-rewrite infixes_cons prefixes_non_emtpyE [non_empty_prefixes _]lock /=.
-by unlock; rewrite mem_cat (negbTE (non_empty_prefixes0 _)) IHu.
+elim: u => [|u0 u IHu] //=.
+apply/negP; rewrite inE => /orP[//|].
+rewrite mem_cat orbC (negbTE IHu) /= => /mapP[i].
+by rewrite mem_iota; case: i.
 Qed.
 
 Lemma infixes_non_emtpyE u : infixes u = [::] :: (non_empty_infixes u).
@@ -189,5 +271,41 @@ rewrite infixesP infixes_non_emtpyE.
 by case: u => //=; rewrite (negbTE (non_empty_infixes0 _)).
 Qed.
 
+Lemma count_mem_non_empty_infixesE u r :
+  count_mem u (non_empty_infixes r) = count (fun p => p.1.2 == u) (cut3 r).
+Proof. by rewrite infixes_cut3E /= count_map; exact: eq_count. Qed.
+
+Lemma count_mem_non_empty_infixes_ge_size u r (s : seq (word Alph * word Alph)) :
+  u != [::] -> uniq s -> all (fun p => p.1 ++ u ++ p.2 == r) s ->
+  count_mem u (non_empty_infixes r) >= size s.
+Proof.
+rewrite count_mem_non_empty_infixesE => uneq0 uniqs /allP /= alls.
+have -> : size s = size [seq (p.1, u, p.2) | p <- s] by rewrite size_map.
+rewrite -size_filter; apply: uniq_leq_size.
+  by rewrite map_inj_uniq // => -[/= p1 p2][q1 q2] /= [-> ->].
+move=> -[[a b] c] /mapP[[pre suf] {}/alls/eqP/=eqr [{a}->{b}->{c}->]].
+by rewrite mem_filter /= mem_cut3 uneq0 eqr !eqxx.
+Qed.
+
 End Infixes.
 
+
+Section GreedyFactorisation.
+
+Context {Alph : choiceType}.
+
+Implicit Type (u v w : word Alph).
+Implicit Type (P : pres Alph).
+
+(** u is a greedy prefix of v for the pieces accepted by p *)
+Definition is_greedy_prefix (p : pred (word Alph)) u v :=
+  (u == v) || prefix u v && ~~ p (take (size u).+1 v).
+Fixpoint is_greedy_rec (p : pred (word Alph)) f :=
+  if f is f0 :: tl then
+    if ~~ (is_greedy_prefix p f0 (f0 ++ head [::] tl)) then false
+    else is_greedy_rec p tl
+  else true.
+Definition is_greedy_factorisation (p : pred (word Alph)) u f :=
+  ([::] \notin f) && (flatten f == u) && (is_greedy_rec p f).
+
+End GreedyFactorisation.
