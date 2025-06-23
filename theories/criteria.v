@@ -543,57 +543,67 @@ Implicit Type (P : pres Alph).
 Implicit Type (R : seq (word Alph)).
 
 Variant piece R u : Prop :=
-| PieceSameWord :
-  forall p1 q1 p2 q2,
-    u != p1 ++ u ++ q1 -> (* TODO not needed *)
-    p1 != p2 ->
-    p1 ++ u ++ q1 = p2 ++ u ++ q2 ->
-    p1 ++ u ++ q1 \in R -> piece R u
-| PieceDiffWords :
-  forall w1 w2,
-    w1 != w2 -> (* Shouldn't be index w1 R != index w2 R -> *)
-    w1 \in R ->
-    w2 \in R ->
-    infix u w1 -> infix u w2
-    -> piece R u.
+  | PieceEmpty : u = [::] -> piece R u
+  | PieceSameWord :
+    forall p1 q1 p2 q2,
+      p1 != p2 ->
+      p1 ++ u ++ q1 = p2 ++ u ++ q2 ->
+      p1 ++ u ++ q1 \in R -> piece R u
+  | PieceDiffWords :
+    forall w1 w2,
+      w1 != w2   ->
+      w1 \in R   -> w2 \in R ->
+      infix u w1 -> infix u w2 -> piece R u.
 
 Definition pieces R :=
   let inf := flatten [seq non_empty_infixes w | w <- R]
-  in [seq w <- undup inf | count_mem w inf >= 2].
+  in [::] :: [seq w <- undup inf | count_mem w inf >= 2].
 
 Lemma infix_piece R u v : infix v u -> piece R u -> piece R v.
 Proof.
-move=> infvu [/= p1 q1 p2 q2 u1 nep12 puq inR |].
-  case/infixP: infvu => [a][b] equ.
+move=> infvu [unil | /= p1 q1 p2 q2 neqp12 puq inR |].
+- move: infvu; rewrite {}unil infixs0 => /eqP->; exact: PieceEmpty.
+- case/infixP: infvu => [a][b] equ.
+  have assoc5 p q : p ++ a ++ v ++ b ++ q = p ++ u ++ q by rewrite equ !catA.
   apply: (@PieceSameWord _ v (p1 ++ a) (b ++ q1) (p2 ++ a) (b ++ q2)).
-  - 
-Admitted.
+  + by apply/contra: neqp12 => /eqP/catr_inj ->.
+  + by rewrite -!catA !assoc5.
+  + by rewrite -!catA assoc5.
+- move=>  w1 w2 neqw12 w1R w2R infw1 infw2.
+  by apply (@PieceDiffWords _ _ w1 w2) => //; exact: (infix_trans infvu).
+Qed.
+
+Lemma piece_cons r R u : piece R u -> piece (r :: R) u.
+Proof.
+move=> [ueq0 | /= p1 q1 p2 q2 u1 nep12 inR | w1 w2 new12 w1R w2R inf1 inf2].
+- exact: PieceEmpty.
+- by apply: (@PieceSameWord _ u p1 q1 p2 q2) => //; rewrite inE inR orbT.
+- by apply: (@PieceDiffWords _ u w1 w2) => //; rewrite inE orbC ?w1R ?w2R.
+Qed.
 
 Lemma mem_piecesE R u :
   (u \in pieces R) =
-    (count_mem u (flatten [seq non_empty_infixes w | w <- R]) >= 2).
+    (u == [::]) ||
+      (count_mem u (flatten [seq non_empty_infixes w | w <- R]) >= 2).
 Proof.
-rewrite mem_filter mem_undup.
+rewrite inE mem_filter mem_undup.
 by case: ltnP => //= /ltnW; rewrite -has_count has_pred1 => ->.
 Qed.
 
-Lemma piecesP R u :
-  u != [::] -> uniq R -> reflect (piece R u) (u \in pieces R).
+Lemma uniq_piecesP R u : uniq R -> reflect (piece R u) (u \in pieces R).
 Proof.
-move=> uneq0; rewrite mem_piecesE; elim: R => [_ | /= r R IHR].
-  by apply (iffP idP) => // - [|].
+case: (altP (u =P [::])) => [-> _ | /negbTE uneq0].
+  by rewrite inE eqxx /=; apply: Bool.ReflectT; exact: PieceEmpty.
+rewrite mem_piecesE /=; elim: R => [_ | /= r R IHR].
+  by rewrite uneq0; apply (iffP idP) => // -[] // /eqP; rewrite  uneq0.
 case/andP => rnotin {}/IHR IHR.
 rewrite count_cat; case Cne: (count_mem u (non_empty_infixes r)) => [|[|n]].
 - rewrite add0n; apply (iffP idP) => [{}/IHR | Hpieces].
-     move=> {Cne} [/= p1 q1 p2 q2 u1 nep12 puq inR |].
-      apply: (@PieceSameWord _ u p1 q1 p2 q2) => //.
-      by rewrite inE orbC inR.
-    move=> w1 w2 new12 w1R w2R inf1 inf2.
-    by apply: (@PieceDiffWords _ u w1 w2) => //; rewrite inE orbC ?w1R ?w2R.
+    exact: piece_cons.
   apply/IHR => {IHR}.
   have {}Cne : ~~ infix u r.
     by move/count_memPn: Cne; rewrite -non_empty_infixesP uneq0 /=.
-  case: Hpieces => [/= p1 q1 p2 q2 u1 nep12 puq inR |].
+  case: Hpieces => [/eqP | /= p1 q1 p2 q2 u1 nep12 inR |]; first by rewrite uneq0.
     apply: (@PieceSameWord _ u p1 q1 p2 q2) => //.
     move: inR; rewrite inE => /orP[/eqP Habs |//].
     by exfalso; apply: (negP Cne); apply/infixP; exists p1; exists q1.
@@ -606,7 +616,7 @@ rewrite count_cat; case Cne: (count_mem u (non_empty_infixes r)) => [|[|n]].
     have {Cne} : count_mem u (non_empty_infixes r) > 0 by rewrite Cne.
     rewrite -has_count => /hasP[/= v].
     by rewrite -non_empty_infixesP => /andP[_ infvr /eqP <-].
-  rewrite {IHR} add1n ltnS -has_count.
+  rewrite {IHR} add1n ltnS -has_count uneq0.
   apply (iffP hasP) => /= [[v /[swap]/eqP {v}->] |].
     case/flatten_mapP => /= v vinR.
     rewrite -non_empty_infixesP uneq0 /= => infuv.
@@ -614,7 +624,7 @@ rewrite count_cat; case Cne: (count_mem u (non_empty_infixes r)) => [|[|n]].
     + by move: rnotin; apply contra => /eqP <-.
     + by rewrite inE vinR orbT.
     + by rewrite inE eqxx.
-  case=> [/= p1 q1 p2 q2 u1 nep12 puq inR|].
+  case=> [/eqP | /= p1 q1 p2 q2 nep12 equ12 inR | ]; first by rewrite uneq0.
     exists u => //; apply/flatten_mapP => /=.
     move: inR; rewrite inE => /orP[/eqP eqr| inR]; first last.
       exists (p1 ++ u ++ q1) => //.
@@ -626,7 +636,7 @@ rewrite count_cat; case Cne: (count_mem u (non_empty_infixes r)) => [|[|n]].
     rewrite -size_filter; apply: uniq_leq_size => //=.
       by rewrite andbT inE !xpair_eqE (negbTE nep12).
     by move=> [[a b] c] /[!inE]/orP[]/eqP[{a}->{b}->{c}->];
-      rewrite mem_filter /= eqxx /= mem_cut3 uneq0 /= -?puq eqr.
+      rewrite mem_filter /= eqxx /= mem_cut3 uneq0 /= -?equ12 eqr.
   move=> w1 w2 neqw12 w1in w2in infuw1 infuw2.
   exists u => //; apply/flatten_mapP => /=.
   move: w1in; rewrite inE orbC => /orP[w1in | /eqP eqw1r].
@@ -634,7 +644,7 @@ rewrite count_cat; case Cne: (count_mem u (non_empty_infixes r)) => [|[|n]].
   move: w2in; rewrite inE orbC => /orP[w2in | /eqP eqw2r].
     by exists w2 => //; rewrite -non_empty_infixesP uneq0 infuw2.
   by exfalso; move: neqw12; rewrite eqw1r eqw2r eqxx.
-rewrite !addSn ltnS; apply (iffP idP) => [{IHR} _ | //].
+rewrite uneq0 /= !addSn ltnS; apply (iffP idP) => [{IHR} _ | //].
 move: Cne; rewrite count_mem_non_empty_infixesE /=.
 rewrite -size_filter; case Hfilter : (filter _ _) => [|t0[|t1 f]] // _.
 have : t0 != t1.
@@ -651,66 +661,28 @@ have:= eqr0 => /PieceSameWord; apply; first last.
 - by rewrite eqr0 -eqr1 inE eqxx.
 - apply/contra: neq01 => /eqP a01; subst a1.
   by move: eqr0 => /catl_inj/catl_inj <-.
-- apply/contra: neq01 => equ.
-  have:= equ; rewrite eq_sym catRL_eq => /andP[/eqP-> /eqP->].
-  by move: equ; rewrite eqr0 eq_sym catRL_eq => /andP[/eqP-> /eqP->].
 Qed.
 
-Fixpoint appear_twice_rec (once twice facts : seq (word Alph)) :=
-  if facts is f :: facts' then
-    if     f \in twice then appear_twice_rec once twice facts'
-    else if f \in once then appear_twice_rec once (f :: twice) facts'
-    else                    appear_twice_rec (f :: once) twice facts'
-  else (once, twice).
-
-Definition appear_twice :=
-  foldl (fun appear_twice w => appear_twice_rec appear_twice.1 appear_twice.2
-                               (non_empty_infixes w)).
-Definition pieces_fast P := (appear_twice ([::], [::]) (relwords P)).2.
-
-Lemma appear_twice_rec1E once twice s :
-  {subset twice <= once} -> (appear_twice_rec once twice s).1 =i s ++ once.
-Proof.
-elim: s once twice => [| v s /= IHs] once twice //= sub21 u.
-rewrite ![_.1]fun_if.
-case: (boolP (v \in twice)) => [vin2 | _].
-  rewrite IHs // inE; case: eqP => //= ->.
-  by rewrite mem_cat orbC (sub21 _ vin2).
-case: (boolP (v \in once)) => [vin1 | _].
-  rewrite IHs; last by move=> w /[!inE]/orP[/eqP -> // | /sub21].
-  rewrite inE; case: eqP => //= ->.
-  by rewrite mem_cat orbC vin1.
-rewrite IHs; last by move=> w /[!inE]/sub21 -> /[!orbT].
-by rewrite !(inE, mem_cat) !orbA [_ || (u == v)]orbC.
-Qed.
-
-Lemma appear_twice_recE once twice s u :
-    [|| u \in twice, (u \in once) && (u \in s) | count_mem u s > 1] =
-    (u \in (appear_twice_rec once twice s).2).
-Proof.
-(* TODO *)
-Admitted.
-
-Lemma pieces_oldP P u :
-  reflect (piece (relwords P) u) (u \in pieces (relwords P)).
-Proof.
-(* TODO *)
-Admitted.
+Lemma piecesP P u :
+  reflect (piece (undup (relwords P)) u) (u \in pieces (undup (relwords P))).
+Proof. exact/uniq_piecesP/undup_uniq. Qed.
 
 Definition small_overlap (n : nat) P :=
-  forall u, u \in relwords P ->
+  let rw := undup (relwords P) in
+  forall u, u \in rw ->
      forall f : seq (word Alph),
-     (forall w, w \in f -> piece (relwords P) w) ->
+     (forall w, w \in f -> piece rw w) ->
        u = flatten f -> size f >= n.
 
 Lemma small_overlapW P n1 n2 :
   n1 >= n2 -> small_overlap n1 P -> small_overlap n2 P.
 Proof.
-by move=> leqn12 Hso u /[swap] f {}/Hso/[apply]/[apply]/(leq_trans leqn12).
+by rewrite /small_overlap => /= leqn12 Hso u /[swap] f
+                               {}/Hso/[apply]/[apply]/(leq_trans leqn12).
 Qed.
 
 Definition check_small_overlap n P facts :=
-  let rw := relwords P in
+  let rw := undup (relwords P) in
   let p := pieces rw in
   if has (fun f => size f < n) facts then false
   else if size rw != size facts then false
