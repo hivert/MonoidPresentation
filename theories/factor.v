@@ -340,7 +340,7 @@ Context {Alph : choiceType}.
 Implicit Type (u v w : word Alph).
 Variable p : pred (word Alph).
 Hypothesis pnil : p [::].
-Hypothesis pstable : forall u v, p u -> infix v u -> p v.
+Hypothesis pstable : forall u v, infix v u -> p u -> p v.
 
 Lemma all_dropss g n : all p g -> all p (dropss n g).
 Proof.
@@ -351,7 +351,7 @@ have {}pg : {in g, forall x : seq Alph, p x}.
   by move=> /= w win; apply: pg; rewrite inE win orbT.
 case: ltnP => _; last exact: IHg.
 rewrite inE => /orP[/eqP-> | /pg //].
-exact/(pstable pg0)/infix_drop.
+exact/(pstable _ pg0)/infix_drop.
 Qed.
 
 (** u is a greedy prefix of v for the pieces accepted by p *)
@@ -370,7 +370,7 @@ Definition is_greedy_factorisation u f :=
 Lemma is_greedy_prefix_eq u v : is_greedy_prefix u v -> p v -> u = v.
 Proof.
 rewrite /is_greedy_prefix => /andP[pu /[swap] pv] /orP[/eqP -> // | /andP[pref]].
-by have /prefixW/(pstable pv) -> := prefix_take v (size u).+1.
+by have /prefixW/pstable/(_ pv) -> := prefix_take v (size u).+1.
 Qed.
 
 Lemma is_greedy_prefix_impl u v1 v2 :
@@ -419,7 +419,7 @@ case: (ltnP (size f0) (size g0)) => [lt0 | le0].
   exfalso; have:= flatf; rewrite -flatg /= eqf eqg /= => /cat2E.
   case/(_ (ltnW lt0)) => suff Hsuff eqg0.
   have ptu : p (take (size f0).+1 u).
-    apply/(pstable pg0)/prefixW.
+    apply/(pstable _ pg0)/prefixW.
     suff -> : take (size f0).+1 u = take (size f0).+1 g0 by apply: prefix_take.
     by rewrite -flatg eqg /= takel_cat.
   move: greed; rewrite /is_greedy_prefix {}ptu /= andbF orbF andbC.

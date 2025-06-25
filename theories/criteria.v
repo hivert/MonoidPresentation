@@ -666,6 +666,10 @@ Qed.
 Lemma piecesP P u :
   reflect (piece (undup (relwords P)) u) (u \in pieces (undup (relwords P))).
 Proof. exact/uniq_piecesP/undup_uniq. Qed.
+Lemma infix_pieces P u v : infix v u ->
+  u \in pieces (undup (relwords P)) -> v \in pieces (undup (relwords P)).
+Proof. by move/infix_piece => Hinf /piecesP/Hinf/piecesP. Qed.
+
 
 Definition small_overlap (n : nat) P :=
   let rw := undup (relwords P) in
@@ -689,12 +693,24 @@ Definition check_small_overlap n P facts :=
   else all (fun pair_w_f => is_greedy_factorisation (mem p) pair_w_f.1 pair_w_f.2)
            (zip rw facts).
 
-Lemma check_small_overlapP n P facts :
+Lemma check_small_overlapP n P (facts : seq (seq (word Alph))) :
   check_small_overlap n P facts -> small_overlap n P.
 Proof.
-(* TODO: greedy factorization is shorter than any other one *)
-Admitted.
-
+rewrite /check_small_overlap /small_overlap /=.
+case: (boolP (has _ facts)) => //; rewrite -all_predC => /allP /= allfacts.
+have := undup_uniq (relwords P).
+have := infix_pieces (P := P).
+have := piecesP P.
+case: eqP => //= /eqP; rewrite eqn_leq => /andP[/unzip1_zip + /unzip2_zip].
+move: (zip _ _) => pairs <- eqfacts piecesP infix_pairs pairs1_uniq /allP /= allzip.
+subst facts.
+move=> u /mapP[/= [v fact]/[dup]/allzip/=/is_greedy_min_size Hmin inpairs {u}->].
+have /allfacts : fact \in unzip2 pairs by apply/mapP => /=; exists (v, fact).
+rewrite -leqNgt => szfact f Hpiece /esym /(Hmin infix_pairs) lesz.
+have {}/lesz : all (mem (pieces (unzip1 pairs))) f.
+  by apply/allP => /= u /Hpiece /piecesP.
+by move/(leq_trans _ ); apply.
+Qed.
 
 (* Section 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
 Theorem c3_monoid_dec P : small_overlap 3 P -> WPdecidable P.
