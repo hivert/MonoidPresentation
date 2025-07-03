@@ -564,7 +564,8 @@ Proof. exact: greedy_factor_recNP. Qed.
 End GreedyFactorisation.
 
 
-Section Bla.
+Module Tests.
+Section Tests.
 
 Let G := [:: [:: 1; 2]; [:: 3; 4; 5]; [:: 6; 7]].
 Let f0 := [:: 1; 2; 3].
@@ -574,4 +575,5 @@ by compute. Qed.
 Goal is_greedy_factorisation (fun v => size v <= 1) [:: 1; 2] [:: [:: 1];  [:: 2]].
 by compute. Qed.
 
-End Bla.
+End Tests.
+End Tests.

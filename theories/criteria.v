@@ -441,31 +441,33 @@ Context {Alph : choiceType}.
 Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
 
-Definition cycle_free_1rel (P : pres Alph) : Prop :=
+Definition left_cycle_free_1rel P : Prop :=
   exists (a b : Alph) (u v : word Alph),
-      a != b /\ prelat P = [:: (a :: u ++ [:: b], b :: v ++ [:: a])].
-Definition is_cycle_free_1rel P : bool :=
-  if (prelat P) is [:: (a :: u, b :: v)] then
-    [&& a != b, last a u == b & last b v == a] else false.
+      a != b /\ prelat P = [:: (a :: u, b :: v)].
+Definition is_left_cycle_free_1rel P : bool :=
+  if (prelat P) is [:: (a :: u, b :: v)] then a != b else false.
+
+Definition cycle_free_1rel P :=
+  left_cycle_free_1rel P /\ left_cycle_free_1rel (dual_pres P).
+Definition is_cycle_free_1rel P :=
+  (is_left_cycle_free_1rel P) && (is_left_cycle_free_1rel (dual_pres P)).
+
+Lemma is_left_cycle_free_1relP P :
+  reflect (left_cycle_free_1rel P) (is_left_cycle_free_1rel P).
+Proof.
+rewrite /is_left_cycle_free_1rel /left_cycle_free_1rel.
+case Hrel: (prelat P) => [|r1 l] //=.
+  by apply (iffP idP) => [|[a][b][u][v][_]] //.
+apply (iffP idP); case: r1 {Hrel} => [[|a u][|b v]] //;
+  first 1 [move] || by move=> [a'][b'][u'][v'][neqab] // [-> _ -> _ ->].
+by case: l => // neqab; exists a; exists b; exists u; exists v.
+Qed.
 
 Lemma is_cycle_free_1relP P :
   reflect (cycle_free_1rel P) (is_cycle_free_1rel P).
 Proof.
-rewrite /is_cycle_free_1rel /cycle_free_1rel.
-case Hrel: (prelat P) => [|r1 [|r2 l]] /=; first 2 last.
-- apply (iffP idP) => [|[a][b][u][v][_] //].
-  by case: r1 {Hrel} => [[|a u][|b v]].
-- by apply (iffP idP) => [|[a][b][u][v][_]].
-apply (iffP idP); case: r1 {Hrel} => [[|a u][|b v]] //;
-first 1 [case/and3P => /negbTE neqab] || (try by move=> [a'][b'][u'][v'] [_ []]).
-- case/lastP: u => [|u c]/=; first by rewrite neqab.
-  rewrite last_rcons => /eqP {c}->.
-- case/lastP: v => [|v c]/=; first by rewrite eq_sym neqab.
-  rewrite last_rcons => /eqP {c}->.
-  exists a; exists  b; exists u; exists v.
-  by rewrite neqab !cats1.
-- move=> [a'][b'][u'][v'][neqab][{a}->{u}->{b}->{v}->].
-  by rewrite neqab /= !cats1 !last_rcons !eqxx.
+rewrite /cycle_free_1rel.
+by apply (iffP andP) => -[]/is_left_cycle_free_1relP H1 /is_left_cycle_free_1relP H2.
 Qed.
 
 (* Theorem 2.6 in Carl-Fredrik Nyberg-Brodda1,
@@ -479,7 +481,7 @@ Proof. move/is_cycle_free_1relP; exact: cycle_free_1rel_dec. Qed.
 End CycleFree.
 
 
-Section DefLeftCycleFree1Rel.
+Section NbOcc.
 
 Context {Alph : choiceType}.
 
@@ -487,22 +489,6 @@ Implicit Type (u v w : word Alph).
 Implicit Type (P : pres Alph).
 
 Definition two_letters P : bool := size (pgen P) == 2.
-
-Definition left_cycle_free_1rel (P : pres Alph) : Prop :=
-  exists (a b : Alph) (u v : word Alph),
-      a != b /\ prelat P = [:: (a :: u, b :: v)].
-Definition is_left_cycle_free_1rel P : bool :=
-  if (prelat P) is [:: (a :: _, b :: _)] then a != b else false.
-
-Lemma left_cycle_free_1relP P :
-  reflect (left_cycle_free_1rel P) (is_left_cycle_free_1rel P).
-Proof.
-rewrite /is_left_cycle_free_1rel.
-apply (iffP idP); case Hrel: (prelat P) => [|[[|a r1][|b r2]] [|rels]] //;
-  first 1 [by move=> neqab; exists a; exists  b; exists r1; exists r2]
-        || (try by move=> [a'][b'][u'][v']; rewrite Hrel => [[]]).
-by case=> [a'][b'][u'][v'][neq]; rewrite Hrel => [[-> _ -> _]].
-Qed.
 
 Definition same_number_of_occ P a :=
   forall r, r \in prelat P ->
@@ -527,11 +513,11 @@ Corollary check_same_number_occ_dec P a :
   is_left_cycle_free_1rel P -> has_same_number_of_occ P a ->
   WPdecidable P.
 Proof.
-move=> /left_cycle_free_1relP H1 /has_same_number_of_occP.
+move=> /is_left_cycle_free_1relP H1 /has_same_number_of_occP.
 exact: left_cycle_free_1rel_same_number_occ_dec.
 Qed.
 
-End DefLeftCycleFree1Rel.
+End NbOcc.
 
 
 Section SmallOverlap.
@@ -723,44 +709,6 @@ Proof. by move/check_small_overlapP/c3_monoid_dec. Qed.
 End SmallOverlap.
 
 
-
-Definition testpres :=
-  make_pres [:: 0; 1]
-            [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0],
-                 [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
-
-Lemma testpres_dec : WPdecidable testpres.
-Proof. exact: (check_c3_monoid_dec (facts := [::
-                     [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
-                     [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ]
-                  ])).
-Qed.
-
-(*
-Eval compute in non_empty_infixes [:: 3; 1; 2; 1].
-Eval compute in appear_twice_rec
-                  [::] [::] (non_empty_infixes [:: 3; 1; 2; 1]).
-
-Time Definition testpieces := Eval compute in pieces (relwords testpres).
-
-Goal perm_eq testpieces
-  [:: [:: 1; 0; 0; 0]; [:: 0; 0; 0]; [:: 0; 0; 1]; [:: 0; 1; 1];
-   [:: 1; 1; 0]; [:: 1; 1; 0; 0]; [:: 1; 0; 0]; [:: 0; 0]; [:: 0; 1];
-   [:: 1; 1]; [:: 1]; [:: 1; 0]; [:: 0]].
-Proof. by []. Qed.
-
-Eval compute in testpieces.
-Eval compute in is_greedy_factorisation (mem testpieces)
-                  [:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0]
-                  [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ].
-
-Eval compute in check_small_overlap 3 testpres
-                  [::
-                     [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
-                     [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ]
-                  ].
-*)
-
 Section Watier.
 
 Context {Alph : choiceType}.
@@ -787,6 +735,10 @@ Corollary check_Watier_dec P a b u v k : check_Watier P a b u v k -> WPdecidable
 Proof. move/check_WatierP; exact: is_Watier_dec. Qed.
 
 End Watier.
+
+
+Module Examples.
+Section Examples.
 
 Definition testWatier :=
   make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])].
@@ -817,4 +769,6 @@ Proof. exact: (check_c3_monoid_dec (facts := [::
                   ])).
 Qed.
 
+End Examples.
+End Examples.
 
