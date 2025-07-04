@@ -1,5 +1,7 @@
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice ssrnat seq.
 
+Require Import monoids.
+
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -28,12 +30,28 @@ Lemma map_eq0 (T1 T2 : eqType) (u : seq T1) (f : T1 -> T2):
 Proof. by case: u. Qed.
 
 
-Lemma catRL_eq (T : eqType) (x y z : word T) :
+Lemma catRL_eq (T : eqType) (x y z : seq T) :
   (x ++ y ++ z == y) = (x == [::]) && (z == [::]).
 Proof.
 apply/eqP/andP => [/(congr1 size)/eqP | [/eqP-> /eqP-> /= /[!cats0]] //].
 rewrite !size_cat addnC -[X in _ == X]addn0 -addnA eqn_add2l addn_eq0.
 by case/andP => /nilP -> /nilP ->.
+Qed.
+
+Lemma cat2E (T : eqType) (u v x y : seq T) :
+  size u <= size x -> u ++ v = x ++ y ->
+  exists2 mid, v = mid ++ y & x = u ++ mid.
+Proof.
+move=> ltsize eq.
+exists (take (size x - size u) v).
+  have := congr1 (drop (size u)) eq.
+  rewrite drop_size_cat // => ->; rewrite drop_cat; first last.
+  move: ltsize; rewrite leq_eqVlt => /orP[/eqP -> | ->].
+    by rewrite ltnn subnn take0 drop0.
+  by rewrite take_size_cat // size_drop.
+have := congr1 (take (size x)) eq.
+rewrite [X in _ = X -> _]take_size_cat // => {1}<-.
+by rewrite take_cat ltnNge ltsize /=.
 Qed.
 
 Lemma shape_take (T : Type) (s : seq (seq T)) i :
@@ -282,7 +300,7 @@ Lemma count_mem_non_empty_infixesE u r :
   count_mem u (non_empty_infixes r) = count (fun p => p.1.2 == u) (cut3 r).
 Proof. by rewrite infixes_cut3E /= count_map; exact: eq_count. Qed.
 
-Lemma count_mem_non_empty_infixes_ge_size u r (s : seq (word Alph * word Alph)) :
+Lemma count_mem_non_empty_infixes_ge_size u r (s : seq (seq Alph * seq Alph)) :
   u != [::] -> uniq s -> all (fun p => p.1 ++ u ++ p.2 == r) s ->
   count_mem u (non_empty_infixes r) >= size s.
 Proof.
@@ -337,8 +355,8 @@ Section GreedyFactorisation.
 
 Context {Alph : choiceType}.
 
-Implicit Type (u v w : word Alph).
-Variable p : pred (word Alph).
+Implicit Type (u v w : seq Alph).
+Variable p : pred (seq Alph).
 Hypothesis pnil : p [::].
 Hypothesis pstable : forall u v, infix v u -> p u -> p v.
 
@@ -397,7 +415,7 @@ Lemma is_greedy_prefix_take u v :
   is_greedy_prefix u v = is_greedy_prefix u (take (size u).+1 v).
 Proof. by apply: is_greedy_prefixE; rewrite -take_min minnn. Qed.
 
-Theorem is_greedy_min_size u (f g : seq (word Alph)) :
+Theorem is_greedy_min_size u (f g : seq (seq Alph)) :
   is_greedy_factorisation u f -> flatten g = u -> all p g -> size f <= size g.
 Proof.
 move: f g; have [n leMn] := ubnP (size u); elim: n u leMn => // n IHn u.
@@ -491,7 +509,7 @@ Fixpoint greedy_factor_rec u fuel :=
   else None.
 Definition greedy_factor u := greedy_factor_rec u (size u).+1.
 
-Implicit Type (s : seq (word Alph)).
+Implicit Type (s : seq (seq Alph)).
 
 Lemma greedy_factor_recP u fuel s :
   size u < fuel -> greedy_factor_rec u fuel = Some s ->

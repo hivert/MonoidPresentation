@@ -1590,23 +1590,6 @@ apply/mapP; exists (size pre).
 by rewrite eqr1 eqs1 take_size_cat // -size_cat !catA drop_size_cat.
 Qed.
 
-
-Lemma cat2E u v x y :
-  size u <= size x -> u ++ v = x ++ y ->
-  exists2 mid, v = mid ++ y & x = u ++ mid.
-Proof.
-move=> ltsize eq.
-exists (take (size x - size u) v).
-  have := congr1 (drop (size u)) eq.
-  rewrite drop_size_cat // => ->; rewrite drop_cat; first last.
-  move: ltsize; rewrite leq_eqVlt => /orP[/eqP -> | ->].
-    by rewrite ltnn subnn take0 drop0.
-  by rewrite take_size_cat // size_drop.
-have := congr1 (take (size x)) eq.
-rewrite [X in _ = X -> _]take_size_cat // => {1}<-.
-by rewrite take_cat ltnNge ltsize /=.
-Qed.
-
 Lemma nspair_confluence R :
   (forall u v, npair R u v -> joinable R u v) ->
   (forall u v, spair R u v -> joinable R u v) -> locconfluent R.
