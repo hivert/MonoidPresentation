@@ -19,10 +19,20 @@ theories/batchchecker.v
 theories/inttrie.v
 
 theories/samples/bbaaaabbba_abbbaa.v
-theories/samples/rennertypeD41.v
-theories/samples/rennertypeD51.v
 
-theories/test/
+theories/samples/symmetricgroup4.v
+theories/samples/notsymmetricgroup4.v
+
+theories/samples/RennertypeB41.v
+theories/samples/notRennertypeB41.v
+theories/samples/RennertypeB51.v
+# theories/samples/notRennertypeB51.v   (* KB didn't finish *)
+theories/samples/RennertypeD41.v
+theories/samples/notRennertypeD41.v
+theories/samples/RennertypeD51.v
+theories/samples/notRennertypeD51.v
+
+# theories/test/
 
 
 # theories/autocerts/aaaaaa_abaaba.v
