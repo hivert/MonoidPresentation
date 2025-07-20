@@ -31,7 +31,7 @@ Context (R : relat A).
 
 Implicit Types (u v w : word A).
 
-(** Apply relation no nrel at position pos in direction dir *)
+(** Apply relation no nrel at position pos in direction dirrel *)
 Record rew_triple : Type := RTriple {
   nrel : PrimInt63.int;
   pos : nat;

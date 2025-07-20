@@ -157,8 +157,6 @@ End Int.
 Section Seq.
 
 Context {T : eqType}.
-
-
 Implicit Types (s : seq T) (i j : int) (n m : nat) (x : T).
 
 Lemma firstnE n (l : list T) : List.firstn n l = take n l.
