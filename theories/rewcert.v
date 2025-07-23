@@ -99,7 +99,7 @@ End Rewrites.
 Variant transfo : Type :=
   | add_gen : A -> word A -> transfo
   | add_rel : word A -> word A -> rew_cert -> transfo
-  | rm_rel : nat -> rew_cert -> transfo.
+  | rm_rel : PrimInt63.int -> rew_cert -> transfo.
   (* | rm_gen : nat -> A -> word A -> transfo
      | perm_transf ??? *)
 
@@ -117,9 +117,9 @@ Definition wf_transfo : bool :=
   | add_rel u v prf =>
       [&& all (mem G) u, all (mem G) v & check_rew_cert R u v prf]
   | rm_rel n prf =>
-      (n < size R) &&
-        let: (u, v) := nth ([::], [::]) R n in
-        check_rew_cert (take n R ++ drop n.+1 R) u v prf
+      if onth_int R n is Some (u, v) then
+        check_rew_cert (take (to_nat n) R ++ drop (to_nat n).+1 R) u v prf
+      else false
   end.
 Definition gen_transfo : seq A :=
   match t with
@@ -130,7 +130,7 @@ Definition rel_transfo : relat A :=
   match t with
   | add_gen g w => rcons R (w, [:: g])
   | add_rel u v prf => rcons R (u, v)
-  | rm_rel n prf => take n R ++ drop n.+1 R
+  | rm_rel n prf => take (to_nat n) R ++ drop (to_nat n).+1 R
   end.
 
 End Transfo.
@@ -180,20 +180,25 @@ case: t wft => /=.
   have -> : newpres = rcons_ext_pres uin vin
     by apply/eqP; rewrite -eqpresE /= !eqxx.
   by exists (isopres_rcons_rule uin vin eq_u_v).
-- move=> n prf /[dup] /andP[lt_n_sz].
-  case Huv : {1}(nth ([::], [::]) (prelat R) n) => [u v] /check_certP eq_u_v prf0.
+- move=> n prf wf_prf.
+  have /= := onth_int_mem (prelat R) n.
+  case Hnth: (onth_int _ _) => [[/= u v] |]; first last.
+    by exfalso; move: wf_prf; rewrite Hnth.
+  have : check_rew_cert
+          (take (to_nat n) (prelat R) ++ drop (to_nat n).+1 (prelat R)) u v prf.
+    by rewrite Hnth in wf_prf.
+  move/check_certP => eq_u_v /(_ _ (erefl _)) prf0.
   set newpres := pres_transfo _.
   have [uin vin] : u \in words_of newpres /\ v \in words_of newpres.
     have eq_words_of : words_of newpres = words_of R by [].
-    have {lt_n_sz} : (u, v) \in prelat R by rewrite -Huv; apply: mem_nth.
-    rewrite eq_words_of /words_of; case R => gens rels /= _.
+    rewrite eq_words_of /words_of; move: prf0; case R => gens rels /= _.
     by rewrite /correctrelat !inE => /allP /= /[apply] /= /andP[-> ->].
   have @iso2 : isopres R newpres.
     apply: isopres_sym.
     apply: (isopres_trans (isopres_rcons_rule uin vin eq_u_v)).
     apply: pres_irrelevance_perm_eq => //=.
-    rewrite -{eq_u_v prf0 newpres uin vin u v}Huv.
-    exact: perm_eq_move_to_end.
+    rewrite -(onth_intE _ _ _ Hnth ([::], [::])).
+    exact/perm_eq_move_to_end/(onth_int_le _ _ (u, v)).
   by exists iso2.
 Qed.
 Definition isopres_transfo : isopres R (pres_transfo wft)

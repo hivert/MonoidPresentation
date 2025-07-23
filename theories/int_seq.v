@@ -30,7 +30,7 @@ End Nat.
 
 Section Int.
 
-Implicit Type (x y : int).
+Implicit Type (x y : int) (m n : nat).
 
 Local Open Scope uint63_scope.
 
@@ -129,11 +129,34 @@ Lemma to_natD x y :
   to_nat x + to_nat y < wBnat -> to_nat (x + y) = (to_nat x + to_nat y)%N.
 Proof. by move=> lt; rewrite to_natDE modn_small. Qed.
 
-Lemma ltleint (i j: int) : (i < j)%O -> (i + 1 <= j)%O.
+Lemma ltleint x y : (x < y)%O -> (x + 1 <= y)%O.
 Proof.
-move=> /[dup] ltij; rewrite ltintE -addn1 -to_nat1 -to_natD ?leintE //.
-move: ltij; rewrite to_nat1 addn1 ltintE => /leq_ltn_trans; apply.
+move=> /[dup] ltxy; rewrite ltintE -addn1 -to_nat1 -to_natD ?leintE //.
+move: ltxy; rewrite to_nat1 addn1 ltintE => /leq_ltn_trans; apply.
 exact: ltwBnat.
+Qed.
+
+Lemma int_neq0 x : x != 0 -> (1 <= x)%O.
+Proof.
+rewrite eq_sym => /negbTE neq0; have := le0int x.
+rewrite Order.POrderTheory.le_eqVlt neq0 /= => /ltleint.
+by rewrite leintE to_natD.
+Qed.
+
+Lemma to_natB x y :
+  (x <= y)%O -> to_nat (y - x) = (to_nat y - to_nat x)%N.
+Proof.
+move=> /lebP /Zorder.Zle_minus_le_0 le0xBy.
+rewrite sub_spec BinInt.Z.mod_small ?Z2Nat.inj_sub //; split => //.
+apply: (BinInt.Z.le_lt_trans _ _ _ _ (ltZwB y)).
+by rewrite -BinInt.Z.le_sub_nonneg.
+Qed.
+
+Lemma succ_subint1E x : x != 0 -> (to_nat (x - 1)).+1 = to_nat x.
+Proof.
+move=> /int_neq0/[dup] lt1x /to_natB ->.
+rewrite to_nat1 subn1 prednK //.
+by move: lt1x; rewrite leintE to_nat1.
 Qed.
 
 Lemma to_natME x y : to_nat (x * y) = (to_nat x * to_nat y) %% wBnat.
@@ -171,7 +194,7 @@ Definition size_int s : int :=
   in rec 0%uint63 s.
 Fixpoint onth_int s i :=
   if s is s0 :: s' then
-    if PrimInt63.eqb i 0 then Some s0 else onth_int s' (i - 1)%uint63
+    if (i =? 0)%uint63 then Some s0 else onth_int s' (i - 1)%uint63
   else None.
 
 Lemma size_intE s : size_int s = of_nat (size s).
@@ -194,6 +217,23 @@ Proof.
 elim: s i => // s0 s IHs /= i.
 case: (boolP (i =? 0)%uint63) => [_ [<-] | _]; first by rewrite inE eqxx.
 by rewrite inE orbC => /IHs ->.
+Qed.
+
+Lemma onth_int_le s i x : onth_int s i = Some x -> to_nat i < size s.
+Proof.
+elim: s i => // s0 s IHs /= i.
+case: (boolP (i =? 0)%uint63) => [/eqb_correct -> _ //| ineq0 {}/IHs].
+by rewrite -ltnS succ_subint1E.
+Qed.
+
+Lemma onth_intE s i x :
+  onth_int s i = Some x -> forall x0, nth x0 s (to_nat i) = x.
+Proof.
+elim: s i => // s0 s IHs /= i.
+case: (boolP (i =? 0)%uint63) => [/eqb_correct -> [->] x0 |].
+  by rewrite to_nat0.
+move=> ineq0 {}/IHs Hrec x0.
+by rewrite -(Hrec x0) -succ_subint1E.
 Qed.
 
 End Seq.
