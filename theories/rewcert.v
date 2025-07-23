@@ -118,7 +118,7 @@ Definition wf_transfo : bool :=
       [&& all (mem G) u, all (mem G) v & check_rew_cert R u v prf]
   | rm_rel n prf =>
       if onth_int R n is Some (u, v) then
-        check_rew_cert (take (to_nat n) R ++ drop (to_nat n).+1 R) u v prf
+        check_rew_cert (remove_ith_int R n) u v prf
       else false
   end.
 Definition gen_transfo : seq A :=
@@ -130,7 +130,7 @@ Definition rel_transfo : relat A :=
   match t with
   | add_gen g w => rcons R (w, [:: g])
   | add_rel u v prf => rcons R (u, v)
-  | rm_rel n prf => take (to_nat n) R ++ drop (to_nat n).+1 R
+  | rm_rel n prf => remove_ith_int R n
   end.
 
 End Transfo.
@@ -152,7 +152,7 @@ case: t wft.
 - move=> u v prf /and3P[uin vin /check_certP eq_u_v].
   exact: wf_rcons_ext_pres.
 - move=> n prf _; case: R => gens rels /= _.
-  rewrite /correctrelat /= all_cat => /allP /= allok.
+  rewrite /correctrelat /= remove_ith_intE all_cat => /allP /= allok.
   apply/andP; split; apply/allP => /= p pin; apply allok.
   + exact: mem_take pin.
   + exact: mem_drop pin.
@@ -184,8 +184,7 @@ case: t wft => /=.
   have /= := onth_int_mem (prelat R) n.
   case Hnth: (onth_int _ _) => [[/= u v] |]; first last.
     by exfalso; move: wf_prf; rewrite Hnth.
-  have : check_rew_cert
-          (take (to_nat n) (prelat R) ++ drop (to_nat n).+1 (prelat R)) u v prf.
+  have : check_rew_cert (remove_ith_int (prelat R) n) u v prf.
     by rewrite Hnth in wf_prf.
   move/check_certP => eq_u_v /(_ _ (erefl _)) prf0.
   set newpres := pres_transfo _.
@@ -197,7 +196,7 @@ case: t wft => /=.
     apply: isopres_sym.
     apply: (isopres_trans (isopres_rcons_rule uin vin eq_u_v)).
     apply: pres_irrelevance_perm_eq => //=.
-    rewrite -(onth_intE _ _ _ Hnth ([::], [::])).
+    rewrite -(onth_intE _ _ _ Hnth ([::], [::])) remove_ith_intE.
     exact/perm_eq_move_to_end/(onth_int_le _ _ (u, v)).
   by exists iso2.
 Qed.

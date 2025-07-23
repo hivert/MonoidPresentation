@@ -187,6 +187,24 @@ Proof. by elim: n l => [|n IHn] [|l0 l] //=; rewrite IHn. Qed.
 Lemma skipnE n (l : list T) : List.skipn n l = drop n l.
 Proof. by elim: n l => [|n IHn] [|l0 l] //=; rewrite IHn. Qed.
 
+Definition remove_ith_int :=
+  let fix auxrem acc s i :=
+    if s is s0 :: s' then
+      if (i =? 0)%uint63 then catrev acc s'
+      else auxrem (s0 :: acc) s' (i - 1)%uint63
+    else rev acc
+  in auxrem [::].
+
+Lemma remove_ith_intE s i :
+  remove_ith_int s i = take (to_nat i) s ++ drop (to_nat i).+1 s.
+Proof.
+rewrite /remove_ith_int -[RHS](cat0s) -[X in X ++ _]/(rev [::]).
+elim: s i [::] => [| s0 s IHs] i acc /=; first by rewrite cats0.
+case: (boolP (i =? 0)%uint63) => [/eqb_correct -> | ineq0] /=.
+  by rewrite catrevE drop0.
+by rewrite {}IHs /= -(succ_subint1E _ ineq0) //= rev_cons -cats1 -catA cat1s.
+Qed.
+
 
 Definition size_int s : int :=
   let fix rec i s :=
@@ -232,8 +250,7 @@ Proof.
 elim: s i => // s0 s IHs /= i.
 case: (boolP (i =? 0)%uint63) => [/eqb_correct -> [->] x0 |].
   by rewrite to_nat0.
-move=> ineq0 {}/IHs Hrec x0.
-by rewrite -(Hrec x0) -succ_subint1E.
+by move=> ineq0 {}/IHs Hrec x0; rewrite -(Hrec x0) -succ_subint1E.
 Qed.
 
 End Seq.
