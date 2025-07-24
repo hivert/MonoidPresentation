@@ -357,7 +357,7 @@ Variable (rew1 : forall {T : choiceType}, word T -> option (word T)).
 Hypothesis rew1P : forall {T : choiceType} {R : relat T},
   forall u : word T, rewrites1_spec R u (rew1 u).
 
-Theorem non_isopres (boundP boundQ : nat) :
+Theorem size_non_isopres (boundP boundQ : nat) :
   let (lP, okP) := enum_normal P rew1 boundP in
   let (lQ, okQ) := enum_normal Q rew1 boundQ in
   okP -> size lP < size lQ -> isopres P Q -> False.
