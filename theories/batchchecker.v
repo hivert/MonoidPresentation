@@ -45,7 +45,7 @@ Variant prescertificate :=
   | Monogenic
   | CycleFree
   | FreeProductMonogenicAndFree
-    (* param: repeated letter a in < a b | a^k = a^l > *)
+    (* param: repeated letter a *)
   | EqualNumberOfOccurences of Alph
     (* param: list of the factorizations of each relations words *)
     (*        in the order given by relwords P                   *)
@@ -401,6 +401,8 @@ Definition AB_ABABA_ABA := make_pres [:: 0; 1]
                              [:: ([:: 0; 1; 0; 1; 0], [:: 0; 1; 0])].
 Definition BA_ABBB_BBBBB := make_pres [:: 1; 0]
                            [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])].
+Definition BA_BABAABAA_BABBBABBB := make_pres [::1; 0]
+             [:: ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 1; 0; 0; 0; 1; 0; 0; 0])].
 
 Definition list_pres := [:: AB_AAAAAA_ABAABA;
                          AB_AAAB_A;
@@ -408,7 +410,8 @@ Definition list_pres := [:: AB_AAAAAA_ABAABA;
                          AB_ABB_BA;
                          AB_BAAAABBAAA_ABBBAABA;
                          AB_ABABA_ABA;
-                         BA_ABBB_BBBBB
+                         BA_ABBB_BBBBB;
+                         BA_BABAABAA_BABBBABBB
   ].
 
 Lemma all_pres_dec (P : pres int) : P \in list_pres -> WPdecidable P.
@@ -431,8 +434,24 @@ apply: (check_batchP (lc :=
                    [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
                  [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ];
    StronglyCompressToSpecial;
-   Watier 1 0 [:: 1; 1] [:: 1; 1; 1; 1] 1
-       ])).
+   Watier 1 0 [:: 1; 1] [:: 1; 1; 1; 1] 1;
+   CompleteRewritingSystem
+     [:: add_gen 2 [::1;0;0;0];
+     add_rel [::1;0;1;0;0;2] [::0;2;2;0]
+     [:: RTriple 1 5 false;
+         RTriple 0 0 true;
+         RTriple 1 1 true;
+         RTriple 1 2 true];
+     add_rel [::1;0;1;0;0;1;0;0] [::0;2;2]
+     [:: RTriple 0 0 true;
+         RTriple 1 1 true;
+         RTriple 1 2 true];
+     rm_rel 0
+     [:: RTriple 2 0 true;
+         RTriple 0 1 false;
+         RTriple 0 5 false]]
+     [::1;0;2]
+       ])) .
    by native_cast_no_check (erefl BatchOk).
 Qed.
 
