@@ -18,6 +18,8 @@ theories/compress.v
 theories/batchchecker.v
 theories/inttrie.v
 
+theories/examples/symmetricgroup4.v
+
 theories/samples/bbaaaabbba_abbbaa.v
 
 theories/samples/symmetricgroup4.v

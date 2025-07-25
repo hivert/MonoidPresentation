@@ -253,4 +253,55 @@ case: (boolP (i =? 0)%uint63) => [/eqb_correct -> [->] x0 |].
 by move=> ineq0 {}/IHs Hrec x0; rewrite -(Hrec x0) -succ_subint1E.
 Qed.
 
+Implicit Type t : seq (seq T).
+Fixpoint behead_flatten t :=
+  match t with
+  | (_ :: l) :: t' => l :: t'
+  | [::] :: t' => behead_flatten t'
+  | [::] => [::]
+  end.
+Fixpoint drop_flatten s t {struct s} :=
+  if s is _ :: s' then drop_flatten s' (behead_flatten t)
+  else t.
+Fixpoint drop_size_flatten t1 t2 {struct t1} :=
+  if t1 is s :: t1' then drop_size_flatten t1' (drop_flatten s t2)
+  else t2.
+
+Lemma behead_flattenE t : flatten (behead_flatten t) = behead (flatten t).
+Proof. by elim: t => // -[|a l]. Qed.
+Lemma drop_flattenE s t : flatten (drop_flatten s t) = drop (size s) (flatten t).
+Proof.
+elim: s t => [| s0 s IHs] t /=; first by rewrite drop0.
+by rewrite IHs behead_flattenE -drop1 drop_drop addn1.
+Qed.
+Lemma drop_size_flattenE t1 t2 :
+  flatten (drop_size_flatten t1 t2) = drop (size (flatten t1)) (flatten t2).
+Proof.
+elim: t1 t2 => [| s t IHt] t2 /=; first by rewrite drop0.
+by rewrite IHt /= drop_flattenE size_cat drop_drop addnC.
+Qed.
+
+Definition all_nil :=
+  all (fun s : seq T => if s is [::] then true else false).
+Definition flatten_is_longer t1 t2 := all_nil (drop_size_flatten t1 t2).
+
+Lemma all_nil_flattenP t : reflect (flatten t = [::]) (all_nil t).
+Proof.
+rewrite /all_nil; apply (iffP allP); elim: t => //= t0 t IHt.
+  move=> Hin; rewrite IHt ?cats0.
+    have {}/Hin : t0 \in t0 :: t by rewrite inE eqxx.
+    by case: t0.
+  move=> s sint.
+  by have {}/Hin : s \in t0 :: t by rewrite inE sint orbT.
+case: t0 => //; rewrite cat0s => {}/IHt Hin s.
+by rewrite inE => /orP[/eqP-> // | /Hin].
+Qed.
+
+Lemma flatten_is_longerE t1 t2 :
+  flatten_is_longer t1 t2 = (size (flatten t1) >= size (flatten t2)).
+Proof.
+rewrite /flatten_is_longer -subn_eq0 -size_drop -drop_size_flattenE.
+by apply/all_nil_flattenP/eqP => [-> //| H]; apply/nilP/eqP.
+Qed.
+
 End Seq.

@@ -84,9 +84,8 @@ Section EnumNormalForms.
 
 Context {Alph : choiceType} (P : pres Alph).
 Hypothesis convP : convergent (prelat P).
-
-Variable (rew1 : word Alph -> option (word Alph)).
-Hypothesis (rew1P : forall u, rewrites1_spec (prelat P) u (rew1 u)).
+Variable rew1 : word Alph -> option (word Alph).
+Hypothesis rew1P : rewrites1_Ok (prelat P) rew1.
 
 Implicit Types (u v w : word Alph) (norf : seq (word Alph)).
 
@@ -352,21 +351,22 @@ Section NonIsoPres.
 
 Context {Alph Beta : choiceType}
   (P : pres Alph) (Q : pres Beta)
+  (rew1P :  word Alph -> option (word Alph))
+  (rew1Q :  word Beta -> option (word Beta))
+  (rew1P_ok : rewrites1_Ok (prelat P) rew1P)
+  (rew1Q_ok : rewrites1_Ok (prelat Q) rew1Q)
   (Pconv : convergent (prelat P)) (Qconv : convergent (prelat Q)).
-Variable (rew1 : forall {T : choiceType}, word T -> option (word T)).
-Hypothesis rew1P : forall {T : choiceType} {R : relat T},
-  forall u : word T, rewrites1_spec R u (rew1 u).
 
 Theorem size_non_isopres (boundP boundQ : nat) :
-  let (lP, okP) := enum_normal P rew1 boundP in
-  let (lQ, okQ) := enum_normal Q rew1 boundQ in
+  let (lP, okP) := enum_normal P rew1P boundP in
+  let (lQ, okQ) := enum_normal Q rew1Q boundQ in
   okP -> size lP < size lQ -> isopres P Q -> False.
 Proof.
-have /= := enum_normalP Pconv rew1P (bound := boundP).
+have /= := enum_normalP Pconv rew1P_ok (bound := boundP).
 move: (traject _ _ _) => lP /[apply] norlP /[swap].
 move/isopres_size_le=> /(_ Pconv Qconv _ _ norlP) H.
 rewrite ltnNge => /negP; apply; apply: H => [|u].
-  exact: (enum_normal_uniq Qconv rew1P).
+  exact: (enum_normal_uniq Qconv rew1Q_ok).
 exact: enum_normal_wordP.
 Qed.
 

@@ -21,13 +21,6 @@ Definition check_convergence_intP fuel R :
   check_convergenceP (rewrites1P _) lt_sizelexi_stable sizelexi_int_wf
     (T := int) (fuel := fuel) (R := R).
 
-Theorem isopres_final : isopres present_entry present_final.
-Proof.
-have wfc : wfpres_cert present_entry cert by vm_cast_no_check (eq_refl true).
-suff -> : present_final = final_pres wfc by apply: iso_final_pres.
-by apply/eqP; rewrite -eqpresE pgen_final_pres prelat_final_pres.
-Qed.
-
 Fixpoint eqseq_int (s1 s2 : seq int) {struct s2} :=
   match s1, s2 with
   | [::], [::] => true
