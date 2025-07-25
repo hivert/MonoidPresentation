@@ -1056,4 +1056,4 @@ apply: (size_non_isopres rew_S4P rew_not_S4P
 - by native_cast_no_check is_true_true.
 - rewrite ltnNge -flatten_is_longerE.
   by native_cast_no_check is_true_true.
-Time Qed.
+Qed.
