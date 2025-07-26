@@ -47,6 +47,29 @@ Definition word (Alph : Type) := seq Alph.
 Definition relat (Alph : Type) := seq (word Alph * word Alph).
 
 
+Section FilterRevTr.
+
+Context {T : Type}.
+Implicit Types (s : seq T) (a : pred T).
+
+Definition filter_rev_tr a := (* filter_rev is a MC lemma *)
+  let aux := fix aux (acc s : seq T) : seq T :=
+    match s with
+    | [::] => acc
+    | x :: s' => if a x then aux (x :: acc) s' else aux acc s'
+    end in
+  aux nil.
+
+Lemma filter_rev_trE a s : filter_rev_tr a s = rev (filter a s).
+Proof.
+rewrite /filter_rev_tr -[RHS](cats0); elim: s [::] => [|s0 s IHs] acc //=.
+rewrite !{}IHs; case: (a s0) => //.
+by rewrite rev_cons -cats1 -catA cat1s.
+Qed.
+
+End FilterRevTr.
+
+
 Section Defs.
 
 Variable (Alph : choiceType).  (* monoidType inherits from choice *)
@@ -1726,7 +1749,7 @@ Definition is_Ok r := if r is Ok then true else false.
 
 Definition spair_confluence_dec fuel :=
   if all (fun p => p.1 == p.2) (all_npairs R) then
-    let spairs := filter (fun p => p.1 != p.2) (all_spairs R) in
+    let spairs := filter_rev_tr (fun p => p.1 != p.2) (all_spairs R) in
     (* if normalisation fails by out of fuel but results agree *)
     (* we do have confluence                                   *)
     all (fun p => (norfuel2 fuel p.1).1 == (norfuel2 fuel p.2).1) spairs
@@ -1738,7 +1761,7 @@ Definition check_convergence_and C fuel : bool :=
 Definition spair_confluence_loop fuel :=
   (all_pred_npairs (fun p => p.1 == p.2) R) &&
     (all_pred_spairs (fun p => (p.1 == p.2) ||
-                                 ((norfuel2 fuel p.1).1 == (norfuel2 fuel p.2).1)) R).
+                         ((norfuel2 fuel p.1).1 == (norfuel2 fuel p.2).1)) R).
 
 Definition check_convergence C fuel : check_convergence_result :=
   if ~~ (decreasing C R) then NotDecreasing
@@ -1757,6 +1780,7 @@ Proof.
 rewrite /check_convergence /check_convergence_and /spair_confluence_dec.
 case: (decreasing C R) => [/=|//].
 rewrite has_predC; case: (all _ _) => [/=|//].
+rewrite filter_rev_trE all_rev.
 move: (filter _ _) => S; rewrite -[all _ _]negbK -has_predC has_find.
 by case: ltnP.
 Qed.
@@ -1767,7 +1791,7 @@ Proof.
 rewrite /spair_confluence_loop /spair_confluence_dec /=.
 rewrite all_pred_npairsE all_pred_spairsE.
 case: all => //=.
-rewrite all_filter; apply eq_all => [[p1 p2]] /=.
+rewrite filter_rev_trE all_rev all_filter; apply eq_all => [[p1 p2]] /=.
 by rewrite implyNb.
 Qed.
 
@@ -1779,6 +1803,7 @@ case: allP => [/= nonpair | //].
 rewrite (eq_all (a2 := fun p => (norfuel (expfuel fuel) p.1).1
                                 == (norfuel (expfuel fuel) p.2).1)); first last.
   by move=> u; rewrite !norfuel2E.
+rewrite filter_rev_trE all_rev.
 have {nonpair}/spair_confluence loc_confl : forall u v, npair R u v -> u = v.
   by move=> u v /all_npairsP /nonpair /= /eqP ->.
 move/allP => /= confl.
@@ -1851,6 +1876,10 @@ Lemma normalf_ofP u : normalf R u (normal_of u).
 Proof. by rewrite /normal_of; case: terminating_normal. Qed.
 Lemma normal_ofP u : normal R (normal_of u).
 Proof. by case: (normalf_ofP u). Qed.
+Lemma rewrites_to_normalf_of u : rewrites_to R u (normal_of u).
+Proof. by case: (normalf_ofP u). Qed.
+Lemma equiv_normalf_of u : u = normal_of u %[mod R].
+Proof. exact/rewrites_to_equiv/rewrites_to_normalf_of. Qed.
 Lemma normal_of_normal u : normal R u -> normal_of u = u.
 Proof.
 move/eqP => noru; case: (normalf_ofP u) => _.
@@ -1875,9 +1904,7 @@ Lemma normal_of_cat u v :
 Proof.
 apply: (confluentE cvR.1 (normalf_ofP cvR.2 _)).
 rewrite (normalf_equivE cvR.1 (normalf_ofP cvR.2 _)).
-apply: rewrites_to_cat.
-- by have [_ /rewrites_to_equiv] := normalf_ofP cvR.2 u.
-- by have [_ /rewrites_to_equiv] := normalf_ofP cvR.2 v.
+exact/rewrites_to_cat/equiv_normalf_of/equiv_normalf_of.
 Qed.
 Lemma normal_of_catl u v :
   normal_of cvR.2 (u ++ normal_of cvR.2 v) = normal_of cvR.2 (u ++ v).

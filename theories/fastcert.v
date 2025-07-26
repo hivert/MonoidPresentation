@@ -21,13 +21,6 @@ Definition check_convergence_intP fuel R :
   check_convergenceP (rewrites1P _) lt_sizelexi_stable sizelexi_int_wf
     (T := int) (fuel := fuel) (R := R).
 
-Theorem isopres_final : isopres present_entry present_final.
-Proof.
-have wfc : wfpres_cert present_entry cert by vm_cast_no_check (eq_refl true).
-suff -> : present_final = final_pres wfc by apply: iso_final_pres.
-by apply/eqP; rewrite -eqpresE pgen_final_pres prelat_final_pres.
-Qed.
-
 Fixpoint eqseq_int (s1 s2 : seq int) {struct s2} :=
   match s1, s2 with
   | [::], [::] => true
@@ -113,7 +106,8 @@ Proof. by []. Qed.
 
 Definition spair_confluence_dec_int R fuel :=
   if all_tr (fun p => eqseq_int p.1 p.2) (all_npairs_int R) then
-    let spairs := filter (fun p => ~~ eqseq_int p.1 p.2) (all_spairs_int R) in
+    let spairs := filter_rev_tr
+                    (fun p => ~~ eqseq_int p.1 p.2) (all_spairs_int R) in
     (* all (fun p => norfuel_int R fuel p.1 == norfuel_int R fuel p.2) spairs *)
     all_tr (fun p => eqnor R fuel p.1 p.2) spairs
   else false.

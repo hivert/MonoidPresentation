@@ -45,7 +45,7 @@ Variant prescertificate :=
   | Monogenic
   | CycleFree
   | FreeProductMonogenicAndFree
-    (* param: repeated letter a in < a b | a^k = a^l > *)
+    (* param: repeated letter a *)
   | EqualNumberOfOccurences of Alph
     (* param: list of the factorizations of each relations words *)
     (*        in the order given by relwords P                   *)
@@ -59,7 +59,7 @@ Variant prescertificate :=
   (* reorder the generator and relation -- WARNING: very slow if needed *)
   | Reorder of recursive_certificate
   (* alphabet isomorphism [a -> b, b -> a] *)
-  | AlphabetIsom of recursive_certificate
+  | AlphabetIsom of recursive_certificate & seq Alph
   (* alphabet reordering [a, b] -> [b, a] *)
   | AlphabetReorder of recursive_certificate
   (* flip the direction of the relation *)
@@ -95,8 +95,8 @@ Variant check_certified_presentation_result :=
   | CPHomogeneousError
   | CPSpecialError
   (* Recursive cases *)
-  | CPGeneratorMissmatchError
-  | CPRelationMissmatchError
+  | CPGeneratorMissmatchError of (seq int) & (seq int)
+  | CPRelationMissmatchError of (relat int) & (relat int)
   | CPRecursivePresentationNotFound
   | CPStrongCompressBadRel
   | CPStrongCompressNotSpecial
@@ -104,8 +104,6 @@ Variant check_certified_presentation_result :=
   | CPStrongCompressBadLetter
   (* TODO: trie construction error *)
   | CPTrieError
-  (* TODO: used to add parameter for debug *)
-  | ReportError of (relat int * relat int)
   (* TODO: remove me when done *)
   | CPNotImplemented.
 
@@ -176,34 +174,37 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
   | Special =>
       if ~~ is_special (prelat P) then CPSpecialError else CPOk
   | Reverse c => check_recurse c (fun prec =>
-      if pgen P != (pgen prec) then CPGeneratorMissmatchError
+      if pgen P != (pgen prec) then CPGeneratorMissmatchError (pgen P) (pgen prec)
       else if prelat P != dual_relats (prelat prec)
-           then CPRelationMissmatchError
+           then CPRelationMissmatchError (prelat P) (dual_relats (prelat prec))
            else CPOk)
   | Reorder c => check_recurse c (fun prec =>
-      if ~~ perm_eq (pgen P) (pgen prec) then CPGeneratorMissmatchError
-      else if ~~ perm_eq (prelat P) (prelat prec) then CPRelationMissmatchError
+      if ~~ perm_eq (pgen P) (pgen prec) then
+        CPGeneratorMissmatchError (pgen P) (pgen prec)
+      else if ~~ perm_eq (prelat P) (prelat prec) then
+             CPRelationMissmatchError (prelat P) (prelat prec)
            else CPOk)
-  | AlphabetIsom c =>
+  | AlphabetIsom c (* TODO: Fixme *) _ =>
       check_recurse c (fun prec =>
       if (pgen P) is [:: u; v] then
-        if (pgen prec) == [:: v; u] then
-          if map (rgen_rels (switch u v)) (prelat P) == (prelat prec) then CPOk
-          else CPRelationMissmatchError
-        else CPGeneratorMissmatchError
-      else CPGeneratorMissmatchError)
+        let newrelat := map (rgen_rels (switch u v)) (prelat P) in
+        if newrelat == (prelat prec) then CPOk
+        else if newrelat == map swap (prelat prec) then CPOk
+        else CPRelationMissmatchError (prelat P) (prelat prec)
+      else CPGeneratorMissmatchError (pgen P) [::])
   | AlphabetReorder c =>
       check_recurse c (fun prec =>
       if (pgen P) is [:: u; v] then
         if (pgen prec) == [:: v; u] then
           if (prelat P) == (prelat prec) then CPOk
-          else CPRelationMissmatchError
-        else CPGeneratorMissmatchError
-      else CPGeneratorMissmatchError)
-  | FlipAllRelations c => check_recurse c (fun prec =>
-      if pgen P != (pgen prec) then CPGeneratorMissmatchError
-      else if prelat prec != map swap (prelat P) then CPRelationMissmatchError
-           else CPOk)
+          else CPRelationMissmatchError (prelat P) (prelat prec)
+        else CPGeneratorMissmatchError (pgen prec) [:: v; u]
+      else CPGeneratorMissmatchError (pgen prec) [::])
+  | FlipAllRelations c =>
+      check_recurse c (fun prec =>
+      if prelat prec != map swap (prelat P) then
+        CPRelationMissmatchError (prelat prec) (prelat P)
+      else CPOk)
   | StronglyCompressAndReduce c w l => check_recurse c (fun prec =>
       if pgen P is [:: a; b] then
         if prelat P is [:: (a':: u, b':: v)] then
@@ -216,11 +217,10 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
           else if ~~ ((l == 0) || (l == 1))
           then CPStrongCompressBadLetter
           else if pgen prec != [:: 1 - l; l]
-          then CPGeneratorMissmatchError
+          then CPGeneratorMissmatchError (pgen prec) [:: 1 - l; l]
           else let relcred := @reduced_compressed_rels int a u v int l (1 - l) in
                if prelat prec != relcred
-(*               then CPRelationMissmatchError (prelat prec) relcred *)
-               then ReportError (prelat prec, relcred)
+               then CPRelationMissmatchError (prelat prec) relcred
                else CPOk
         else CPStrongCompressBadRel
       else CPNot2Gen)
@@ -286,14 +286,20 @@ rewrite /check_certpres; case: C => [].
   case: (boolP (perm_eq _ _)) => permgen //=.
   case: (boolP (perm_eq _ _)) => permrel //= _.
   exact: (isopres_dec (pres_irrelevance_perm_eq permgen permrel)).
-- move=> r; apply: check_recurseP => prec prec_dec.
+- move=> r _; apply: check_recurseP => prec prec_dec.
   case pgenP : (pgen P) => [//|a [//| b [|//]]].
-  case: eqP => eqgen //=; case: eqP => eqrel //= _.
+  case: eqP => [eqrel _ | _].
+    pose newgK := switchK a b.
+    apply: (rgen_pres_decK (newgK := newgK)).
+    apply: (eqrelat_dec _ prec_dec).
+    by rewrite /= eqrel.
+  case: eqP => [eqrel _ | //].
   pose newgK := switchK a b.
   apply: (rgen_pres_decK (newgK := newgK)).
-  suff -> : rgen_pres P newgK = prec by [].
-  apply/eqP; rewrite -eqpresE /= pgenP eqgen /switch /= !eqxx.
-  by case: (altP (b =P a)) => [eqab | _]; rewrite ?eqab !eqxx /= -eqrel ?eqab.
+  apply: flipped_pres_dec.
+  apply: (eqrelat_dec _ prec_dec).
+  rewrite /= eqrel -map_comp -[LHS]map_id.
+  by apply: eq_map => [[]].
 - move=> r; apply: check_recurseP => prec prec_dec.
   case pgenP : (pgen P) => [//|u [//| v [|//]]].
   case: eqP => eqgen //=; case: eqP => eqrel //= _.
@@ -302,9 +308,9 @@ rewrite /check_certpres; case: C => [].
     by apply/permP => x; rewrite /= !addn0 addnC.
   by rewrite eqrel; apply: perm_refl.
 - move=> r; apply: check_recurseP => prec prec_dec.
-  case: eqP => eqgen //=; case: eqP => eqrel //= _; apply: flipped_pres_dec.
-  suff <- : prec = flipped_pres P by [].
-  by apply/eqP; rewrite -eqpresE eqgen /= !eqxx /= eqrel.
+  case: eqP => eqrel //= _; apply: flipped_pres_dec.
+  apply: (eqrelat_dec _ prec_dec).
+  by rewrite /= eqrel.
 - move=> r w i; apply: check_recurseP => prec prec_dec.
   case Hgen : (pgen P) => [| a [| b [|]]] //.
   case Hrel : (prelat P) => [| [[|a1 r1] [| a2 r2]] [|]] //.
@@ -395,6 +401,8 @@ Definition AB_ABABA_ABA := make_pres [:: 0; 1]
                              [:: ([:: 0; 1; 0; 1; 0], [:: 0; 1; 0])].
 Definition BA_ABBB_BBBBB := make_pres [:: 1; 0]
                            [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])].
+Definition BA_BABAABAA_BABBBABBB := make_pres [::1; 0]
+             [:: ([:: 1; 0; 1; 0; 0; 1; 0; 0], [:: 0; 1; 0; 0; 0; 1; 0; 0; 0])].
 
 Definition list_pres := [:: AB_AAAAAA_ABAABA;
                          AB_AAAB_A;
@@ -402,7 +410,8 @@ Definition list_pres := [:: AB_AAAAAA_ABAABA;
                          AB_ABB_BA;
                          AB_BAAAABBAAA_ABBBAABA;
                          AB_ABABA_ABA;
-                         BA_ABBB_BBBBB
+                         BA_ABBB_BBBBB;
+                         BA_BABAABAA_BABBBABBB
   ].
 
 Lemma all_pres_dec (P : pres int) : P \in list_pres -> WPdecidable P.
@@ -425,8 +434,24 @@ apply: (check_batchP (lc :=
                    [:: [:: 1; 0; 0; 0]; [:: 0; 1; 1]; [:: 0; 0; 0] ];
                  [:: [:: 0; 1; 1]; [:: 1; 0; 0]; [:: 1; 0] ] ];
    StronglyCompressToSpecial;
-   Watier 1 0 [:: 1; 1] [:: 1; 1; 1; 1] 1
-       ])).
+   Watier 1 0 [:: 1; 1] [:: 1; 1; 1; 1] 1;
+   CompleteRewritingSystem
+     [:: add_gen 2 [::1;0;0;0];
+     add_rel [::1;0;1;0;0;2] [::0;2;2;0]
+     [:: RTriple 1 5 false;
+         RTriple 0 0 true;
+         RTriple 1 1 true;
+         RTriple 1 2 true];
+     add_rel [::1;0;1;0;0;1;0;0] [::0;2;2]
+     [:: RTriple 0 0 true;
+         RTriple 1 1 true;
+         RTriple 1 2 true];
+     rm_rel 0
+     [:: RTriple 2 0 true;
+         RTriple 0 1 false;
+         RTriple 0 5 false]]
+     [::1;0;2]
+       ])) .
    by native_cast_no_check (erefl BatchOk).
 Qed.
 

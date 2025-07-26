@@ -19,11 +19,15 @@ theories/compress.v
 theories/batchchecker.v
 theories/inttrie.v
 
-theories/samples/bbaaaabbba_abbbaa.v
-theories/samples/rennertypeD41.v
-theories/samples/rennertypeD51.v
+theories/examples/symmetricgroup4.v
+theories/examples/RennerB41.v
+theories/examples/RennerB51.v
+theories/examples/RennerD41.v
+theories/examples/RennerD51.v
 
-theories/test/
+theories/samples/bbaaaabbba_abbbaa.v
+
+# theories/test/
 
 
 # theories/autocerts/aaaaaa_abaaba.v
