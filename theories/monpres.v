@@ -1,5 +1,5 @@
 From HB Require Import structures.
-From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
+From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq path.
 From mathcomp Require Import choice bigop fintype finfun finset ssralg.
 (*From mathcomp Require Import order.
 From mathcomp Require Import all_ssreflect. *)
@@ -49,6 +49,22 @@ Proof. exact: all_cat. Qed.
 
 End Satisfy.
 
+
+Section SatisfyUnivMor.
+
+Variable (gT : monoidType) (I : choiceType) (P : pres I) (gens : I -> gT).
+Hypothesis gens_sat : satisfy (prelat P) gens.
+
+Lemma satisfy_univmor u v :
+  u = v %[mod (prelat P)] -> univmor gens u = univmor gens v.
+Proof.
+move: u v; apply: equiv_min; first exact/satisfyP.
+split=> [| u v w -> ->| u v1 v2 w|]//.
+by rewrite !univmor_cat => ->.
+Qed.
+
+End SatisfyUnivMor.
+
 Lemma morph_satisfy (I : choiceType)
       (gT : monoidType)
       (hT : monoidType)
@@ -75,41 +91,43 @@ Record presentation_of (M : monoidType) (I : choiceType) (P : pres I) : Type
 
 Notation "P \present M" := (presentation_of M P).
 
-Section ConverseMonoid.
+
+Section MorphFromPres.
 
 Context (M : monoidType) {I : choiceType} (P : pres I) (presP : P \present M).
+Variable (N : monoidType) (f : I -> N).
+Hypothesis (fmor : satisfy (prelat P) f).
 
-Definition cgen : I -> (M^c)%M := prgen presP.
-Let PC := dual_pres P.
+Definition presmor (m : M) : N :=
+  let: exist2 u _ _ := (prgenP presP m) in univmor f u.
 
-Lemma words_of_dual_presE u : (rev u \in words_of PC) = (u \in words_of P).
-Proof. by rewrite !unfold_in /= all_rev. Qed.
-
-Lemma prod_dual_presE s : univmor cgen (rev s) = univmor (prgen presP) s.
+Lemma presmor_genE i : i \in pgen P -> presmor (prgen presP i) = f i.
 Proof.
-elim: s => [| s0 s IHs] /=.
-  by rewrite /rev /= !univmor_nil.
-by rewrite rev_cons univmor_rcons univmor_cons -!IHs.
+move=> iinP.
+have i1inP : [:: i] \in words_of P by apply/allP => j /[!inE] /eqP->.
+rewrite /presmor; case: prgenP => u uinP.
+rewrite -(univmor1 _ i) -prgen_eq // => /(satisfy_univmor fmor) ->.
+by rewrite univmor1.
 Qed.
 
-Fact cgenP (m : M^c) : {w | w \in words_of PC & univmor cgen w = m}.
+Fact presmor_monmorphism : monmorphism presmor.
 Proof.
-have [s sin eqs]:= prgenP presP (m : M).
-exists (rev s); first by have := sin; rewrite words_of_dual_presE.
-by rewrite -{}eqs prod_dual_presE.
+rewrite /presmor; split.
+  case: prgenP => u uinP.
+  rewrite -(univmor_nil (prgen presP)) -prgen_eq //.
+  move=> /(satisfy_univmor fmor) ->.
+  by rewrite univmor_nil.
+move=> m1 m2.
+case: prgenP => u12 u12inP eq12.
+case: prgenP => u1 u1inP eq1.
+case: prgenP => u2 u2inP eq2.
+rewrite -mmorphM /=; apply: (satisfy_univmor fmor).
+move: eq12; rewrite -eq1 -eq2 -mmorphM /= -prgen_eq //.
+by rewrite words_of_cat u1inP u2inP.
 Qed.
-Fact cgen_eq (u v : seq I) :
-  u \in words_of PC -> v \in words_of PC ->
-  (u = v %[mod prelat PC] <-> univmor cgen u = univmor cgen v).
-Proof.
-rewrite -(words_of_dual_presE u) -(words_of_dual_presE v) => uP vP.
-rewrite -dual_pres_equivE /PC dual_presK (prgen_eq presP) //.
-by rewrite -!prod_dual_presE !revK.
-Qed.
-Definition converse_presentation : PC \present M^c :=
-  Presentation cgenP cgen_eq.
+HB.instance Definition _ := isMonMorphism.Build M N presmor presmor_monmorphism.
 
-End ConverseMonoid.
+End MorphFromPres.
 
 
 Section IsoPresMorph.
@@ -209,3 +227,39 @@ Definition present_mon_isopres (M : monoidType) {I J : choiceType}
   (P : pres I) (presP : P \present M) (Q : pres J) (presQ : Q \present M)
   : isopres P Q := IsoPres (isomonK presP presQ) (isomonK presQ presP).
 
+
+Section ConverseMonoid.
+
+Context (M : monoidType) {I : choiceType} (P : pres I) (presP : P \present M).
+
+Definition cgen : I -> (M^c)%M := prgen presP.
+Let PC := dual_pres P.
+
+Lemma words_of_dual_presE u : (rev u \in words_of PC) = (u \in words_of P).
+Proof. by rewrite !unfold_in /= all_rev. Qed.
+
+Lemma prod_dual_presE s : univmor cgen (rev s) = univmor (prgen presP) s.
+Proof.
+elim: s => [| s0 s IHs] /=.
+  by rewrite /rev /= !univmor_nil.
+by rewrite rev_cons univmor_rcons univmor_cons -!IHs.
+Qed.
+
+Fact cgenP (m : M^c) : {w | w \in words_of PC & univmor cgen w = m}.
+Proof.
+have [s sin eqs]:= prgenP presP (m : M).
+exists (rev s); first by have := sin; rewrite words_of_dual_presE.
+by rewrite -{}eqs prod_dual_presE.
+Qed.
+Fact cgen_eq (u v : seq I) :
+  u \in words_of PC -> v \in words_of PC ->
+  (u = v %[mod prelat PC] <-> univmor cgen u = univmor cgen v).
+Proof.
+rewrite -(words_of_dual_presE u) -(words_of_dual_presE v) => uP vP.
+rewrite -dual_pres_equivE /PC dual_presK (prgen_eq presP) //.
+by rewrite -!prod_dual_presE !revK.
+Qed.
+Definition converse_presentation : PC \present M^c :=
+  Presentation cgenP cgen_eq.
+
+End ConverseMonoid.
