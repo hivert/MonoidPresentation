@@ -150,7 +150,7 @@ Section AlphabetChange.
 Context {Alph : choiceType}.
 
 Theorem outwords_of_dec (P : pres Alph) :
-  WPdecidable P -> forall u v : word Alph, decidable (u = v %[mod prelat P]).
+  WPdecidable P -> forall u v : word Alph, decidable (u = v %[mod P]).
 Proof.
 pose G := mem (pgen P).
 have GR : all (fun r => all G r.1 && all G r.2) (undirected (prelat P)).
@@ -172,8 +172,8 @@ case: (altP (count (predC G) u =P count (predC G) v)) =>
 rewrite cntu => cntv.
 have {cntv}/first_occP[b v0 v1] : has (predC G) v by rewrite has_count cntv.
 rewrite all_predC has_predC negbK /= => Gv0 nGb eqv.
-have {nGb} equv : u = v %[mod prelat P] <->
-                 [/\ a = b, u0 = v0 %[mod prelat P] & u1 = v1 %[mod prelat P] ].
+have {nGb} equv : u = v %[mod P] <->
+                 [/\ a = b, u0 = v0 %[mod P] & u1 = v1 %[mod P] ].
   rewrite {IHn u cntu}equ {v}eqv.
   split=> [|[eqab eq0 eq1]]; first last.
     apply: (stable_cat (@equiv_trans _ _) (@equiv_stable _ _)) => //.
@@ -365,10 +365,10 @@ HB.instance Definition _ :=
     from_unit_presmorphism from_unit_in_presmorphism.
 
 Fact to_unit_eq u :
-  u \in words_of P -> from_unit (to_unit u) = u %[mod prelat P].
+  u \in words_of P -> from_unit (to_unit u) = u %[mod P].
 Proof. by move/to_unitK ->; exact: equiv_refl. Qed.
 Fact from_unit_eq l :
-  to_unit (from_unit l) = l %[mod prelat unit_pres].
+  to_unit (from_unit l) = l %[mod unit_pres].
 Proof. by rewrite from_unitK; exact: equiv_refl. Qed.
 Definition monogenic_isopres_unit : isopres P unit_pres :=
   IsoPres (fun a b => to_unit_eq b) (fun _ _ => from_unit_eq _).

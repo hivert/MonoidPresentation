@@ -115,8 +115,7 @@ Definition rewclass (u : wsize) : seq wsize :=
   dfs (fun v : wsize => pmap insub (rewrites (undirected (prelat R)) v))
     #|(wsize : finType)| [::] u.
 
-Lemma rewclassP (u v : wsize) :
-  reflect (u = v %[mod prelat R]) (v \in rewclass u).
+Lemma rewclassP (u v : wsize) : reflect (u = v %[mod R]) (v \in rewclass u).
 Proof.
 apply: (iffP dfsP) => /=[[pth Hpth {v}->] |].
   exists (map val pth) => //=; last by rewrite last_map.

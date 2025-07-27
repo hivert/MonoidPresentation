@@ -636,7 +636,7 @@ Qed.
 
 Structure pres (A : choiceType) := Pres {
   pgen : seq A;
-  prelat : relat A;
+  prelat :> relat A;
   uniq_pgen : uniq pgen;
   wf_relat : correctrelat prelat (mem pgen)
 }.
@@ -666,7 +666,7 @@ Definition words_of R := [pred w | all (mem (pgen R)) w].
 Definition relwords R := relatwords (prelat R).
 Definition WPdecidable R :=
   forall u v, u \in words_of R -> v \in words_of R ->
-                                        decidable (u = v %[mod prelat R]).
+                                        decidable (u = v %[mod R]).
 
 Lemma words_of_prelat R r :
   r \in prelat R -> (r.1 \in words_of R) && (r.2 \in words_of R).
@@ -712,10 +712,10 @@ Lemma words_of_undirected_pres R :
   words_of (undirected_pres R) =i words_of R.
 Proof. by []. Qed.
 Lemma rewrites_to_undirected_pres R u v :
-  rewrites_to (prelat (undirected_pres R)) u v <-> u = v %[mod prelat R].
+  rewrites_to (prelat (undirected_pres R)) u v <-> u = v %[mod R].
 Proof. by []. Qed.
 Lemma equiv_words_ofE R u v :
-  u = v %[mod prelat R] -> (u \in words_of R) = (v \in words_of R).
+  u = v %[mod R] -> (u \in words_of R) = (v \in words_of R).
 Proof.
 rewrite -rewrites_to_undirected_pres.
 by move/rewrites_to_words_ofE; rewrite !words_of_undirected_pres.
@@ -1014,14 +1014,14 @@ Section PresEqEquivTheory.
 
 Variables (A : choiceType) (R R' : pres A).
 Hypothesis eqR : forall u v,
-    [/\ u \in words_of R, v \in words_of R & u = v %[mod prelat R]] <->
-    [/\ u \in words_of R', v \in words_of R' & u = v %[mod prelat R']].
+    [/\ u \in words_of R, v \in words_of R & u = v %[mod R]] <->
+    [/\ u \in words_of R', v \in words_of R' & u = v %[mod R']].
 
 Let mor_subproof u v : u \in words_of R -> v \in words_of R ->
-  u = v %[mod prelat R] -> u = v %[mod prelat R'].
+  u = v %[mod R] -> u = v %[mod R'].
 Proof.
 move=> wu wv Ruv.
-have : [/\ u \in words_of R, v \in words_of R & u = v %[mod prelat R]] by split.
+have : [/\ u \in words_of R, v \in words_of R & u = v %[mod R]] by split.
 by case/eqR.
 Qed.
 
@@ -1029,16 +1029,16 @@ Lemma mor_in_subproof u :
   u \in words_of (undirected_pres R) -> u \in words_of (undirected_pres R').
 Proof.
 move=> wu.
-suff : [/\ u \in words_of R, u \in words_of R & u = u %[mod prelat R]].
+suff : [/\ u \in words_of R, u \in words_of R & u = u %[mod R]].
   by move/eqR; case.
 split=> //; exact: rewrites_to_refl.
 Qed.
 
 Let inv_subproof u v :  u \in words_of R' -> v \in words_of R' ->
- u = v %[mod prelat R'] -> u = v %[mod prelat R].
+ u = v %[mod R'] -> u = v %[mod R].
 Proof.
 move=> wu wv R'uv.
-have : [/\ u \in words_of R', v \in words_of R' & u = v %[mod prelat R']] by split.
+have : [/\ u \in words_of R', v \in words_of R' & u = v %[mod R']] by split.
 by case/eqR.
 Qed.
 
@@ -1046,7 +1046,7 @@ Lemma inv_in_subproof u :
   u \in words_of (undirected_pres R') -> u \in words_of (undirected_pres R).
 Proof.
 move=> wu.
-suff : [/\ u \in words_of R', u \in words_of R' & u = u %[mod prelat R']].
+suff : [/\ u \in words_of R', u \in words_of R' & u = u %[mod R']].
   by move/eqR; case.
 split=> //; exact: rewrites_to_refl.
 Qed.
@@ -1059,9 +1059,9 @@ Let morR'R : {presmorph R' -> R} :=
       idmorRR' (R := undirected_pres R') (R' := undirected_pres R)
         inv_subproof inv_in_subproof.
 
-Fact canmor_eq a : morR'R (morRR' a) = a %[mod prelat R].
+Fact canmor_eq a : morR'R (morRR' a) = a %[mod R].
 Proof. exact: equiv_refl. Qed.
-Fact caninv_eq a : morRR' (morR'R a) = a %[mod prelat R'].
+Fact caninv_eq a : morRR' (morR'R a) = a %[mod R'].
 Proof. exact: equiv_refl. Qed.
 Definition isopres_eq : isopres R R' :=
   IsoPres (fun _ _ => canmor_eq _) (fun _ _ => caninv_eq _).
@@ -1153,10 +1153,10 @@ Qed.
 
 Definition rcons_ext_pres : pres A :=  Pres (uniq_pgen R) wf_rcons_ext_pres.
 
-Hypothesis (Ruv : u = v %[mod prelat R]).
+Hypothesis (Ruv : u = v %[mod R]).
 
 Lemma equiv_cons_rule_mod x y :
-  x = y %[mod prelat R] <-> x = y %[mod (u, v) :: prelat R].
+  x = y %[mod R] <-> x = y %[mod (u, v) :: prelat R].
 Proof.
 rewrite (rewrites_to_cons_rule Ruv).
 have rvu : rewrites_to ((u, v) :: undirected (prelat R)) v u.
@@ -1168,7 +1168,7 @@ by case: eqP; rewrite !(orbT, orbA).
 Qed.
 
 Fact equiv_cons_rule x y :
-  [/\ x \in words_of R, y \in words_of R & x = y %[mod prelat R]] <->
+  [/\ x \in words_of R, y \in words_of R & x = y %[mod R]] <->
   [/\ x \in words_of R, y \in words_of R & x = y %[mod (u, v) :: prelat R]].
 Proof.
 by split; case=> wx wy Rxy; split=> //; apply/equiv_cons_rule_mod.
@@ -1179,14 +1179,14 @@ Lemma isopres_cons_ruleE : isopres_cons_rule = id :> (_ -> _).
 Proof. by []. Qed.
 
 Lemma equiv_rcons_rule_mod x y :
-  x = y %[mod prelat R] <-> x = y %[mod rcons (prelat R) (u, v)].
+  x = y %[mod R] <-> x = y %[mod rcons (prelat R) (u, v)].
 Proof.
 rewrite (equiv_cons_rule_mod x y); apply eq_equiv => /= p.
 by rewrite mem_rcons.
 Qed.
 
 Fact equiv_rcons_rule x y :
-  [/\ x \in words_of R, y \in words_of R & x = y %[mod prelat R]] <->
+  [/\ x \in words_of R, y \in words_of R & x = y %[mod R]] <->
   [/\ x \in words_of R, y \in words_of R & x = y %[mod rcons (prelat R) (u, v)]].
 Proof.
 by split; case=> wx wy Rxy; split=> //; apply/equiv_rcons_rule_mod.
@@ -1201,7 +1201,7 @@ End Tietze1.
 Lemma Tietze_add_rel  A (R1 R2 : pres A) (u v : word A) :
   u \in words_of R1 -> v \in words_of R1 ->
   pgen R1 = pgen R2 -> prelat R2 = rcons (prelat R1) (u, v) ->
-  u = v %[mod prelat R1] -> isopres R1 R2.
+  u = v %[mod R1] -> isopres R1 R2.
 Proof.
 move=> allu allv eqgen eqrelat newrelat.
 suff -> : R2 = rcons_ext_pres allu allv by apply isopres_rcons_rule.
@@ -1247,7 +1247,7 @@ Qed.
 Definition T2_pres : pres A := Pres Tietze2_gen_uniq Tietze2_wf_relat.
 
 
-Lemma sub_2 u v : u = v %[mod prelat R] -> u = v %[mod Tietze2_relat].
+Lemma sub_2 u v : u = v %[mod R] -> u = v %[mod Tietze2_relat].
 Proof. exact: (sub_equiv subset_Tietze2). Qed.
 
 Lemma sub_words_of_T2 u : u \in words_of (undirected_pres R) ->
@@ -1322,13 +1322,13 @@ Qed.
 HB.instance Definition _ :=
   isPresMorphism.Build A A T2_pres R T2inv rewmorphism_T2inv rewmorphism_inT2inv.
 
-Lemma T2morK u : all (mem (pgen R)) u -> T2inv (T2mor u) = u %[mod prelat R].
+Lemma T2morK u : all (mem (pgen R)) u -> T2inv (T2mor u) = u %[mod R].
 Proof. by move/allP_T2inv => ->; apply: equiv_refl. Qed.
-Lemma T2invK v : T2mor (T2inv v) = v %[mod prelat T2_pres].
+Lemma T2invK v : T2mor (T2inv v) = v %[mod T2_pres].
 Proof. exact: (equiv_trans (equiv_refl _ _) (equiv_sym (T2invE v))). Qed.
 
 Fact T2invK_in v :
-  v \in words_of T2_pres -> T2mor (T2inv v) = v %[mod prelat T2_pres].
+  v \in words_of T2_pres -> T2mor (T2inv v) = v %[mod T2_pres].
 Proof. by move => _; exact: T2invK. Qed.
 Definition isopres_Tietze2 : isopres R T2_pres :=
   IsoPres T2morK T2invK_in.
@@ -2048,13 +2048,13 @@ Lemma dual_pres_rewrites_toE R u v :
   <-> rewrites_to (prelat R) u v.
 Proof. exact: rev_rewrites_toE. Qed.
 Lemma dual_pres_equivE R u v :
-  rev u = rev v %[mod prelat (dual_pres R)] <-> u = v %[mod prelat R].
+  rev u = rev v %[mod (dual_pres R)] <-> u = v %[mod R].
 Proof. exact: rev_equivE. Qed.
 Lemma dual_pres_equiv_impl R u v :
-  rev u = rev v %[mod prelat (dual_pres R)] -> u = v %[mod prelat R].
+  rev u = rev v %[mod (dual_pres R)] -> u = v %[mod R].
 Proof. by rewrite dual_pres_equivE. Qed.
 Lemma dual_pres_equiv_implK R u v :
-  u = v %[mod prelat R] -> rev u = rev v %[mod prelat (dual_pres R)].
+  u = v %[mod R] -> rev u = rev v %[mod (dual_pres R)].
 Proof. by rewrite dual_pres_equivE. Qed.
 
 Lemma dual_decK R : WPdecidable (dual_pres R) -> WPdecidable R.
@@ -2125,7 +2125,7 @@ by apply/eqP; rewrite -[RHS]map_id; apply eq_map => [[u v]]; rewrite /= swapK.
 Qed.
 
 Lemma flipped_pres_equivE P u v :
-  u = v %[mod prelat (flipped_pres P)] <-> u = v %[mod prelat P].
+  u = v %[mod (flipped_pres P)] <-> u = v %[mod P].
 Proof. exact: flipped_equivE. Qed.
 Lemma flipped_pres_dec P : WPdecidable (flipped_pres P) -> WPdecidable P.
 Proof.

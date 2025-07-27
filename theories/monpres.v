@@ -86,7 +86,7 @@ Record presentation_of (M : monoidType) (I : choiceType) (P : pres I) : Type
          prgenP : forall (m : M), { w | w \in words_of P & univmor prgen w = m};
          prgen_eq : forall (u v : seq I),
            u \in words_of P -> v \in words_of P ->
-           (u = v %[mod prelat P] <-> univmor prgen u = univmor prgen v)
+           (u = v %[mod P] <-> univmor prgen u = univmor prgen v)
        }.
 
 Notation "P \present M" := (presentation_of M P).
@@ -155,7 +155,7 @@ exact: caninv.
 Qed.
 Fact isoprgen_eq (u v : seq I) :
   u \in words_of P -> v \in words_of P ->
-  (u = v %[mod prelat P] <-> univmor isoprgen u = univmor isoprgen v).
+  (u = v %[mod P] <-> univmor isoprgen u = univmor isoprgen v).
 Proof.
 rewrite !isoprgenE => uinP vinP.
 rewrite -(prgen_eq presQ) ?isopres_words_of //.
@@ -192,7 +192,7 @@ apply/allP => j /flatten_mapP[i inu].
 by have/allP/[apply] := isomon_gen_word i.
 Qed.
 Fact isomon_eq u v : u \in words_of P -> v \in words_of P ->
-  u = v %[mod prelat P] -> isomon u = isomon v %[mod prelat Q].
+  u = v %[mod P] -> isomon u = isomon v %[mod Q].
 Proof.
 rewrite /isomon => uinP vinP.
 rewrite (prgen_eq presP uinP vinP) -!isomonE /=.
@@ -253,7 +253,7 @@ by rewrite -{}eqs prod_dual_presE.
 Qed.
 Fact cgen_eq (u v : seq I) :
   u \in words_of PC -> v \in words_of PC ->
-  (u = v %[mod prelat PC] <-> univmor cgen u = univmor cgen v).
+  (u = v %[mod PC] <-> univmor cgen u = univmor cgen v).
 Proof.
 rewrite -(words_of_dual_presE u) -(words_of_dual_presE v) => uP vP.
 rewrite -dual_pres_equivE /PC dual_presK (prgen_eq presP) //.
