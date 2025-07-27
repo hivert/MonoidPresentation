@@ -385,23 +385,44 @@ Section UniversalProperty.
 
 Variables (A : choiceType) (M : monoidType) (f : A -> M).
 
-Definition univmap (m : {freemon A}) : M := \prod_(i <- m) f i.
+Definition univmor (m : {freemon A}) : M := \prod_(i <- m) f i.
 
-Lemma univmap_is_monmorphism : monmorphism univmap.
-Proof. rewrite /univmap; by split => [|x y]; rewrite -?big_cat ?big_nil. Qed.
+Lemma univmor_is_monmorphism : monmorphism univmor.
+Proof. rewrite /univmor; by split => [|x y]; rewrite -?big_cat ?big_nil. Qed.
 #[export]
-HB.instance Definition _ := isMonMorphism.Build {freemon A} M univmap
-  univmap_is_monmorphism.
-Lemma univmapE x : univmap [fmon x] = f x.
-Proof. by rewrite /univmap big_seq1. Qed.
-Lemma univmap_uniq (g : {mmorphism {freemon A} -> M}) :
-  (forall a : A, g [fmon a] = f a) -> g =1 univmap.
+HB.instance Definition _ := isMonMorphism.Build {freemon A} M univmor
+  univmor_is_monmorphism.
+Lemma univmorE x : univmor [fmon x] = f x.
+Proof. by rewrite /univmor big_seq1. Qed.
+Lemma univmor_uniq (g : {mmorphism {freemon A} -> M}) :
+  (forall a : A, g [fmon a] = f a) -> g =1 univmor.
 Proof.
 move=> eq m; rewrite (FreeMonoidE m) !mmorph_prod; apply: eq_bigr => i _ {m} /=.
-by rewrite eq univmapE.
+by rewrite eq univmorE.
 Qed.
 
+Lemma univmor_nil : univmor [::] = 1.
+Proof. exact: big_nil. Qed.
+Lemma univmor1 a : univmor [fmon a] = f a.
+Proof. by rewrite /univmor big_seq1. Qed.
+Lemma univmor_cat u v : univmor (u ++ v) = univmor u * univmor v.
+Proof. exact: big_cat. Qed.
+Lemma univmor_cons a u : univmor (a :: u) = f a * univmor u.
+Proof. by rewrite -cat1s univmor_cat univmor1. Qed.
+Lemma univmor_rcons u b : univmor (rcons u b) = univmor u * f b.
+Proof. by rewrite -cats1 univmor_cat univmor1. Qed.
+
 End UniversalProperty.
+
+Lemma mmorph_univmorE (A : choiceType) (M : monoidType)
+  (f : {mmorphism {freemon A} -> M}) :
+  f =1 univmor (fun a : A => f [fmon a]).
+Proof.
+move=> x; rewrite (FreeMonoidE x).
+rewrite !mmorph_prod; apply: eq_bigr => a _ /=.
+by rewrite univmorE.
+Qed.
+
 
 (* Monoid structure on the type of finite endofunctions *)
 Module Transformation.
@@ -443,6 +464,7 @@ End Exports.
 End Transformation.
 HB.export Transformation.Exports.
 Notation "{ 'transf' T }" := (Transformation.type T).
+
 
 (* Monoid structure on the type of binary relations on a finType *)
 Module Relation.
