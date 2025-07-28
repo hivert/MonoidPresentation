@@ -145,14 +145,14 @@ case: t wft.
 - by move=> n /= _ _; case: R.
 Qed.
 Lemma correct_rel_transfo :
-  correctrelat (rel_transfo (prelat R) t) (mem (gen_transfo (pgen R) t)).
+  all_relwords (rel_transfo (prelat R) t) (mem (gen_transfo (pgen R) t)).
 Proof.
 case: t wft.
 - by move=> g w /andP[gok win]; apply: Tietze2_wf_relat.
 - move=> u v prf /and3P[uin vin /check_certP eq_u_v].
   exact: wf_rcons_ext_pres.
 - move=> n prf _; case: R => gens rels /= _.
-  rewrite /correctrelat /= remove_ith_intE all_cat => /allP /= allok.
+  rewrite /all_relwords /= remove_ith_intE all_cat => /allP /= allok.
   apply/andP; split; apply/allP => /= p pin; apply allok.
   + exact: mem_take pin.
   + exact: mem_drop pin.
@@ -191,7 +191,7 @@ case: t wft => /=.
   have [uin vin] : u \in words_of newpres /\ v \in words_of newpres.
     have eq_words_of : words_of newpres = words_of R by [].
     rewrite eq_words_of /words_of; move: prf0; case R => gens rels /= _.
-    by rewrite /correctrelat !inE => /allP /= /[apply] /= /andP[-> ->].
+    by rewrite /all_relwords !inE => /allP /= /[apply] /= /andP[-> ->].
   have @iso2 : isopres R newpres.
     apply: isopres_sym.
     apply: (isopres_trans (isopres_rcons_rule uin vin eq_u_v)).
@@ -367,7 +367,7 @@ by apply/eqP; rewrite -eqpresE pgen_final_pres prelat_final_pres.
 Qed.
 
 (* Proof that the presentation is terminating + confluent. *)
-Theorem final_ok : convergent (prelat present_final).
+Theorem final_ok : convergent present_final.
 Proof.
 apply: (rgen_convergent (reorderK (l := final_order) is_true_true) erefl).
 exact: (check_convergenceP (rewrites1P _) lt_sizelexi_stable sizelexi_nat_wf

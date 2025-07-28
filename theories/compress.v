@@ -90,8 +90,8 @@ rewrite allwordsP /= size_take_min eqk eqxx /=.
 apply/allP => x /mem_take; rewrite inE => /orP[/eqP -> //|].
 by move/(allP allu).
 Qed.
-Lemma correctrelat_strong_compress P k :
-  correctrelat
+Lemma all_relwords_strong_compress P k :
+  all_relwords
     [seq (strong_compress k r.1, strong_compress k r.2) | r <- prelat P]
     (mem (allwords (pgen P) k)).
 Proof.
@@ -105,7 +105,7 @@ Definition strong_compress_pres P k : pres (word Alph) :=
     (allwords (pgen P) k)
     [seq (strong_compress k r.1, strong_compress k r.2) | r <- prelat P]
     (allwords_uniq k (uniq_pgen P))
-    (correctrelat_strong_compress P k).
+    (all_relwords_strong_compress P k).
 
 (* The assumption that both side of the relation starts with a implies
    that k >= 1, which in turn implies that there is a non trivial common suffix *)
@@ -137,7 +137,7 @@ Definition rel2letters :=
 
 Fact uniq_ab : uniq [:: a; b].
 Proof. by rewrite /= inE neqab. Qed.
-Fact correct_rel2letters : correctrelat rel2letters (mem [:: a; b]).
+Fact correct_rel2letters : all_relwords rel2letters (mem [:: a; b]).
 Proof.
 apply/allP => /= -[s1 s2] /= /mapP[/= [r1 r2] _ [{s1}-> {s2}->]].
 by apply/andP; split; apply/allP => y /mapP[x _] /=; case: eqP => _ ->;
@@ -255,7 +255,7 @@ rewrite /reduced_compressed_rels /= /rel2letters /strong_compress_pres /= Hrel /
 by rewrite !compressreduceE //= !ltnS !ltnNge ltkszu ltkszv /=.
 Qed.
 Fact wf_fast_compressreduce :
-  correctrelat reduced_compressed_rels (mem [:: x; y]).
+  all_relwords reduced_compressed_rels (mem [:: x; y]).
 Proof. by rewrite -reduced_compressed_presE wf_relat. Qed.
 Definition fast_reduced_compressed_pres : pres B :=
   Pres [:: x; y] _ (uniq_ab neqxy) wf_fast_compressreduce.

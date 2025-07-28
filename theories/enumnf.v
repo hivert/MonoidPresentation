@@ -27,9 +27,9 @@ Unset Printing Implicit Defensive.
 Section NormalFormMonoid.
 
 Context {Alph : choiceType} (P : pres Alph).
-Hypothesis convP : convergent (prelat P).
+Hypothesis convP : convergent P.
 
-Definition normalword_of u := (u \in words_of P) && (normal (prelat P) u).
+Definition normalword_of u := (u \in words_of P) && (normal P u).
 
 Structure normalword := NormalWord {
     nwval :> word Alph;
@@ -83,9 +83,9 @@ End NormalFormMonoid.
 Section EnumNormalForms.
 
 Context {Alph : choiceType} (P : pres Alph).
-Hypothesis convP : convergent (prelat P).
+Hypothesis convP : convergent P.
 Variable rew1 : word Alph -> option (word Alph).
-Hypothesis rew1P : rewrites1_Ok (prelat P) rew1.
+Hypothesis rew1P : rewrites1_Ok P rew1.
 
 Implicit Types (u v w : word Alph) (norf : seq (word Alph)).
 
@@ -222,7 +222,7 @@ Section IsoCan.
 Context {Alph Beta : choiceType}
   (P : pres Alph) (Q : pres Beta)
   (isoPQ : isopres P Q)
-  (Pconv : convergent (prelat P)) (Qconv : convergent (prelat Q)).
+  (Pconv : convergent P) (Qconv : convergent Q).
 
 Definition isocan u := normal_of Qconv.2 (isoPQ u).
 Lemma isocan_words_of w : w \in words_of P -> isocan w \in words_of Q.
@@ -230,13 +230,13 @@ Proof.
 have [_ /rewrites_to_words_ofE <-] := normalf_ofP Qconv.2 (isoPQ w).
 by move/(isopres_words_of isoPQ).
 Qed.
-Lemma isocanP u : normalf (prelat Q) (isoPQ u) (isocan u).
+Lemma isocanP u : normalf Q (isoPQ u) (isocan u).
 Proof. exact: normalf_ofP. Qed.
-Lemma normal_isocan u : normal (prelat Q) (isocan u).
+Lemma normal_isocan u : normal Q (isocan u).
 Proof. by have [] := isocanP u. Qed.
-Lemma rewrites_to_isocan u : rewrites_to (prelat Q) (isoPQ u) (isocan u).
+Lemma rewrites_to_isocan u : rewrites_to Q (isoPQ u) (isocan u).
 Proof. by have [] := isocanP u. Qed.
-Lemma equiv_isocan u : isoPQ u = isocan u %[mod (prelat Q)].
+Lemma equiv_isocan u : isoPQ u = isocan u %[mod Q].
 Proof. exact/rewrites_to_equiv/rewrites_to_isocan. Qed.
 
 End IsoCan.
@@ -247,7 +247,7 @@ Section IsoCanK.
 Context {Alph Beta : choiceType}
   (P : pres Alph) (Q : pres Beta)
   (isoPQ : isopres P Q)
-  (Pconv : convergent (prelat P)) (Qconv : convergent (prelat Q)).
+  (Pconv : convergent P) (Qconv : convergent Q).
 
 Let P2Q := isocan isoPQ Qconv.
 Let Q2P := isocan (isopres_sym isoPQ) Pconv.
@@ -255,7 +255,7 @@ Let Q2P := isocan (isopres_sym isoPQ) Pconv.
 Lemma isocanK u : normalword_of P u -> Q2P (P2Q u) = u.
 Proof.
 rewrite /normalword_of; case/andP => uinP norPu.
-have norfPu : normalf (prelat P) u u by split => //; apply: rewrites_to_refl.
+have norfPu : normalf P u u by split => //; apply: rewrites_to_refl.
 have /equiv_sym := canmor isoPQ uinP; rewrite -(normalf_equivE Pconv.1 norfPu).
 move/(confluentE Pconv.1 _); apply.
 rewrite (normalf_equivE Pconv.1 (isocanP (isopres_sym isoPQ) Pconv (P2Q u))).
@@ -271,7 +271,7 @@ Section NormalIso.
 Context {Alph Beta : choiceType}
   (P : pres Alph) (Q : pres Beta)
   (isoPQ : isopres P Q)
-  (Pconv : convergent (prelat P)) (Qconv : convergent (prelat Q))
+  (Pconv : convergent P) (Qconv : convergent Q)
   (lP : seq (word Alph)) (lQ : seq (word Beta))
   (norlP : is_enum_normal P lP).
 
@@ -323,7 +323,7 @@ set P2Q := isocan _ Qconv; set Q2P := isocan _ Pconv.
 move=> isoK.
 have {isoK} Q2P_inj : {in lQ &, injective Q2P}.
   by apply: (can_in_inj (g := P2Q)) => u /normalword_of_lQ/isoK.
-have norQ2P u : normalf (prelat P) (Q2P u) (Q2P u).
+have norQ2P u : normalf P (Q2P u) (Q2P u).
   apply: normalf_rewrite0; rewrite -/(normal _ _).
   exact: normal_isocan.
 rewrite -(size_map (normal_of Pconv.2 \o Q2P)); apply: uniq_leq_size.
@@ -331,7 +331,7 @@ rewrite -(size_map (normal_of Pconv.2 \o Q2P)); apply: uniq_leq_size.
   have /normalword_of_lQ/andP[uinQ noru] := uin.
   have /normalword_of_lQ/andP[vinQ norv] := vin.
   move/eqP/(normalf_equivP Pconv.1) => eqnor.
-  have {}eqnor : Q2P u = Q2P v %[mod (prelat P)].
+  have {}eqnor : Q2P u = Q2P v %[mod P].
     by apply: eqnor => /=; apply: normalf_ofP.
   apply: Q2P_inj => //.
   by apply/eqP/(normalf_equivP Pconv.1); last exact: eqnor.
@@ -353,9 +353,9 @@ Context {Alph Beta : choiceType}
   (P : pres Alph) (Q : pres Beta)
   (rew1P :  word Alph -> option (word Alph))
   (rew1Q :  word Beta -> option (word Beta))
-  (rew1P_ok : rewrites1_Ok (prelat P) rew1P)
-  (rew1Q_ok : rewrites1_Ok (prelat Q) rew1Q)
-  (Pconv : convergent (prelat P)) (Qconv : convergent (prelat Q)).
+  (rew1P_ok : rewrites1_Ok P rew1P)
+  (rew1Q_ok : rewrites1_Ok Q rew1Q)
+  (Pconv : convergent P) (Qconv : convergent Q).
 
 Theorem size_non_isopres (boundP boundQ : nat) :
   let (lP, okP) := enum_normal P rew1P boundP in

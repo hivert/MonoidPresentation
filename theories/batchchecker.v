@@ -170,40 +170,40 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
   | SmallOverlap facts =>
       if ~~ check_small_overlap 3 P facts then CPSmallOverlapError else CPOk
   | Homogeneous =>
-      if ~~ is_homogeneous (prelat P) then CPHomogeneousError else CPOk
+      if ~~ is_homogeneous P then CPHomogeneousError else CPOk
   | Special =>
-      if ~~ is_special (prelat P) then CPSpecialError else CPOk
+      if ~~ is_special P then CPSpecialError else CPOk
   | Reverse c => check_recurse c (fun prec =>
       if pgen P != (pgen prec) then CPGeneratorMissmatchError (pgen P) (pgen prec)
-      else if prelat P != dual_relats (prelat prec)
-           then CPRelationMissmatchError (prelat P) (dual_relats (prelat prec))
+      else if prelat P != dual_relats prec
+           then CPRelationMissmatchError P (dual_relats prec)
            else CPOk)
   | Reorder c => check_recurse c (fun prec =>
       if ~~ perm_eq (pgen P) (pgen prec) then
         CPGeneratorMissmatchError (pgen P) (pgen prec)
       else if ~~ perm_eq (prelat P) (prelat prec) then
-             CPRelationMissmatchError (prelat P) (prelat prec)
+             CPRelationMissmatchError P prec
            else CPOk)
   | AlphabetIsom c (* TODO: Fixme *) _ =>
       check_recurse c (fun prec =>
       if (pgen P) is [:: u; v] then
         let newrelat := map (rgen_rels (switch u v)) (prelat P) in
-        if newrelat == (prelat prec) then CPOk
+        if newrelat == prelat prec then CPOk
         else if newrelat == map swap (prelat prec) then CPOk
-        else CPRelationMissmatchError (prelat P) (prelat prec)
+        else CPRelationMissmatchError P prec
       else CPGeneratorMissmatchError (pgen P) [::])
   | AlphabetReorder c =>
       check_recurse c (fun prec =>
       if (pgen P) is [:: u; v] then
         if (pgen prec) == [:: v; u] then
           if (prelat P) == (prelat prec) then CPOk
-          else CPRelationMissmatchError (prelat P) (prelat prec)
+          else CPRelationMissmatchError P prec
         else CPGeneratorMissmatchError (pgen prec) [:: v; u]
       else CPGeneratorMissmatchError (pgen prec) [::])
   | FlipAllRelations c =>
       check_recurse c (fun prec =>
       if prelat prec != map swap (prelat P) then
-        CPRelationMissmatchError (prelat prec) (prelat P)
+        CPRelationMissmatchError prec P
       else CPOk)
   | StronglyCompressAndReduce c w l => check_recurse c (fun prec =>
       if pgen P is [:: a; b] then
@@ -220,7 +220,7 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
           then CPGeneratorMissmatchError (pgen prec) [:: 1 - l; l]
           else let relcred := @reduced_compressed_rels int a u v int l (1 - l) in
                if prelat prec != relcred
-               then CPRelationMissmatchError (prelat prec) relcred
+               then CPRelationMissmatchError prec relcred
                else CPOk
         else CPStrongCompressBadRel
       else CPNot2Gen)
@@ -248,7 +248,7 @@ rewrite /check_certpres; case: C => [].
   case: (boolP (all _ _)) => //=; rewrite -pgen_final_pres => pgenOk.
   case: (boolP (spair_confluence_loop_trie _ _ _)) => //= confl _.
   apply: (isopres_dec (@iso_final_pres _ P cert wfc)).
-  have final_term : terminating (prelat (final_pres wfc)).
+  have final_term : terminating (final_pres wfc).
     apply: (rgen_pres_terminating (newgK := reorderK uniq_order)).
     rewrite /= prelat_final_pres.
     exact: (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).
@@ -274,9 +274,9 @@ rewrite /check_certpres; case: C => [].
 - move=> facts.
   case: (boolP (check_small_overlap 3 P facts)) => //= c3 _.
   exact: (check_c3_monoid_dec c3).
-- case: (boolP (is_homogeneous (prelat P))) => //= homog _.
+- case: (boolP (is_homogeneous P)) => //= homog _.
   exact: (homog_dec homog).
-- case: (boolP (is_special (prelat P))) => //= spec _.
+- case: (boolP (is_special P)) => //= spec _.
   exact: (special_dec spec).
 - move=> r; apply: check_recurseP => prec prec_dec.
   case: eqP => eqgen //=; case: eqP => eqrel //= _.

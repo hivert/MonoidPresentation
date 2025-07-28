@@ -53,7 +53,7 @@ Proof. by move/homog_undirected => /[swap] /size_rewrites_to. Qed.
 Section WordOfSize.
 
 Variable R : pres A.
-Hypothesis Rhomog : is_homogeneous (prelat R).
+Hypothesis Rhomog : is_homogeneous R.
 
 Variable n : nat.
 
@@ -101,7 +101,7 @@ HB.instance Definition _ :=
   isFinite.Build wsize (pcan_enumP (can_pcan wtuple_of_wsizeK)).
 
 Lemma wsize_rewrites_wsize (u : wsize) (v : seq A) :
-  v \in rewrites (undirected (prelat R)) u -> {w : wsize | val w = v}.
+  v \in rewrites (undirected R) u -> {w : wsize | val w = v}.
 Proof.
 move=> Ruv.
 suff Hv : (v \in words_of R) && (size v == n) by exists (WordOfSize Hv).
@@ -112,7 +112,7 @@ Qed.
 
 
 Definition rewclass (u : wsize) : seq wsize :=
-  dfs (fun v : wsize => pmap insub (rewrites (undirected (prelat R)) v))
+  dfs (fun v : wsize => pmap insub (rewrites (undirected R) v))
     #|(wsize : finType)| [::] u.
 
 Lemma rewclassP (u v : wsize) : reflect (u = v %[mod R]) (v \in rewclass u).
@@ -133,7 +133,7 @@ Qed.
 
 End WordOfSize.
 
-Theorem homog_dec (R : pres A) : is_homogeneous (prelat R) -> WPdecidable R.
+Theorem homog_dec (R : pres A) : is_homogeneous R -> WPdecidable R.
 Proof.
 move=> homog u v uin vin.
 case: (boolP (size v == size u)) => [eqsz|neqsz].

@@ -1,6 +1,6 @@
 (** * Monoids *)
 (******************************************************************************)
-(*      Copyright (C) 2021      Florent Hivert <florent.hivert@lri.fr>        *)
+(*      Copyright (C) 2025      Florent Hivert <florent.hivert@lri.fr>        *)
 (*                                                                            *)
 (*  Distributed under the terms of the GNU General Public License (GPL)       *)
 (*                                                                            *)
@@ -411,6 +411,11 @@ Lemma univmor_cons a u : univmor (a :: u) = f a * univmor u.
 Proof. by rewrite -cat1s univmor_cat univmor1. Qed.
 Lemma univmor_rcons u b : univmor (rcons u b) = univmor u * f b.
 Proof. by rewrite -cats1 univmor_cat univmor1. Qed.
+Lemma univmor_nseq n a : univmor (nseq n a) = (f a) ^+ n.
+Proof.
+elim: n => [| n IHn] /=; first by rewrite univmor_nil expm0.
+by rewrite univmor_cons IHn expmS.
+Qed.
 
 End UniversalProperty.
 

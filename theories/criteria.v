@@ -153,9 +153,9 @@ Theorem outwords_of_dec (P : pres Alph) :
   WPdecidable P -> forall u v : word Alph, decidable (u = v %[mod P]).
 Proof.
 pose G := mem (pgen P).
-have GR : all (fun r => all G r.1 && all G r.2) (undirected (prelat P)).
+have GR : all (fun r => all G r.1 && all G r.2) (undirected P).
   rewrite /undirected all_cat.
-  have:= wf_relat P; rewrite /correctrelat => ->.
+  have:= wf_relat P; rewrite /all_relwords => ->.
   exact: flipped_pres_subproof.
 have cnteq := rewrites_to_count GR.
 move=> Hdec u; move: {2}(count _ _) (erefl (count (predC G) u)) => n.
@@ -305,13 +305,13 @@ Lemma from_unitK l : to_unit (from_unit l) = l.
 Proof. by rewrite /from_unit /to_unit /= size_nseq -sequnitE. Qed.
 
 Definition unit_relats := [seq (to_unit r.1, to_unit r.2) | r <- prelat P].
-Fact correctrelat_unit_relats : correctrelat unit_relats (mem [:: tt]).
+Fact all_relwords_unit_relats : all_relwords unit_relats (mem [:: tt]).
 Proof.
 apply/allP => /= [[r1 r2]] /= _.
 by rewrite (sequnitE r1) (sequnitE r2) !all_nseq !inE eqxx !orbT.
 Qed.
 Definition unit_pres : pres unit :=
-  Pres [:: tt] _ is_true_true correctrelat_unit_relats.
+  Pres [:: tt] _ is_true_true all_relwords_unit_relats.
 
 Fact to_unit_monmorphism : monmorphism to_unit.
 Proof.
@@ -418,8 +418,8 @@ Theorem free_product_monogenic_free_1rel_dec P :
 Proof.
 rewrite /free_product_monogenic_free => rel1.
 case Hgs : (undup (flatten (relwords P))) => [//|g [|//]] _.
-have gsrel : correctrelat (prelat P) (mem [:: g]).
-  apply/allP => /= -[r1 r2] /= /mem_relatwords.
+have gsrel : all_relwords P (mem [:: g]).
+  apply/allP => /= -[r1 r2] /= /mem_relwords.
   suff rnseq r : r \in relwords P -> exists n, r = nseq n g.
     case/andP => /rnseq [n1] {r1}-> /rnseq [n2] {r2}->.
     by rewrite !all_nseq !inE eqxx !orbT.

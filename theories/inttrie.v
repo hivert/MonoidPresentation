@@ -439,10 +439,10 @@ Qed.
 Canonical flmktrie R := FLTrie (is_flmktrie R).
 
 Lemma trie_rewrites1_front0 R w :
-  correctrelat R (<%O^~ trielen) ->
+  all_relwords R (<%O^~ trielen) ->
   trie_rewrites1_front (mktrie R) w = None -> rewrites_front R w = [::].
 Proof.
-rewrite /trie_rewrites1_front /mktrie /correctrelat => /= corr.
+rewrite /trie_rewrites1_front /mktrie /all_relwords => /= corr.
 case: getprefixtrieP => // Hpref _.
 elim: R corr Hpref => [// | [/= r1 r2 R IHR]].
 case/andP => /andP[allr1 allr2] {}/IHR Hrec Hget.
@@ -456,11 +456,11 @@ by case: eqP.
 Qed.
 
 Lemma getprefixmktrieE R w :
-  correctrelat R (<%O^~ trielen) ->
+  all_relwords R (<%O^~ trielen) ->
   forall u v : word int, getprefixtrie (mktrie R) w = Some (u, v) ->
          u ++ v \in rewrites_front R w.
 Proof.
-rewrite /mktrie /correctrelat => /= corr.
+rewrite /mktrie /all_relwords => /= corr.
 case: getprefixtrieP => // res => v1 v2 {w}-> eqres Hpref u v [{u}<- {v}<-].
 suff {v2} : res \in rewrites_front R v1.
   case/rewrites_frontP => /= suf [r1 r2] /= {eqres Hpref v1}-> {res}-> rinP.
@@ -483,7 +483,7 @@ by case: eqP.
 Qed.
 
 Lemma trie_rewrites1_frontP R :
-  correctrelat R (<%O^~ trielen) ->
+  all_relwords R (<%O^~ trielen) ->
   rewrites1_front_Ok R (trie_rewrites1_front (mktrie R)).
 Proof.
 move=> Hcorr w; rewrite /trie_rewrites1_front /=.
@@ -497,7 +497,7 @@ Definition trie_rewrites1 t :=
   rewrites1_from_front (trie_rewrites1_front t).
 
 Lemma trie_rewrites1P R :
-  correctrelat R (<%O^~ trielen) -> rewrites1_Ok R (trie_rewrites1 (mktrie R)).
+  all_relwords R (<%O^~ trielen) -> rewrites1_Ok R (trie_rewrites1 (mktrie R)).
 Proof. by move/trie_rewrites1_frontP => H; apply:rewrite1_from_frontP. Qed.
 
 
@@ -538,7 +538,7 @@ Section Size.
 Variable P : pres int.
 
 Lemma pgen_size sz :
-  all (<%O^~ sz) (pgen P) -> correctrelat (prelat P) (<%O^~ sz).
+  all (<%O^~ sz) (pgen P) -> all_relwords (prelat P) (<%O^~ sz).
 Proof.
 move=> /allP /= H.
 have /sub_all {}H : subpred (mem (pgen P)) (<%O^~ sz) by move=> i /H.
@@ -597,7 +597,7 @@ apply: IHg => //=.
 by rewrite ltintE maxintE gtn_max -!ltintE lti ltg1.
 Qed.
 
-Lemma corrrelat_trielen : correctrelat (prelat P) (<%O^~ pres_trielen).
+Lemma corrrelat_trielen : all_relwords (prelat P) (<%O^~ pres_trielen).
 Proof. exact/pgen_size/pgen_trielen. Qed.
 
 Definition spair_confluence_loop_trieP :=
@@ -609,13 +609,13 @@ End Size.
 Section EnumNormalForms.
 
 Variable (P : pres int) (trielen : int).
-Hypothesis convP : convergent (prelat P).
+Hypothesis convP : convergent P.
 Hypothesis genPlen : all (<%O^~ max_length) (pgen P).
 
 Implicit Types (u v w : word int) (norf : seq (word int)).
 
 Let Ptrie := mktrie (pres_trielen P) (prelat P).
-Let rew1P : rewrites1_Ok (prelat P) (trie_rewrites1 Ptrie)
+Let rew1P : rewrites1_Ok P (trie_rewrites1 Ptrie)
     := trie_rewrites1P (pgen_maxlen genPlen) (corrrelat_trielen genPlen).
 
 Definition enum_normal_next_trie := enum_normal_next P (trie_rewrites1 Ptrie).
@@ -654,7 +654,7 @@ Definition P := make_pres [::0; 1]
    ([::1;1], [::1])
   ].
 
-Theorem final_ok : convergent (prelat P).
+Theorem final_ok : convergent P.
 Proof.
 apply: diamond.
   apply (decreasing_wf (@lt_sizelexi_stable _ int) sizelexi_int_wf).

@@ -1,6 +1,6 @@
 (** * Monoid Presentations *)
 (******************************************************************************)
-(*      Copyright (C) 2021      Florent Hivert <florent.hivert@lri.fr>        *)
+(*      Copyright (C) 2025      Florent Hivert <florent.hivert@lri.fr>        *)
 (*                                                                            *)
 (*  Distributed under the terms of the GNU General Public License (GPL)       *)
 (*                                                                            *)
@@ -16,8 +16,7 @@
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat seq eqtype
   choice path bigop.
-(*From mathcomp Require Import order.
-From mathcomp Require Import all_ssreflect. *)
+
 
 Require Import monoids factor.
 
@@ -43,10 +42,8 @@ Reserved Notation "x = y %[mod e ]" (at level 70, y at next level,
 Lemma expn_non2 n : 2 ^ n > 0.
 Proof. by case: n => // n; apply: (leq_trans _ (ltn_expl _ _)). Qed.
 
-Definition word (Alph : Type) := seq Alph.
-Definition relat (Alph : Type) := seq (word Alph * word Alph).
 
-
+(* A tail recursive reverse filter for large lists *)
 Section FilterRevTr.
 
 Context {T : Type}.
@@ -70,25 +67,30 @@ Qed.
 End FilterRevTr.
 
 
+(* Relation words of a presentation *)
 Section Defs.
 
 Variable (Alph : choiceType).  (* monoidType inherits from choice *)
 
-Local Notation relat := (relat Alph).
-Local Notation word := (word Alph).
+Definition word := seq Alph.
+Definition relat := seq (word * word).
 
 Implicit Types (R : relat) (u v w x y : word) (p : word * word).
 
-Fixpoint relatwords_rec accu R :=
-  if R is (r1, r2) :: R' then relatwords_rec (r1 :: r2 :: accu) R' else accu.
-Definition relatwords R := relatwords_rec [::] R.
+Definition relwords R :=
+  let fix aux accu R :=
+  if R is (r1, r2) :: R' then aux (r1 :: r2 :: accu) R' else accu
+  in aux [::] R.
 
-Lemma relatwords_recP accu R w :
-  reflect (w \in accu \/
-             exists2 r : word * word, r \in R & (w == r.1) || ((w == r.2)))
-    (w \in relatwords_rec accu R).
+Lemma relwordsP R w :
+  reflect (exists2 r : word * word, r \in R & (w == r.1) || ((w == r.2)))
+    (w \in relwords R).
 Proof.
-apply (iffP idP).
+rewrite /relwords /=; set aux := (X in w \in X [::] R).
+suff auxP (accu : seq word) : reflect
+    (w \in accu \/ exists2 r, r \in R & (w == r.1) || ((w == r.2)))
+    (w \in aux accu R) by apply (iffP (auxP _)); [case | right].
+apply (iffP idP) => /=.
 - elim: R accu => [|[r1 r2] R IHR] //= accu; first by left.
   move=> {}/IHR [| [[s1 s2] sinR /= ws]].
   + rewrite !inE => /or3P[/eqP {w}->|/eqP {w}->|].
@@ -104,15 +106,11 @@ apply (iffP idP).
     by left; rewrite !inE orbA eqw.
   by right; exists (s1, s2).
 Qed.
-Lemma relatwordsP R w :
-  reflect (exists2 r : word * word, r \in R & (w == r.1) || ((w == r.2)))
-    (w \in relatwords R).
-Proof. by apply (iffP (relatwords_recP _ _ _)); [case | right]. Qed.
-Lemma mem_relatwords R u v :
-  (u, v) \in R -> (u \in relatwords R) && (v \in relatwords R).
+Lemma mem_relwords R u v :
+  (u, v) \in R -> (u \in relwords R) && (v \in relwords R).
 Proof.
 move=> inR; apply/andP.
-by split; apply/relatwordsP; exists (u, v); rewrite //= eqxx ?orbT.
+by split; apply/relwordsP; exists (u, v); rewrite //= eqxx ?orbT.
 Qed.
 
 
@@ -414,16 +412,14 @@ Section Symmetry.
 
 Hypothesis Rsym : forall u v, (u, v) \in R -> (v, u) \in R.
 
-Lemma rewrites_sym_impl x y :
-  x \in rewrites R y -> y \in rewrites R x.
+Lemma rewrites_sym_impl x y : x \in rewrites R y -> y \in rewrites R x.
 Proof.
 move=> /rewritesP[pre suf [r1 r2] {y}->{x}-> rinR  /=].
 apply/rewritesP; exists pre suf (r2, r1) => //.
 exact: Rsym.
 Qed.
 
-Lemma rewrites_sym x y :
-  (x \in rewrites R y) = (y \in rewrites R x).
+Lemma rewrites_sym x y : (x \in rewrites R y) = (y \in rewrites R x).
 Proof. by apply/idP/idP; exact: rewrites_sym_impl. Qed.
 
 Lemma rewrites_to_sym : symmetricp rewrites_to.
@@ -573,7 +569,7 @@ Section EqRule.
 Variable R1 R2 : relat.
 Hypothesis eq_rule : R1 =i R2.
 
-Lemma eq_rewrites u : (rewrites R1 u) =i (rewrites R2 u).
+Lemma eq_rewrites u : rewrites R1 u =i rewrites R2 u.
 Proof. by move=> v; apply/idP/idP; apply: sub_rewrites => p /[!eq_rule]. Qed.
 Lemma eq_rewrites_to u v : rewrites_to R1 u v <-> rewrites_to R2 u v.
 Proof. by split; apply: sub_rewrites_to => p /[!eq_rule]. Qed.
@@ -623,26 +619,26 @@ Proof. by rewrite flatten_prodE mmorph_prod [RHS]flatten_map_prodE. Qed.
 End Morphism.
 
 
-(* TODO : change the name *)
-Definition correctrelat (A : choiceType) (R : relat A) (P : pred A) :=
+(* All relations words verify a predicate *)
+Definition all_relwords (A : choiceType) (R : relat A) (P : pred A) :=
   all (fun p => all P p.1 && all P p.2) R.
-Lemma correctrelatE (A : choiceType) (R : relat A) (P : pred A) :
-  correctrelat R P = all (all P) (relatwords R).
+Lemma all_relwordsE (A : choiceType) (R : relat A) (P : pred A) :
+  all_relwords R P = all (all P) (relwords R).
 Proof.
-rewrite /correctrelat; apply/allP/allP => /= [inR w | inR [r1 r2] /= rinR].
-  by case/relatwordsP => -[r1 r2] /inR /= /andP[allr1 allr2] /orP[] /eqP->.
-by rewrite !{}inR //=; move/mem_relatwords : rinR => /andP[].
+rewrite /all_relwords; apply/allP/allP => /= [inR w | inR [r1 r2] /= rinR].
+  by case/relwordsP => -[r1 r2] /inR /= /andP[allr1 allr2] /orP[] /eqP->.
+by rewrite !{}inR //=; move/mem_relwords : rinR => /andP[].
 Qed.
 
+
+(* Structure for presentation *)
 Structure pres (A : choiceType) := Pres {
   pgen : seq A;
   prelat :> relat A;
   uniq_pgen : uniq pgen;
-  wf_relat : correctrelat prelat (mem pgen)
+  wf_relat : all_relwords prelat (mem pgen)
 }.
 
-
-(* assia : introduce a notation for _ = _ %[mod R] which hides the prelat *)
 
 Section Presentation.
 
@@ -663,7 +659,6 @@ Proof. by []. Qed.
 
 (* TODO: improve this name *)
 Definition words_of R := [pred w | all (mem (pgen R)) w].
-Definition relwords R := relatwords (prelat R).
 Definition WPdecidable R :=
   forall u v, u \in words_of R -> v \in words_of R ->
                                         decidable (u = v %[mod R]).
@@ -674,7 +669,7 @@ Proof. by move=> Rr; move/allP: (wf_relat R) => /(_ r Rr). Qed.
 
 Lemma relwords_of R w : w \in relwords R -> w \in words_of R.
 Proof.
-case/relatwordsP=> -[r1 r2] /words_of_prelat /= /andP[r1in r2in].
+case/relwordsP=> -[r1 r2] /words_of_prelat /= /andP[r1in r2in].
 by move=> /orP[]/eqP ->.
 Qed.
 
@@ -683,14 +678,14 @@ Lemma words_of_cat R u v :
 Proof. by rewrite /words_of /= !inE all_cat. Qed.
 
 Lemma rewrites_words_ofE R u v :
-  v \in rewrites (prelat R) u -> (u \in words_of R) = (v \in words_of R).
+  v \in rewrites R u -> (u \in words_of R) = (v \in words_of R).
 Proof.
 case/rewritesP => [pre suf [r1 r2]] /= {u}->{v}->.
 rewrite !words_of_cat.
 by move/words_of_prelat/andP => /=[-> ->].
 Qed.
 Lemma rewrites_to_words_ofE R u v :
-  rewrites_to (prelat R) u v -> (u \in words_of R) = (v \in words_of R).
+  rewrites_to R u v -> (u \in words_of R) = (v \in words_of R).
 Proof.
 case=> pathuv Huv {v}->.
 elim: pathuv u Huv => [| p0 pth IHpth] //= u.
@@ -698,8 +693,7 @@ case/andP => /rewrites_words_ofE ->.
 exact: IHpth.
 Qed.
 
-Fact wf_undirected_pres R :
-  correctrelat (undirected (prelat R)) (mem (pgen R)).
+Fact wf_undirected_pres R : all_relwords (undirected R) (mem (pgen R)).
 Proof.
 apply/allP=> /= [[x1 x2]] /=.
 have /allP := wf_relat R => /= hwf.
@@ -712,7 +706,7 @@ Lemma words_of_undirected_pres R :
   words_of (undirected_pres R) =i words_of R.
 Proof. by []. Qed.
 Lemma rewrites_to_undirected_pres R u v :
-  rewrites_to (prelat (undirected_pres R)) u v <-> u = v %[mod R].
+  rewrites_to (undirected_pres R) u v <-> u = v %[mod R].
 Proof. by []. Qed.
 Lemma equiv_words_ofE R u v :
   u = v %[mod R] -> (u \in words_of R) = (v \in words_of R).
@@ -727,7 +721,7 @@ End Presentation.
 Definition rewmorphism A B (R : pres A) (S : pres B)
   (f : seq A -> seq B) :=
   forall u v : word A, u \in words_of R -> v \in words_of R ->
-  v \in rewrites (prelat R) u -> rewrites_to (prelat S) (f u) (f v).
+  v \in rewrites R u -> rewrites_to S (f u) (f v).
 
 (* assia : or may be axiom on generators and this as a theory lemma *)
 Definition rewmorphism_in A B (R : pres A) (S : pres B)
@@ -738,7 +732,7 @@ Definition rewmorphism_in A B (R : pres A) (S : pres B)
 Definition rewmorphism_to A B (R : pres A) (S : pres B)
   (f : seq A -> seq B) :=
   forall u v : word A, u \in words_of R -> v \in words_of R ->
-     rewrites_to (prelat R) u v -> rewrites_to (prelat S) (f u) (f v).
+     rewrites_to R u v -> rewrites_to S (f u) (f v).
 
 Lemma rewmorphism_toP A B (R : pres A) (S : pres B)
   (f : seq A -> seq B) : rewmorphism R S f <-> rewmorphism_to R S f.
@@ -772,7 +766,7 @@ Variables (A B : choiceType) (R : pres A) (S : pres B) (f : {rewmorph R -> S}).
 
 Lemma rewmorph_toP u v :
   u \in words_of R -> v \in words_of R ->
-  v \in rewrites (prelat R) u -> rewrites_to (prelat S) (f u) (f v).
+  v \in rewrites R u -> rewrites_to S (f u) (f v).
 Proof. exact: rewmorphism_subproof. Qed.
 
 Lemma rewmorph_inP u :
@@ -781,7 +775,7 @@ Proof. exact: rewmorphism_in_subproof. Qed.
 
 Lemma rewmorphP u v :
   u \in words_of R -> v \in words_of R ->
-  rewrites_to (prelat R) u v -> rewrites_to (prelat S) (f u) (f v).
+  rewrites_to R u v -> rewrites_to S (f u) (f v).
 Proof.
 move=> hu hv [p Hp ->].
 elim: p u Hp hu => [u _ _ |p0 pth IHpth u] /=; first exact: rewrites_to_refl.
@@ -871,7 +865,7 @@ HB.end.
 Section IdMor.
 Variables (A : choiceType) (R R' : pres A).
 Hypothesis eqR : forall u v, u \in words_of R -> v \in words_of R ->
-  rewrites_to (prelat R) u v -> rewrites_to (prelat R') u v.
+  rewrites_to R u v -> rewrites_to R' u v.
 Hypothesis inR : forall u, u \in words_of R ->  u \in words_of R'.
 
 Definition idRR' : {freemon A} -> {freemon A} := idfun.
@@ -912,9 +906,9 @@ Record isopres (A B : choiceType) (R : pres A) (S : pres B) := IsoPres {
     mor :> {presmorph R -> S};
     inv : {presmorph S -> R};
     canmor : forall a : word A,
-      a \in words_of R -> inv (mor a) = a %[mod (prelat R)];
+      a \in words_of R -> inv (mor a) = a %[mod R];
     caninv : forall b : word B,
-      b \in words_of S -> mor (inv b) = b %[mod (prelat S)]
+      b \in words_of S -> mor (inv b) = b %[mod S]
   }.
 
 Definition isopres_sym A B (R : pres A) (S : pres B)
@@ -932,7 +926,7 @@ Proof. by move=> H; apply: rewmorph_inP; rewrite words_of_undirected_pres. Qed.
 
 Lemma isopresP A B (R : pres A) (S : pres B) (eq : isopres R S) u v :
   u \in words_of R -> v \in words_of R ->
-  eq u = eq v %[mod (prelat S)] <-> u = v %[mod (prelat R)].
+  eq u = eq v %[mod S] <-> u = v %[mod R].
 Proof.
 move=> wu wv; split => [/(rewmorphP (inv eq)) /= H |]; first last.
   exact: (rewmorphP eq).
@@ -946,7 +940,7 @@ Qed.
 
 Lemma isopres_invP A B (R : pres A) (S : pres B) (eq : isopres R S) u v :
   u \in words_of S -> v \in words_of S ->
-  inv eq u = inv eq v %[mod (prelat R)] <-> u = v %[mod (prelat S)].
+  inv eq u = inv eq v %[mod R] <-> u = v %[mod S].
 Proof. move=> hu hv; exact: (isopresP (isopres_sym eq)). Qed.
 
 Lemma isopres_dec A B (R : pres A) (S : pres B) :
@@ -971,8 +965,8 @@ Variables (A B C : choiceType) (R : pres A) (S : pres B) (T : pres C).
 
 Definition isopres_refl :=
   let uR := undirected_pres R in IsoPres (mor := idmor uR) (inv := idmor uR)
-      (fun a _ => rewrites_to_refl (prelat uR) a)
-      (fun a _ => rewrites_to_refl (prelat uR) a).
+      (fun a _ => rewrites_to_refl uR a)
+      (fun a _ => rewrites_to_refl uR a).
 
 Lemma isopres_reflE : isopres_refl = (@idmor _ R) :> (_ -> _).
 Proof. by []. Qed.
@@ -980,7 +974,7 @@ Proof. by []. Qed.
 Variable (eqRS : isopres R S) (eqST : isopres S T).
 Fact canmor_trans a :
   a \in words_of R ->
-        (inv eqRS \o inv eqST) ((eqST \o eqRS) a) = a %[mod (prelat R)].
+        (inv eqRS \o inv eqST) ((eqST \o eqRS) a) = a %[mod R].
 Proof.
 move=> wa.
 have wRSa : eqRS a \in words_of S by apply: rewmorph_inP.
@@ -992,7 +986,7 @@ Qed.
 
 Fact invmor_trans c :
   c \in words_of T ->
-        (eqST \o eqRS) ((inv eqRS \o inv eqST) c) = c %[mod (prelat T)].
+        (eqST \o eqRS) ((inv eqRS \o inv eqST) c) = c %[mod T].
 Proof.
 move=> wc.
 have wiSTc : inv eqST c \in words_of S by apply: rewmorph_inP.
@@ -1089,7 +1083,7 @@ rewrite !eq_word_of.
 case: (u \in _); rewrite ?orbT //; last by split => [][].
 case: (v \in _); rewrite ?orbT //; last by split => [][].
 suff /eq_equiv_undirected /(_ u v) Heq :
-    undirected (prelat R1) =i undirected (prelat R2).
+    undirected R1 =i undirected R2.
   by split => [][_ _ /Heq].
 by case=> x y; rewrite !mem_undirected !releq.
 Defined.
@@ -1131,8 +1125,7 @@ Proof. exact: pgen_u. Qed.
 Let pgv : all (mem (pgen R)) v.
 Proof. exact: pgen_v. Qed.
 
-Lemma wf_ext_pres :
-  correctrelat ((u, v) :: (prelat R)) (mem (pgen R)).
+Lemma wf_ext_pres : all_relwords ((u, v) :: prelat R) (mem (pgen R)).
 Proof.
 apply/allP=> /= [[x1 x2]] /=.
 have /allP := wf_relat R => /= hwf.
@@ -1143,7 +1136,7 @@ Qed.
 Definition ext_pres : pres A :=  Pres (uniq_pgen R) wf_ext_pres.
 
 Lemma wf_rcons_ext_pres :
-  correctrelat (rcons (prelat R) (u, v)) (mem (pgen R)).
+  all_relwords (rcons (prelat R) (u, v)) (mem (pgen R)).
 Proof.
 apply/allP=> /= [[x1 x2]] /=.
 have /allP := wf_relat R => /= hwf.
@@ -1159,7 +1152,7 @@ Lemma equiv_cons_rule_mod x y :
   x = y %[mod R] <-> x = y %[mod (u, v) :: prelat R].
 Proof.
 rewrite (rewrites_to_cons_rule Ruv).
-have rvu : rewrites_to ((u, v) :: undirected (prelat R)) v u.
+have rvu : rewrites_to ((u, v) :: undirected R) v u.
   by rewrite -(rewrites_to_cons_rule Ruv); apply: equiv_sym.
 rewrite (rewrites_to_cons_rule rvu) {rvu}.
 apply: eq_rewrites_to => {x y}[[/= x y]].
@@ -1231,7 +1224,7 @@ Fact Tietze2_gen_uniq : uniq Tietze2_gen.
 Proof.
 rewrite rcons_uniq gen_nP; exact: uniq_pgen.
 Qed.
-Fact Tietze2_wf_relat : correctrelat Tietze2_relat (mem Tietze2_gen).
+Fact Tietze2_wf_relat : all_relwords Tietze2_relat (mem Tietze2_gen).
 Proof.
 have sub_relat : subpred (mem (prelat R)) (mem Tietze2_relat).
   by move=> x Rx; rewrite /= mem_rcons mem_behead.
@@ -1294,7 +1287,7 @@ apply: rewrites_to1; rewrite /Tietze2_relat rewrites_rcons mem_cat.
 apply/orP; left; apply/rewritesP.
 by exists [::] [::] (w, [:: gen]); rewrite //= ?cats0 // inE.
 Qed.
-Lemma T2invE u : u = T2inv u %[mod (prelat T2_pres)].
+Lemma T2invE u : u = T2inv u %[mod T2_pres].
 Proof.
 apply: equiv_sym.
 exact: (rewrites_to_equiv (T2inv_rewrites_to u)).
@@ -1356,7 +1349,7 @@ apply: (isopres_trans (isopres_Tietze2 allw cok)).
 apply: isopres_eq => u v.
 rewrite /words_of /= /Tietze2_gen {}eqgen.
 suff /eq_equiv_undirected /(_ u v) Heq :
-    undirected (Tietze2_relat R1 g w) =i undirected (prelat R2).
+    undirected (Tietze2_relat R1 g w) =i undirected R2.
   by split => [][-> -> /Heq].
 case=> x y; rewrite !mem_undirected {}eqrelat /Tietze2_relat.
 rewrite !mem_rcons !inE.
@@ -1925,7 +1918,7 @@ case: (terminating_normal Hterm v) => vn norv.
 exact: decP (normalf_equivP Hconfl noru norv).
 Qed.
 
-Corollary convergent_dec (P : pres T) : convergent (prelat P) -> WPdecidable P.
+Corollary convergent_dec (P : pres T) : convergent P -> WPdecidable P.
 Proof. by move/convergentrel_dec => H u v. Qed.
 
 End RewritingTheory.
@@ -1938,7 +1931,7 @@ Hypothesis (perm_gen : perm_eq gens (pgen P)).
 
 Fact pgen_uniq : uniq gens.
 Proof. by rewrite (perm_uniq perm_gen) uniq_pgen. Qed.
-Fact corr_perm_gen : correctrelat (prelat P) (mem gens).
+Fact corr_perm_gen : all_relwords P (mem gens).
 Proof.
 have := wf_relat P; apply: sub_all => [[r1 r2]] /=.
 by rewrite !(eq_all (perm_mem perm_gen)).
@@ -2023,10 +2016,9 @@ Section DualPres.
 Context {A : choiceType}.
 Implicit Type (R : pres A) (u v : word A).
 
-Lemma dual_pres_subproof R :
-  correctrelat (dual_relats (prelat R)) (mem (pgen R)).
+Lemma dual_pres_subproof R : all_relwords (dual_relats R) (mem (pgen R)).
 Proof.
-have:= wf_relat R; rewrite /correctrelat /dual_relats => /allP /= H.
+have:= wf_relat R; rewrite /all_relwords /dual_relats => /allP /= H.
 apply/allP => /= [[s1 s2]] /mapP[/=[r1 r2 /H /andP[/= all1 all2]] [{s1}-> {s2}->]].
 by rewrite !all_rev all1 all2.
 Qed.
@@ -2040,12 +2032,10 @@ by rewrite /dual_relat /= !revK.
 Qed.
 
 Lemma dual_pres_rewritesE R u v :
-  (rev v \in rewrites (prelat (dual_pres R)) (rev u)) =
-    (v \in rewrites (prelat R) u).
+  (rev v \in rewrites (dual_pres R) (rev u)) = (v \in rewrites R u).
 Proof. exact: rev_rewritesE. Qed.
 Lemma dual_pres_rewrites_toE R u v :
-  rewrites_to (prelat (dual_pres R)) (rev u) (rev v)
-  <-> rewrites_to (prelat R) u v.
+  rewrites_to (dual_pres R) (rev u) (rev v) <-> rewrites_to R u v.
 Proof. exact: rev_rewrites_toE. Qed.
 Lemma dual_pres_equivE R u v :
   rev u = rev v %[mod (dual_pres R)] <-> u = v %[mod R].
@@ -2105,9 +2095,9 @@ by rewrite !mem_undirected -{1}/(swap (r2, r1)) -{2}/(swap (r1, r2)) !mem_map //
 Qed.
 
 Lemma flipped_pres_subproof (P : pres A) :
-  correctrelat (map swap (prelat P)) (mem (pgen P)).
+  all_relwords (map swap (prelat P)) (mem (pgen P)).
 Proof.
-have:= wf_relat P; rewrite /correctrelat all_map.
+have:= wf_relat P; rewrite /all_relwords all_map.
 set p1 := (X in all X _ -> _); set p2 := (X in _ -> all X _).
 suff /eq_all -> : p1 =1 p2 by [].
 by rewrite {}/p1 {}/p2 => -[u v] /=; rewrite andbC.
@@ -2277,7 +2267,7 @@ Let rels := map (rgen_rels newg) (prelat R).
 
 Fact gens_uniq: uniq gens.
 Proof. by rewrite (map_inj_uniq (can_inj newgK)) (uniq_pgen R). Qed.
-Fact wf_rels: correctrelat rels (mem gens).
+Fact wf_rels: all_relwords rels (mem gens).
 Proof.
 have ingens : preim newg (mem gens) =i mem (pgen R).
   move=> u; rewrite /gens /preim unfold_in /= mem_map //.
