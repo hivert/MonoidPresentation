@@ -216,7 +216,7 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
           then CPStrongCompressBadPrefixSuffix
           else if ~~ ((l == 0) || (l == 1))
           then CPStrongCompressBadLetter
-          else if pgen prec != [:: 1 - l; l]
+          else if ~~ perm_eq (pgen prec) [:: 1 - l; l]
           then CPGeneratorMissmatchError (pgen prec) [:: 1 - l; l]
           else let relcred := @reduced_compressed_rels int a u v int l (1 - l) in
                if prelat prec != relcred
@@ -228,7 +228,7 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
       if pgen P is [:: a; b] then
         if prelat P is [:: (a':: u, b':: v)] then
           if (a' == a) && (b' == a) && (u != v) then
-            if prefix (a :: v) (a :: u) && suffix (a :: v) (a :: u) then
+            if prefix (a :: u) (a :: v) && suffix (a :: u) (a :: v) then
               CPOk
             else CPStrongCompressNotSpecial
           else CPStrongCompressBadRel
@@ -318,23 +318,29 @@ rewrite /check_certpres; case: C => [].
   case: (boolP (a2 == a)) => // /eqP eq; subst a2.
   case: (boolP (prefix _ _ || _)) => //; rewrite negb_or => Hpresuf.
   case: leqP => // leqsize /=.
-  case (boolP ((i == 0) || (i == 1))) => // eqi.
-  case: eqP => // eqgens; case: eqP => //= eqrels _.
+  case (boolP ((i == 0) || (i == 1))) => //= eqi.
+  case: (boolP (perm_eq _ _)) => // eqgens; case: eqP => //= eqrels _.
   have {eqi}neqi : i != 1 - i.
     by move: eqi; case: eqP => [->|] //; case: eqP => [->|].
   apply: (fast_compress_reduce_dec Hgen (Hrel := Hrel) leqsize (neqxy := neqi)).
-  apply: (perm_gen_pres_dec (gens := [:: 1 - i; i])).
+  apply: (perm_gen_pres_dec (gens := pgen prec)).
+    rewrite /=; apply: (perm_trans eqgens).
     by rewrite /=; apply/permP => j /=; rewrite !addn0 addnC.
-  move => Hyp.
+  move=> Hyp.
   suff <- : prec = (perm_gen_pres Hyp) by [].
-  by apply/eqP; rewrite -eqpresE /= eqgens eqrels !eqxx.
+  by apply/eqP; rewrite -eqpresE /= eqrels !eqxx.
 - case Hgen : (pgen P) => [| a [| b [|]]] //.
   case Hrel : (prelat P) => [| [[|a1 r1] [| a2 r2]] [|]] //.
   case: (boolP (a1 == a)) => // /eqP eq; subst a1.
   case: (boolP (a2 == a)) => // /eqP eq; subst a2.
   case: (boolP (r1 == r2)) => // neqr1r2.
   case: (boolP (prefix _ _ && _)) => // Hpresuf /= _.
-  exact: (strong_and_special_dec Hgen Hrel).
+  apply: flipped_pres_dec.
+  have flgen : pgen (flipped_pres P) = [:: a; b] by [].
+  have flrel : prelat (flipped_pres P) = [:: (a :: r2, a :: r1)].
+    by rewrite /= Hrel.
+  apply: (strong_and_special_dec flgen flrel) => //.
+  by rewrite eq_sym.
 - (* TODO : Remove me !!!!!!!!!!!!!!!!! *)
   by move=> _; exact: DecidabilityTmpAdmitted.
 Qed.
@@ -397,8 +403,8 @@ Definition AB_ABB_BA := make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])].
 Definition AB_BAAAABBAAA_ABBBAABA :=
   make_pres [:: 0; 1]
        [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
-Definition AB_ABABA_ABA := make_pres [:: 0; 1]
-                             [:: ([:: 0; 1; 0; 1; 0], [:: 0; 1; 0])].
+Definition AB_ABA_ABABA := make_pres [:: 0; 1]
+                             [:: ([:: 0; 1; 0], [:: 0; 1; 0; 1; 0])].
 Definition BA_ABBB_BBBBB := make_pres [:: 1; 0]
                            [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])].
 Definition BA_BABAABAA_BABBBABBB := make_pres [::1; 0]
@@ -409,10 +415,11 @@ Definition list_pres := [:: AB_AAAAAA_ABAABA;
                          A_AAA_A;
                          AB_ABB_BA;
                          AB_BAAAABBAAA_ABBBAABA;
-                         AB_ABABA_ABA;
+                         AB_ABA_ABABA;
                          BA_ABBB_BBBBB;
                          BA_BABAABAA_BABBBABBB
   ].
+
 
 Lemma all_pres_dec (P : pres int) : P \in list_pres -> WPdecidable P.
 Proof.
