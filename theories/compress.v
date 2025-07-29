@@ -110,8 +110,8 @@ Definition strong_compress_pres P k : pres (word Alph) :=
 (* The assumption that both side of the relation starts with a implies
    that k >= 1, which in turn implies that there is a non trivial common suffix *)
 Theorem strong_compress_dec (P : pres Alph) :
-  forall a b u v,
-    pgen P = [:: a; b] -> prelat P = [:: (a :: u, a :: v)] -> u != v ->
+  forall a u v,
+    size (pgen P) = 2 -> prelat P = [:: (a :: u, a :: v)] -> u != v ->
     let k := size (long_cprefix (a :: u) (a :: v)) in
     k <= size (long_csuffix (a :: u) (a :: v)) ->
     WPdecidable (strong_compress_pres P k.+1) -> WPdecidable P.
@@ -175,9 +175,9 @@ Section StrongCompressAndReduce.
 
 Context {Alph : choiceType}.
 Variable (P : pres Alph).
-Variable (a b : Alph) (u v : word Alph).
+Variable (a : Alph) (u v : word Alph).
 Hypotheses
-  (Hgen : pgen P = [:: a; b])
+  (Hgen : size (pgen P) = 2)
   (Hrel : prelat P = [:: (a :: u, a :: v)])
   (NonSpecial : ~~ prefix (a :: u) (a :: v) && ~~ prefix (a :: v) (a :: u))
   (Hleft : size (long_cprefix (a :: u) (a :: v)) <=
@@ -303,9 +303,9 @@ Section StrongCompressAndSpecial.
 
 Context {Alph : choiceType}.
 Variable (P : pres Alph).
-Variable (a b : Alph) (u v : word Alph).
+Variable (a : Alph) (u v : word Alph).
 Hypotheses
-  (Hgen : pgen P = [:: a; b])
+  (Hgen : size (pgen P) = 2%N)
   (Hrel : prelat P = [:: (a :: u, a :: v)])
   (ToSpecial : prefix (a :: v) (a :: u) && suffix (a :: v) (a :: u))
   (NonTrivial : u != v).

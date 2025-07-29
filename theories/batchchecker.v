@@ -206,9 +206,9 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
         CPRelationMissmatchError prec P
       else CPOk)
   | StronglyCompressAndReduce c w l => check_recurse c (fun prec =>
-      if pgen P is [:: a; b] then
-        if prelat P is [:: (a':: u, b':: v)] then
-          if ~~ ((a' == a) && (b' == a)) then CPStrongCompressBadRel
+      if pgen P is [:: _; _] then
+        if prelat P is [:: (a :: u, b :: v)] then
+          if ~~ (a == b) then CPStrongCompressBadRel
           else if prefix (a :: u) (a :: v) || prefix (a :: v) (a :: u)
           then CPStrongCompressBadPrefixSuffix
           else if ~~ (size (long_cprefix (a :: u) (a :: v)) <=
@@ -225,9 +225,9 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
         else CPStrongCompressBadRel
       else CPNot2Gen)
   | StronglyCompressToSpecial =>
-      if pgen P is [:: a; b] then
-        if prelat P is [:: (a':: u, b':: v)] then
-          if (a' == a) && (b' == a) && (u != v) then
+      if pgen P is [:: _; _] then
+        if prelat P is [:: (a :: u, b :: v)] then
+          if (a == b) && (u != v) then
             if prefix (a :: u) (a :: v) && suffix (a :: u) (a :: v) then
               CPOk
             else CPStrongCompressNotSpecial
@@ -312,10 +312,10 @@ rewrite /check_certpres; case: C => [].
   apply: (eqrelat_dec _ prec_dec).
   by rewrite /= eqrel.
 - move=> r w i; apply: check_recurseP => prec prec_dec.
-  case Hgen : (pgen P) => [| a [| b [|]]] //.
+  case Hgen : (pgen P) => [| x [| y [|]]] //.
+  have {}Hgen : size (pgen P) = 2%N by rewrite Hgen.
   case Hrel : (prelat P) => [| [[|a1 r1] [| a2 r2]] [|]] //.
-  case: (boolP (a1 == a)) => // /eqP eq; subst a1.
-  case: (boolP (a2 == a)) => // /eqP eq; subst a2.
+  case: (boolP (a1 == a2)) => // /eqP eq; subst a1.
   case: (boolP (prefix _ _ || _)) => //; rewrite negb_or => Hpresuf.
   case: leqP => // leqsize /=.
   case (boolP ((i == 0) || (i == 1))) => //= eqi.
@@ -323,20 +323,19 @@ rewrite /check_certpres; case: C => [].
   have {eqi}neqi : i != 1 - i.
     by move: eqi; case: eqP => [->|] //; case: eqP => [->|].
   apply: (fast_compress_reduce_dec Hgen (Hrel := Hrel) leqsize (neqxy := neqi)).
-  apply: (perm_gen_pres_dec (gens := pgen prec)).
-    rewrite /=; apply: (perm_trans eqgens).
-    by rewrite /=; apply/permP => j /=; rewrite !addn0 addnC.
-  move=> Hyp.
+  apply: (perm_gen_pres_dec (gens := pgen prec)) => [|Hyp].
+     rewrite /=; apply: (perm_trans eqgens).
+     by rewrite /=; apply/permP => j /=; rewrite !addn0 addnC.
   suff <- : prec = (perm_gen_pres Hyp) by [].
   by apply/eqP; rewrite -eqpresE /= eqrels !eqxx.
-- case Hgen : (pgen P) => [| a [| b [|]]] //.
-  case Hrel : (prelat P) => [| [[|a1 r1] [| a2 r2]] [|]] //.
+- case Hgen : (pgen P) => [| x [| y [|]]] //.
+  have {}Hgen : size (pgen P) = 2%N by rewrite Hgen.
+  case Hrel : (prelat P) => [| [[|a1 r1] [| a r2]] [|]] //.
   case: (boolP (a1 == a)) => // /eqP eq; subst a1.
-  case: (boolP (a2 == a)) => // /eqP eq; subst a2.
   case: (boolP (r1 == r2)) => // neqr1r2.
   case: (boolP (prefix _ _ && _)) => // Hpresuf /= _.
   apply: flipped_pres_dec.
-  have flgen : pgen (flipped_pres P) = [:: a; b] by [].
+  have flgen : size (pgen (flipped_pres P)) = 2%N by [].
   have flrel : prelat (flipped_pres P) = [:: (a :: r2, a :: r1)].
     by rewrite /= Hrel.
   apply: (strong_and_special_dec flgen flrel) => //.
