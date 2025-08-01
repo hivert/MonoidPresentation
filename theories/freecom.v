@@ -27,6 +27,7 @@ Unset Printing Implicit Defensive.
 Import Order.SeqLexiSyntax.
 
 
+(** A presentation for the free commutative monoid *)
 Section FreeComoidPres.
 
 Variable n : nat.
@@ -113,6 +114,7 @@ exists [:: l; j; i].
     by rewrite mem_comrelE ltji ltin.
 Qed.
 
+(** Normal forms are sorted words *)
 Theorem FCM_pres_normalE u :
   u \in words_of FCM_pres -> normal FCM_pres u = sorted leq u.
 Proof.
@@ -175,6 +177,7 @@ Qed.
 End FreeComoidPres.
 
 
+(** An alternative implementation using tuple of nat (could use finmap here) *)
 Section TNthZipTuple.
 
 Variables (n : nat) (T : Type).

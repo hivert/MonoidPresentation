@@ -1,3 +1,18 @@
+(** * Rewriting certificate for presentations *)
+(******************************************************************************)
+(*      Copyright (C) 2025      Florent Hivert <florent.hivert@lri.fr>        *)
+(*                                                                            *)
+(*  Distributed under the terms of the GNU General Public License (GPL)       *)
+(*                                                                            *)
+(*    This code is distributed in the hope that it will be useful,            *)
+(*    but WITHOUT ANY WARRANTY; without even the implied warranty of          *)
+(*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *)
+(*    General Public License for more details.                                *)
+(*                                                                            *)
+(*  The full text of the GPL is available at:                                 *)
+(*                                                                            *)
+(*                  http://www.gnu.org/licenses/                              *)
+(******************************************************************************)
 (** Presentation isomorphism certificate / To be extracted from James database *)
 From Coq Require Import Uint63.
 From mathcomp Require Import all_ssreflect.
@@ -378,13 +393,10 @@ End Example.
 
 (*
 Definition image_of_cert (p1 p2 : pres A) (c : pres_cert) : seq (word A).
-Admitted.
 
 Definition morph_of_cert (p1 p2 : pres A) (c : pres_cert) :
   wf_cert p1 p2 c -> {presmorph p1 -> p2}.
-Admitted.
 
 Theorem morph_correct p1 p2 c (wfc : wf_cert p1 p2 c) :
   morph_of_cert wfc = isopres_of_cert wfc.
-Admitted.
 *)

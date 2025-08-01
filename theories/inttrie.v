@@ -1,3 +1,18 @@
+(** * Trie for seq int using primitive arrays *)
+(******************************************************************************)
+(*      Copyright (C) 2025      Florent Hivert <florent.hivert@lri.fr>        *)
+(*                                                                            *)
+(*  Distributed under the terms of the GNU General Public License (GPL)       *)
+(*                                                                            *)
+(*    This code is distributed in the hope that it will be useful,            *)
+(*    but WITHOUT ANY WARRANTY; without even the implied warranty of          *)
+(*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *)
+(*    General Public License for more details.                                *)
+(*                                                                            *)
+(*  The full text of the GPL is available at:                                 *)
+(*                                                                            *)
+(*                  http://www.gnu.org/licenses/                              *)
+(******************************************************************************)
 From HB Require Import structures.
 From Coq Require Import Znat BinIntDef Uint63 PArray.
 From mathcomp Require Import all_ssreflect.
@@ -23,13 +38,7 @@ by apply; apply/ltP/Z2Nat.inj_lt.
 Qed.
 
 
-Fixpoint loop {A : Type} (cnt : nat) (i : int) (f : A -> int -> A) (init : A) : A :=
-    match cnt with
-    | O => init
-    | cnt'.+1 => loop cnt' (i + 1) f (f init i)
-    end.
-
-
+(** Data structure for tries *)
 Section Defs.
 
 Context {T : eqType} (trielen : int).
@@ -42,6 +51,7 @@ Definition isEmpty t := if t is Empty then true else false.
 Lemma isEmptyP t : reflect (t = Empty) (isEmpty t).
 Proof. by case: t => [| x a] /=; apply (iffP idP). Qed.
 
+(** Induction scheme for tries *)
 Section Recursion.
 
 Variables (P : trie -> Type).
@@ -60,6 +70,7 @@ End Recursion.
 Definition indtrie (P : trie -> Prop) := @rectrie P.
 
 
+(** eqType structure for tries *)
 Definition eq_trarray (eqtrie : trie -> trie -> bool) (a b : array trie) :=
   [&& length a == length b,
     eqtrie (default a) (default b) &
@@ -106,7 +117,8 @@ Lemma length_make_trielen :
   length (make trielen Empty) = trielen.
 Proof. by rewrite length_make lelenmax. Qed.
 
-(* Fixed length arrays and tries *)
+(** ** Fixed length arrays and tries *)
+(** Either a is not allocated of length 0 or of length trielen *)
 Definition flarray_tr (istrie : trie -> bool) (a : array trie) :=
   [&& (length a == 0) || (length a == trielen), isEmpty (default a) &
     all (fun i => istrie a.[(of_nat i)]) (iota 0 (to_nat trielen))].
@@ -159,6 +171,8 @@ Canonical flEmpty := FLTrie is_fltrie_empty.
 Hint Resolve is_fltrie_empty : core.
 
 
+(** Update the trie t at node v with upd                         *)
+(** None means nothing is stored both in input and output of upd *)
 Fixpoint updatetrie t v (upd : option T -> option T) :=
   if v is v0 :: v' then
     let: (x, a, sub) := if t is Trie x a then
@@ -174,12 +188,14 @@ Fixpoint updatetrie t v (upd : option T -> option T) :=
 Definition addtrie t v e := updatetrie t v (fun => Some e).
 Definition deltrie t v := updatetrie t v (fun => None).
 
+(** The subtrie of t at node v *)
 Fixpoint getsubtrie t v :=
   match v, t with
   | v0 :: v', Trie x a => getsubtrie a.[v0] v'
   | [::], t => t
   | _, _  => Empty
   end.
+(** The value of t at node v *)
 Definition gettrie t v := if getsubtrie t v is Trie x a then x else None.
 
 Lemma get_empty i : [| | Empty : trie |].[i] = Empty.
@@ -381,13 +397,17 @@ Definition get_updatefltrie (t : fltrie) v upd w :=
   get_updatetrie (v := v) upd w (fltrieP t).
 
 
+(** Given a trie `t` and a word `w`, search for the shortest prefix of `w` *)
+(** that index a non empty node of `t`. If found, return `Some (e, v)`     *)
+(** where `e` is the value and `v` is the suffix of the remaining letters  *)
+(** of `w`. If not found, return `None`                                    *)
 Fixpoint getprefixtrie t w :=
   match t, w with
   | Trie (Some e) a, _ => Some (e, w)
   | Trie None a, w0 :: w' => getprefixtrie a.[w0] w'
   | _, _ => None
   end.
-
+(** Specification of getprefixtrie *)
 Variant getprefixtrie_spec t w : option (T * seq int) -> Type :=
   | PrefixNotFound of (forall v, prefix v w -> gettrie t v = None) :
     getprefixtrie_spec t w None
@@ -415,6 +435,8 @@ Qed.
 End Defs.
 
 
+(** Rewriting and normal forms using trie            *)
+(* Could be made even faster with a Gilman automaton *)
 Section TrieRewrites.
 
 Variable trielen : int.
@@ -533,6 +555,8 @@ Proof. by []. Qed.
 End TrieRewrites.
 
 
+(** Ensuring that the tries have a sufficiently large enough length *)
+(** to deal with a presentation `P`.                                *)
 Section Size.
 
 Variable P : pres int.
@@ -606,6 +630,7 @@ Definition spair_confluence_loop_trieP :=
 End Size.
 
 
+(** Enumeration of normal forms using tries *)
 Section EnumNormalForms.
 
 Variable (P : pres int) (trielen : int).
@@ -643,6 +668,7 @@ Proof. exact: enum_normalP. Qed.
 End EnumNormalForms.
 
 
+(** ** An example *)
 Require Import rewcert sizelexi.
 
 Module Example.
