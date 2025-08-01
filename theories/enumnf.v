@@ -189,8 +189,8 @@ rewrite /normal_sz /= eqSS /normalword_of.
 have -> : (u0 :: u \in words_of P) = (u0 \in pgen P) && (u \in words_of P).
   by rewrite !unfold_in /words_of /=.
 case: (boolP (u0 \in pgen P)) => [u0P |]; rewrite ?andbF ?andbT //=.
-rewrite /normal /= cat_eq0 map_eq0 -/(normal _ u) [X in [&& _, _ & X]]andbC.
-rewrite !andbA andbC -!andbA -/(normal_sz n u) andbC.
+rewrite /normal /= -nilpE cat_nilp !map_nilp !nilpE -/(normal _ u).
+rewrite [X in [&& _, _ & X]]andbC !andbA andbC -!andbA -/(normal_sz n u) andbC.
 case/andP => /[dup] unorf {}/Hn cunorf /eqP rew0.
 rewrite count_filter /normal /= count_flatten sumnE 2!big_map.
 rewrite (bigD1_seq _ u0P (uniq_pgen P)) /= big1_seq ?addn0; first last.

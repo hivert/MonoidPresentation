@@ -18,7 +18,7 @@ From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq path.
 From mathcomp Require Import choice bigop fintype finfun finset ssralg tuple.
 From mathcomp Require Import order.
 
-Require Import monoids present enumnf monpres wfsizelexi.
+Require Import monoids present enumnf monpres sizelexi.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

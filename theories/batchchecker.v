@@ -15,7 +15,7 @@
 (******************************************************************************)
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
-Require Import int_seq wfsizelexi present rewcert fastcert factor
+Require Import int_seq sizelexi present rewcert fastcert factor
   criteria compress homogeneous inttrie.
 
 Set Implicit Arguments.

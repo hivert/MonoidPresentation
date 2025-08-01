@@ -2,7 +2,7 @@ From Coq Require Import Uint63.
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice ssrnat seq order.
 
-Require Import monoids present factor rewcert wfsizelexi.
+Require Import monoids present factor rewcert sizelexi.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

@@ -36,21 +36,9 @@ exact: (can_inj revK).
 Qed.
 End Compl.
 
-Lemma cat_eq0 (T : eqType) (u v : seq T) :
-  (u ++ v == [::]) = (u == [::]) && (v == [::]).
+Lemma map_nilp (T1 T2 : eqType) (u : seq T1) (f : T1 -> T2):
+  (nilp (map f u)) = (nilp u).
 Proof. by case: u. Qed.
-Lemma map_eq0 (T1 T2 : eqType) (u : seq T1) (f : T1 -> T2):
-  (map f u == [::]) = (u == [::]).
-Proof. by case: u. Qed.
-
-
-Lemma catRL_eq (T : eqType) (x y z : seq T) :
-  (x ++ y ++ z == y) = (x == [::]) && (z == [::]).
-Proof.
-apply/eqP/andP => [/(congr1 size)/eqP | [/eqP-> /eqP-> /= /[!cats0]] //].
-rewrite !size_cat addnC -[X in _ == X]addn0 -addnA eqn_add2l addn_eq0.
-by case/andP => /nilP -> /nilP ->.
-Qed.
 
 Lemma cat2E (T : eqType) (u v x y : seq T) :
   size u <= size x -> u ++ v = x ++ y ->
@@ -68,15 +56,8 @@ rewrite [X in _ = X -> _]take_size_cat // => {1}<-.
 by rewrite take_cat ltnNge ltsize /=.
 Qed.
 
-Lemma shape_take (T : Type) (s : seq (seq T)) i :
-  shape (take i s) = take i (shape s).
-Proof. by elim: i s => [| i IHi] [|s0 s] //= /[!IHi]. Qed.
-Lemma shape_drop (T : Type) (s : seq (seq T)) i :
-  shape (drop i s) = drop i (shape s).
-Proof. by elim: i s => [| i IHi] [|s0 s] /=. Qed.
 
-
-Section LongestPrefix.
+Section LongestCommonPrefix.
 
 Context {Alph : eqType}.
 
@@ -141,10 +122,10 @@ rewrite /long_csuffix -prefix_revLR => pru prv.
 by apply: long_cprefixP; rewrite prefix_rev.
 Qed.
 
-End LongestPrefix.
+End LongestCommonPrefix.
 
 
-Section Infixes.
+Section EnumInfixes.
 
 Context {Alph : choiceType}.
 
@@ -326,9 +307,10 @@ move=> -[[a b] c] /mapP[[pre suf] {}/alls/eqP/=eqr [{a}->{b}->{c}->]].
 by rewrite mem_filter /= mem_cut3 uneq0 eqr !eqxx.
 Qed.
 
-End Infixes.
+End EnumInfixes.
 
 
+(** Drop the n-th first element in a sequence of sequence *)
 Section DropSS.
 
 Context {Alph : eqType}.
@@ -394,7 +376,7 @@ Fixpoint is_greedy_rec f :=
     (is_greedy_prefix f0 (f0 ++ head [::] tl)) && (is_greedy_rec tl)
   else true.
 Definition is_greedy_factorisation u f :=
-  [&& [::] \notin f, (* to prevent factorisation ending with [::] *)
+  [&& [::] \notin f, (* prevent factorisation ending with [::] *)
     flatten f == u &
       is_greedy_rec f].
 
@@ -479,6 +461,7 @@ apply: (leq_trans (lesz (dropss (size f0) g) _ _)) => {lesz}.
 Qed.
 
 
+(** The size of the greedy prefix *)
 Fixpoint greedy_prefsize_rec u n :=
   if n is n0.+1 then if p (take n u) then n else greedy_prefsize_rec u n0
   else 0.
@@ -512,6 +495,8 @@ case: (boolP (p (take n.+1 u))) => [ptake | /IHn //].
 by rewrite ptake nptake prefix_take orbC.
 Qed.
 
+
+(** The greedy factorisation *)
 Fixpoint greedy_factor_rec u fuel :=
   if fuel is fuel'.+1 then
     if u == [::] then Some [::] else
@@ -596,6 +581,8 @@ Proof. exact: greedy_factor_recNP. Qed.
 End GreedyFactorisation.
 
 
+From mathcomp Require Import path.
+
 Module Tests.
 Section Tests.
 
@@ -605,6 +592,10 @@ Let f0 := [:: 1; 2; 3].
 Goal is_greedy_factorisation predT [:: 1; 2] [:: [:: 1;  2]].
 by compute. Qed.
 Goal is_greedy_factorisation (fun v => size v <= 1) [:: 1; 2] [:: [:: 1];  [:: 2]].
+by compute. Qed.
+
+Goal greedy_factor (sorted leq) [:: 2; 2; 4; 1; 2; 4; 3; 2; 3; 3; 4]
+     = Some [:: [:: 2; 2; 4]; [:: 1; 2; 4]; [:: 3]; [:: 2; 3; 3; 4]].
 by compute. Qed.
 
 End Tests.

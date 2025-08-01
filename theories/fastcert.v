@@ -1,7 +1,7 @@
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 
-Require Import int_seq wfsizelexi present rewcert.
+Require Import int_seq sizelexi present rewcert.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

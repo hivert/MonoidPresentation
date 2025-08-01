@@ -8,7 +8,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import int_seq present rewcert fastcert criteria wfsizelexi.
+Require Import int_seq present rewcert fastcert criteria sizelexi.
 Require Import inttrie enumnf.
 
 Definition RennerB51_Gay := make_pres [::0;1;2;3;4;5;6;7;8;9;10]

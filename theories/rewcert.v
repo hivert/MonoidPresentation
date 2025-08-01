@@ -1,7 +1,7 @@
 (** Presentation isomorphism certificate / To be extracted from James database *)
 From Coq Require Import Uint63.
 From mathcomp Require Import all_ssreflect.
-Require Import int_seq wfsizelexi monoids present.
+Require Import int_seq sizelexi monoids present.
 
 
 Set Implicit Arguments.

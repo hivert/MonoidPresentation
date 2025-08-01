@@ -643,7 +643,7 @@ Proof. exact: enum_normalP. Qed.
 End EnumNormalForms.
 
 
-Require Import rewcert wfsizelexi.
+Require Import rewcert sizelexi.
 
 Module Example.
 

@@ -8,7 +8,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import int_seq present rewcert fastcert criteria wfsizelexi.
+Require Import int_seq present rewcert fastcert criteria sizelexi.
 Require Import inttrie enumnf.
 
 
