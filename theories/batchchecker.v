@@ -1,3 +1,18 @@
+(** * The checker for the database of 1-relation presentations *)
+(******************************************************************************)
+(*      Copyright (C) 2025      Florent Hivert <florent.hivert@lri.fr>        *)
+(*                                                                            *)
+(*  Distributed under the terms of the GNU General Public License (GPL)       *)
+(*                                                                            *)
+(*    This code is distributed in the hope that it will be useful,            *)
+(*    but WITHOUT ANY WARRANTY; without even the implied warranty of          *)
+(*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *)
+(*    General Public License for more details.                                *)
+(*                                                                            *)
+(*  The full text of the GPL is available at:                                 *)
+(*                                                                            *)
+(*                  http://www.gnu.org/licenses/                              *)
+(******************************************************************************)
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 Require Import int_seq wfsizelexi present rewcert fastcert factor
@@ -10,10 +25,11 @@ Unset Printing Implicit Defensive.
 
 Local Open Scope uint63_scope.
 
-
+(** The (exponential) fuel for checking confluence of rewriting systems *)
 Definition Fuel : nat := 20.
 
 
+(** * The certificate and the checker for a presentation *)
 Section Certificate.
 
 Context {Alph : choiceType}.

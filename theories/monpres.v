@@ -1,11 +1,23 @@
+(** * Presentation and monoid *)
+(******************************************************************************)
+(*      Copyright (C) 2025      Florent Hivert <florent.hivert@lri.fr>        *)
+(*                                                                            *)
+(*  Distributed under the terms of the GNU General Public License (GPL)       *)
+(*                                                                            *)
+(*    This code is distributed in the hope that it will be useful,            *)
+(*    but WITHOUT ANY WARRANTY; without even the implied warranty of          *)
+(*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *)
+(*    General Public License for more details.                                *)
+(*                                                                            *)
+(*  The full text of the GPL is available at:                                 *)
+(*                                                                            *)
+(*                  http://www.gnu.org/licenses/                              *)
+(******************************************************************************)
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq path.
 From mathcomp Require Import choice bigop fintype finfun finset ssralg tuple.
 
-(*From mathcomp Require Import order.
-From mathcomp Require Import all_ssreflect. *)
-
-Require Import monoids present enumnf.
+Require Import monoids present.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -15,6 +27,7 @@ Unset Printing Implicit Defensive.
 Reserved Notation "gr \present G" (at level 10, G at next level).
 
 
+(** * Some generators verify a list of relation *)
 Section Satisfy.
 
 Variable (gT : monoidType) (I : choiceType).
@@ -51,6 +64,7 @@ Proof. exact: all_cat. Qed.
 End Satisfy.
 
 
+(** * Universal morphims for a presentation *)
 Section SatisfyUnivMor.
 
 Variable (gT : monoidType) (I : choiceType) (P : pres I) (gens : I -> gT).
@@ -80,6 +94,7 @@ Import GRing.Theory.
 
 Local Open Scope ring_scope.
 
+(** * The monoid M is presented by the presentation P *)
 Record presentation_of (M : monoidType) (I : choiceType) (P : pres I) : Type
   := Presentation {
          mgen : I -> M;
@@ -91,6 +106,7 @@ Record presentation_of (M : monoidType) (I : choiceType) (P : pres I) : Type
 Notation "P \present M" := (presentation_of M P).
 
 
+(** * Get a morphism from M thanks to a presentation P *)
 Section MorphFromPres.
 
 Context {M : monoidType} {I : choiceType} (P : pres I) (presP : P \present M).
@@ -127,48 +143,6 @@ Qed.
 HB.instance Definition _ := isMonMorphism.Build M N presmor presmor_monmorphism.
 
 End MorphFromPres.
-
-
-Section Convergent.
-
-Context {I: choiceType} (P : pres I) (convP : convergent P).
-
-Let gen := [fun i : I => mknormal convP [:: i]].
-
-Lemma univmor_mknormalE u :
-  u \in words_of P -> univmor gen u = normal_of convP.2 u :> word I.
-Proof.
-elim: u => [_ | u0 u IHu  u0uin]/=.
-  by rewrite univmor_nil normal_of_normal // (normal0 convP.2).
-have [u0in uin] : ([:: u0] \in words_of P) /\ u \in words_of P.
-  by move: u0uin; rewrite !unfold_in /= => /andP[-> ->].
-rewrite univmor_cons /= {}IHu // -[in RHS]cat1s -[RHS]normal_of_cat /=.
-by rewrite mknormalE.
-Qed.
-Lemma univmor_mknormal_ofE u :
-  normalword_of P u -> univmor gen u = u :> word I.
-Proof.
-by case/andP=> uin unor; rewrite univmor_mknormalE ?normal_of_normal.
-Qed.
-
-Fact nword_monoid_genP m : exists2 w, w \in words_of P & univmor gen w = m.
-Proof.
-case: m => u /= noru; exists u; first by case/andP : noru.
-by apply val_inj => /=; exact: univmor_mknormal_ofE.
-Qed.
-Fact nword_monoid_eq (u v : seq I) :
-  u \in words_of P -> v \in words_of P ->
-  (u = v %[mod P] <-> univmor gen u = univmor gen v).
-Proof.
-move=> uin vin; split => [Heq | /(congr1 val) /=].
-  by apply: val_inj => /=; rewrite !univmor_mknormalE // -equiv_normal_ofE.
-by rewrite (univmor_mknormalE uin) (univmor_mknormalE vin) -equiv_normal_ofE.
-Qed.
-Definition nword_monoid_present : P \present (nword_monoid convP) :=
-  Presentation nword_monoid_genP nword_monoid_eq.
-
-End Convergent.
-
 
 Section IsoPresMorph.
 
