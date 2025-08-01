@@ -1869,10 +1869,10 @@ Lemma normalf_ofP u : normalf R u (normal_of u).
 Proof. by rewrite /normal_of; case: terminating_normal. Qed.
 Lemma normal_ofP u : normal R (normal_of u).
 Proof. by case: (normalf_ofP u). Qed.
-Lemma rewrites_to_normalf_of u : rewrites_to R u (normal_of u).
+Lemma rewrites_to_normal_of u : rewrites_to R u (normal_of u).
 Proof. by case: (normalf_ofP u). Qed.
-Lemma equiv_normalf_of u : u = normal_of u %[mod R].
-Proof. exact/rewrites_to_equiv/rewrites_to_normalf_of. Qed.
+Lemma equiv_normal_of u : u = normal_of u %[mod R].
+Proof. exact/rewrites_to_equiv/rewrites_to_normal_of. Qed.
 Lemma normal_of_normal u : normal R u -> normal_of u = u.
 Proof.
 move/eqP => noru; case: (normalf_ofP u) => _.
@@ -1897,7 +1897,7 @@ Lemma normal_of_cat u v :
 Proof.
 apply: (confluentE cvR.1 (normalf_ofP cvR.2 _)).
 rewrite (normalf_equivE cvR.1 (normalf_ofP cvR.2 _)).
-exact/rewrites_to_cat/equiv_normalf_of/equiv_normalf_of.
+exact/rewrites_to_cat/equiv_normal_of/equiv_normal_of.
 Qed.
 Lemma normal_of_catl u v :
   normal_of cvR.2 (u ++ normal_of cvR.2 v) = normal_of cvR.2 (u ++ v).
@@ -1905,6 +1905,15 @@ Proof. by rewrite -normal_of_cat normal_of_id normal_of_cat. Qed.
 Lemma normal_of_catr u v :
   normal_of cvR.2 (normal_of cvR.2 u ++ v) = normal_of cvR.2 (u ++ v).
 Proof. by rewrite -normal_of_cat normal_of_id normal_of_cat. Qed.
+
+Lemma equiv_normal_ofE u v :
+  u = v %[mod R] <-> normal_of cvR.2 u = normal_of cvR.2 v.
+Proof.
+split => [] Heq.
+  by apply/eqP/(normalf_equivP cvR.1); try exact: normalf_ofP.
+apply: (equiv_trans (equiv_normal_of cvR.2 u)); rewrite Heq.
+exact/equiv_sym/equiv_normal_of.
+Qed.
 
 End NormalOf.
 

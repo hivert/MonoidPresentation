@@ -18,6 +18,7 @@ theories/criteria.v
 theories/compress.v
 theories/batchchecker.v
 theories/inttrie.v
+theories/freecom.v
 
 theories/examples/symmetricgroup4.v
 theories/examples/RennerB41.v

@@ -1,6 +1,6 @@
-(** * Monoid Presentations *)
+(** * Normal forms of a convergent monoid presentation *)
 (******************************************************************************)
-(*      Copyright (C) 2021      Florent Hivert <florent.hivert@lri.fr>        *)
+(*      Copyright (C) 2025      Florent Hivert <florent.hivert@lri.fr>        *)
 (*                                                                            *)
 (*  Distributed under the terms of the GNU General Public License (GPL)       *)
 (*                                                                            *)
@@ -24,62 +24,87 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 
+(** The monoid of normal forms of a convergent presentation *)
 Section NormalFormMonoid.
 
 Context {Alph : choiceType} (P : pres Alph).
 Hypothesis convP : convergent P.
 
-Definition normalword_of u := (u \in words_of P) && (normal P u).
+Definition normalword_of (u : word Alph) := (u \in words_of P) && (normal P u).
 
-Structure normalword := NormalWord {
+Structure norword := NorWord {
     nwval :> word Alph;
     _ : normalword_of nwval
   }.
 
-HB.instance Definition _ := [isSub of normalword for nwval].
+HB.instance Definition _ := [isSub of norword for nwval].
 
-Implicit Type (x y : normalword).
+Implicit Type (x y : norword).
+
+Lemma norword_of x : (x : word Alph) \in words_of P.
+Proof. by case: x => [x /= /andP[]]. Qed.
+Lemma norwordP x : normal P x.
+Proof. by case: x => [x /= /andP[]]. Qed.
+Hint Resolve norword_of norwordP : core.
+
 
 Fact normalword_of_onepm : normalword_of [::].
 Proof. by rewrite /normalword_of /= (normal0 convP.2). Qed.
-Definition onepm := NormalWord normalword_of_onepm.
+Definition onepm := NorWord normalword_of_onepm.
 
-Let mulpmval x y : word Alph :=
-      normal_of convP.2 ((x : word Alph) ++ (y : word Alph)).
+Let mk (u : word Alph) := normal_of convP.2 u.
+Fact mkP u : u \in words_of P -> normalword_of (mk u).
+Proof.
+rewrite /mk /normalword_of normal_ofP andbT.
+by rewrite (equiv_words_ofE (equiv_normal_of convP.2 u)).
+Qed.
+
+Let mulpmval x y : word Alph := mk ((x : word Alph) ++ (y : word Alph)).
 Fact normalword_of_mulpm x y : normalword_of (mulpmval x y).
 Proof.
-case: x y => [x px][y py]; move: px py.
-rewrite /normalword_of /mulpmval /= => /andP[xP norx] /andP[yP nory].
-have [-> /rewrites_to_words_ofE <-] := normalf_ofP convP.2 (x ++ y).
-by rewrite words_of_cat xP yP.
+rewrite /mulpmval; apply: mkP.
+by rewrite words_of_cat !norword_of.
 Qed.
-Definition mulpm x y := NormalWord (normalword_of_mulpm x y).
+Definition mulpm x y := NorWord (normalword_of_mulpm x y).
 
 Fact mult1pm : left_id onepm mulpm.
 Proof.
-case => [x norx] /=; apply val_inj => /=.
+move=> x; apply val_inj => /=.
 rewrite /mulpmval /=; apply (confluentE convP.1 (normalf_ofP convP.2 _)).
-by apply: normalf_rewrite0; case/andP: norx.
+exact/normalf_rewrite0/norwordP.
 Qed.
 Fact multpm1 : right_id onepm mulpm.
 Proof.
-case => [x norx] /=; apply val_inj => /=.
+move=> x; apply val_inj => /=.
 rewrite /mulpmval /=; apply (confluentE convP.1 (normalf_ofP convP.2 _)).
-by rewrite cats0; apply: normalf_rewrite0; case/andP: norx.
+by rewrite cats0; exact/normalf_rewrite0/norwordP.
 Qed.
 Fact multpmA : associative mulpm.
 Proof.
-move=> [x norx][y nory][z norz]; apply val_inj => /=.
+move=> x y z; apply val_inj => /=.
 repeat rewrite /mulpmval /=.
-by rewrite normal_of_catl normal_of_catr catA.
+by rewrite /mk normal_of_catl normal_of_catr catA.
 Qed.
-HB.instance Definition _ := [Choice of normalword by <:].
-HB.instance Definition _ := isMonoid.Build normalword multpmA mult1pm multpm1.
+HB.instance Definition _ := [Choice of norword by <:].
+HB.instance Definition _ := isMonoid.Build norword multpmA mult1pm multpm1.
+
+Definition nword_monoid : monoidType := norword.
+
+Definition mknormal u : nword_monoid :=
+  if boolP (u \in words_of P) is AltTrue pf then NorWord (@mkP u pf)
+  else onepm.
+Lemma mknormalE u : u \in words_of P -> \val (mknormal u) = normal_of convP.2 u.
+Proof. by rewrite /mknormal; case (boolP (u \in words_of P)). Qed.
+
+Lemma mknormal_ofE u : normalword_of u -> \val (mknormal u) = u.
+Proof.
+by move=> /[dup] norwu /andP[uin noru]; rewrite mknormalE // normal_of_normal.
+Qed.
 
 End NormalFormMonoid.
 
 
-(* TODO : use a Gilman graph here *)
+(** TODO : use a Gilman graph here *)
 Section EnumNormalForms.
 
 Context {Alph : choiceType} (P : pres Alph).
@@ -187,10 +212,11 @@ by rewrite mem_enum_normalP.
 Qed.
 
 (** Given a bound returns the list of normal forms of size less than bound
-and a boolean telling if that list is complete *)
+and a boolean certifying that list is complete *)
 Definition enum_normal bound :=
   let l := traject enum_normal_next [:: [::]] bound in
   (flatten l, last [::[::]] l == [::]).
+(** l is a complete list of normal forms for P *)
 Definition is_enum_normal l :=
   uniq l /\ forall u, (normalword_of P u) = (u \in l).
 
@@ -216,7 +242,7 @@ Qed.
 End EnumNormalForms.
 
 
-(* isopres preserve the number of normal forms (if finite) *)
+(** A map between normal forms of P and Q *)
 Section IsoCan.
 
 Context {Alph Beta : choiceType}
@@ -241,7 +267,7 @@ Proof. exact/rewrites_to_equiv/rewrites_to_isocan. Qed.
 
 End IsoCan.
 
-
+(** isocan is a bijection between normal forms *)
 Section IsoCanK.
 
 Context {Alph Beta : choiceType}
@@ -266,6 +292,7 @@ Qed.
 End IsoCanK.
 
 
+(** `isopres` preserve the number of normal forms (if finite) *)
 Section NormalIso.
 
 Context {Alph Beta : choiceType}
@@ -338,7 +365,7 @@ rewrite -(size_map (normal_of Pconv.2 \o Q2P)); apply: uniq_leq_size.
 move=> /= u /mapP[/= v /normalword_of_lQ norv {u}->].
 move: norlP; rewrite /is_enum_normal => -[_ <-].
 move: norv; rewrite /normalword_of => /andP[vin _].
-rewrite normal_ofP andbT -(equiv_words_ofE (equiv_normalf_of _ (Q2P v))).
+rewrite normal_ofP andbT -(equiv_words_ofE (equiv_normal_of _ (Q2P v))).
 exact: isocan_words_of.
 Qed.
 
@@ -347,6 +374,7 @@ End NormalNonIso.
 End NormalIso.
 
 
+(** * Allows to prove that two presentations are not isomorphic. *)
 Section NonIsoPres.
 
 Context {Alph Beta : choiceType}
