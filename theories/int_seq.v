@@ -158,8 +158,7 @@ rewrite Order.POrderTheory.le_eqVlt neq0 /= => /ltleint.
 by rewrite leintE to_natD.
 Qed.
 
-Lemma to_natB x y :
-  (x <= y)%O -> to_nat (y - x) = (to_nat y - to_nat x)%N.
+Lemma to_natB x y : (x <= y)%O -> to_nat (y - x) = (to_nat y - to_nat x)%N.
 Proof.
 move=> /lebP /Zorder.Zle_minus_le_0 le0xBy.
 rewrite sub_spec BinInt.Z.mod_small ?Z2Nat.inj_sub //; split => //.
@@ -185,7 +184,6 @@ Proof. by move=> lt; rewrite to_natME modn_small. Qed.
 
 Lemma to_nat_mod x y : to_nat (x mod y) = (to_nat x %% to_nat y)%N.
 Proof. by rewrite mod_spec Z2Nat.inj_mod // mod_natE. Qed.
-
 Lemma to_nat_div x y : to_nat (x / y) = (to_nat x %/ to_nat y)%N.
 Proof. by rewrite div_spec Z2Nat.inj_div // div_natE. Qed.
 

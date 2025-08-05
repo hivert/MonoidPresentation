@@ -22,11 +22,14 @@ Unset Printing Implicit Defensive.
 
 (* Potential PRs to MathComp *)
 Section Compl.
-Context {T : Type}.
-Definition swap (p : T * T) := (p.2, p.1).
+
+Context {T1 T2 : Type}.
+Implicit Type u v : seq T1.
+
+Definition swap (p : T1 * T1) := (p.2, p.1).
 Lemma swapK : involutive swap. Proof. by move => [i j]. Qed.
 Lemma swap_inj : injective swap. Proof. exact: (can_inj swapK). Qed.
-Implicit Type u v : seq T.
+
 Lemma catl_inj u : injective (cat u).
 Proof. by elim: u => [|a u IHu] //= v1 v2 []; exact: IHu. Qed.
 Lemma catr_inj u : injective (cat^~ u).
@@ -34,15 +37,12 @@ Proof.
 move=> v1 v2 /(congr1 rev) /[!rev_cat] /catl_inj.
 exact: (can_inj revK).
 Qed.
-End Compl.
 
-Lemma map_nilp (T1 T2 : eqType) (u : seq T1) (f : T1 -> T2):
-  (nilp (map f u)) = (nilp u).
+Lemma map_nilp (f : T1 -> T2) u : nilp [seq f i | i <- u] = nilp u.
 Proof. by case: u. Qed.
 
-Lemma cat2E (T : eqType) (u v x y : seq T) :
-  size u <= size x -> u ++ v = x ++ y ->
-  exists2 mid, v = mid ++ y & x = u ++ mid.
+Lemma cat2E u v x y : size u <= size x -> u ++ v = x ++ y ->
+                      exists2 mid, v = mid ++ y & x = u ++ mid.
 Proof.
 move=> ltsize eq.
 exists (take (size x - size u) v).
@@ -55,6 +55,8 @@ have := congr1 (take (size x)) eq.
 rewrite [X in _ = X -> _]take_size_cat // => {1}<-.
 by rewrite take_cat ltnNge ltsize /=.
 Qed.
+
+End Compl.
 
 
 Section LongestCommonPrefix.
@@ -586,9 +588,6 @@ From mathcomp Require Import path.
 Module Tests.
 Section Tests.
 
-Let G := [:: [:: 1; 2]; [:: 3; 4; 5]; [:: 6; 7]].
-Let f0 := [:: 1; 2; 3].
-
 Goal is_greedy_factorisation predT [:: 1; 2] [:: [:: 1;  2]].
 by compute. Qed.
 Goal is_greedy_factorisation (fun v => size v <= 1) [:: 1; 2] [:: [:: 1];  [:: 2]].
@@ -596,6 +595,10 @@ by compute. Qed.
 
 Goal greedy_factor (sorted leq) [:: 2; 2; 4; 1; 2; 4; 3; 2; 3; 3; 4]
      = Some [:: [:: 2; 2; 4]; [:: 1; 2; 4]; [:: 3]; [:: 2; 3; 3; 4]].
+by compute. Qed.
+
+Goal greedy_factor (sorted ltn) [:: 2; 2; 4; 1; 2; 4; 3; 2; 3; 3; 4]
+     = Some [:: [:: 2]; [::2; 4]; [:: 1; 2; 4]; [:: 3]; [:: 2; 3]; [:: 3; 4]].
 by compute. Qed.
 
 End Tests.
