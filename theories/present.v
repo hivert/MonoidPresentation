@@ -67,6 +67,20 @@ Qed.
 End FilterRevTr.
 
 
+Lemma wf_f T1 T2 (R : T1 -> T1 -> Prop) (S : T2 -> T2 -> Prop) (f : T1 -> T2) :
+  (forall x y : T1, R x y -> S (f x) (f y)) -> well_founded S -> well_founded R.
+Proof.
+move=> RS WfS x.
+move: {2}(f x) (erefl (f x)) => a; move: a x.
+apply: (well_founded_induction_type WfS) => a IHa x Hx.
+by apply: Acc_intro => y {}/RS; rewrite Hx => /IHa; apply.
+Qed.
+
+Lemma wf_impl (T : Type) (R : T -> T -> Prop) (S : T -> T -> Prop) :
+  (forall x y : T, R x y -> S x y) -> well_founded S -> well_founded R.
+Proof. exact: wf_f. Qed.
+
+
 (* Relation words of a presentation *)
 Section Defs.
 
@@ -113,6 +127,17 @@ move=> inR; apply/andP.
 by split; apply/relwordsP; exists (u, v); rewrite //= eqxx ?orbT.
 Qed.
 
+(* All relations words verify a predicate *)
+Definition all_relwords R (P : pred Alph) :=
+  all (fun p => all P p.1 && all P p.2) R.
+Lemma all_relwordsE R (P : pred Alph) :
+  all_relwords R P = all (all P) (relwords R).
+Proof.
+rewrite /all_relwords; apply/allP/allP => /= [inR w | inR [r1 r2] /=].
+  by case/relwordsP => -[r1 r2] /inR /= /andP[allr1 allr2] /orP[] /eqP->.
+by case/mem_relwords/andP => /inR-> /inR->.
+Qed.
+
 
 Section RelationsTerminology.
 
@@ -141,8 +166,9 @@ End RelationsTerminology.
 
 
 (* A rewrite rule is a pair of words, the first being the lhs of the rw rule,
-   a rewrite system is a list of rewrite rules.
-   rewrites_front_spec R u v holds when u rewrites into v by applying a rw rule
+   a rewrite system is a list of rewrite rules. *)
+
+(* rewrites_front_spec R u v holds when u rewrites into v by applying a rw rule
    in R to a prefix of u. *)
 Variant rewrites_front_spec R u v : Prop :=
   RewritesFront : forall (suf : word) (rule : word * word),
@@ -619,18 +645,6 @@ Proof. by rewrite flatten_prodE mmorph_prod [RHS]flatten_map_prodE. Qed.
 End Morphism.
 
 
-(* All relations words verify a predicate *)
-Definition all_relwords (A : choiceType) (R : relat A) (P : pred A) :=
-  all (fun p => all P p.1 && all P p.2) R.
-Lemma all_relwordsE (A : choiceType) (R : relat A) (P : pred A) :
-  all_relwords R P = all (all P) (relwords R).
-Proof.
-rewrite /all_relwords; apply/allP/allP => /= [inR w | inR [r1 r2] /= rinR].
-  by case/relwordsP => -[r1 r2] /inR /= /andP[allr1 allr2] /orP[] /eqP->.
-by rewrite !{}inR //=; move/mem_relwords : rinR => /andP[].
-Qed.
-
-
 (* Structure for presentation *)
 Structure pres (A : choiceType) := Pres {
   pgen : seq A;
@@ -968,7 +982,7 @@ Definition isopres_refl :=
       (fun a _ => rewrites_to_refl uR a)
       (fun a _ => rewrites_to_refl uR a).
 
-Lemma isopres_reflE : isopres_refl = (@idmor _ R) :> (_ -> _).
+Lemma isopres_reflE : isopres_refl = (@idmor _ _) :> {presmorph _ -> _}.
 Proof. by []. Qed.
 
 Variable (eqRS : isopres R S) (eqST : isopres S T).
@@ -996,9 +1010,9 @@ have := caninv eqRS wiSTc; rewrite -(isopres_invP eqST) //=.
 Qed.
 Definition isopres_trans := IsoPres canmor_trans invmor_trans.
 
-Lemma isopres_transE : isopres_trans = eqST \o eqRS :> (_ -> _).
+Lemma isopres_transE : isopres_trans = eqST \o eqRS :> {presmorph _ -> _}.
 Proof. by []. Qed.
-Lemma isopres_trans_invE : inv isopres_trans = (inv eqRS \o inv eqST) :> (_ -> _).
+Lemma isopres_trans_invE : inv isopres_trans = inv eqRS \o inv eqST.
 Proof. by []. Qed.
 
 End IsopresTheory.
@@ -1358,19 +1372,6 @@ case: (_ \in prelat R1); rewrite ?orbT //= !orbF orbC.
 by rewrite !xpair_eqE ![_ && (y == _)]andbC.
 Defined.
 
-Lemma wf_f T1 T2 (R : T1 -> T1 -> Prop) (S : T2 -> T2 -> Prop) (f : T1 -> T2) :
-  (forall x y : T1, R x y -> S (f x) (f y)) -> well_founded S -> well_founded R.
-Proof.
-move=> RS WfS x.
-move: {2}(f x) (erefl (f x)) => a; move: a x.
-apply: (well_founded_induction_type WfS) => a IHa x Hx.
-by apply: Acc_intro => y {}/RS; rewrite Hx => /IHa; apply.
-Qed.
-
-Lemma wf_impl (T : Type) (R : T -> T -> Prop) (S : T -> T -> Prop) :
-  (forall x y : T, R x y -> S x y) -> well_founded S -> well_founded R.
-Proof. exact: wf_f. Qed.
-
 
 Section RewritingTheory.
 
@@ -1409,8 +1410,7 @@ Proof.
 move/eqP => noru [[_ {v}-> // | w pth /= /andP[/[swap] _ ]]].
 by rewrite noru.
 Qed.
-Lemma infix_normal u v :
-  infix v u -> normal R u -> normal R v.
+Lemma infix_normal u v : infix v u -> normal R u -> normal R v.
 Proof.
 rewrite /normal => /infixP[pre][suf] {u}-> /eqP noru.
 apply/negP => /negP.
@@ -1423,12 +1423,6 @@ Lemma confluentE u v1 v2 : normalf R u v1 -> normalf R u v2 -> v1 = v2.
 Proof.
 case=> /normalE norv1 /Rconfl HC; case=> /normalE norv2 {}/HC.
 by case=> w /norv1-> /norv2->.
-Qed.
-Lemma confl_rewritesE u1 v1 u2 v2 :
-  normalf R u1 v1 -> normalf R u2 v2 -> u2 \in rewrites R u1 -> v1 = v2.
-Proof.
-move/confluentE => eq [norv2 u2v2] /rewrites_to1/rewrites_to_trans/(_ u2v2) u1v2.
-exact: eq.
 Qed.
 Lemma normalf_rewrite0 u : rewrites R u == [::] -> normalf R u u.
 Proof. by move=> H; split; last exact: rewrites_to_refl. Qed.
@@ -1517,44 +1511,6 @@ Definition all_npairs R :=
   flatten [seq all_npairs_rule r.1 r.2 s.1 s.2 | r <- R, s <- R].
 
 
-Definition all_pred_spairs_rule (p : pred (word T * word T)) (r1 r2 s1 s2 : seq T) :=
-  all (fun shift => (prefix (drop shift r1) s1)
-                  ==> p (r2 ++ drop (size r1 - shift) s1, take shift r1 ++ s2))
-      (iota 0 (size r1)).
-Definition all_pred_spairs p R :=
-  all (fun r => all (fun s => all_pred_spairs_rule p r.1 r.2 s.1 s.2) R) R.
-
-Lemma all_pred_spairsE p R : all_pred_spairs p R = all p (all_spairs R).
-Proof.
-rewrite /all_pred_spairs /all_spairs.
-elim: {2 4}R => [// | /= [r1 r2] R1 IHR1].
-rewrite flatten_cat all_cat; congr andb => //= {R1 IHR1}.
-elim: R => [// | [s1 s2] R IHR] /=.
-rewrite !(flatten_cat, all_cat); congr andb => //= {R IHR}.
-rewrite /all_pred_spairs_rule /all_spairs_rule.
-by rewrite all_map all_filter; apply: eq_all.
-Qed.
-
-Definition all_pred_npairs_rule (p : pred (word T * word T)) (r1 r2 s1 s2 : seq T) :=
-  all (fun shift => (prefix s1 (drop shift r1))
-                  ==> p (r2, take shift r1 ++ s2 ++ drop (shift + size s1) r1))
-      (iota 0 (size r1 - size s1).+1).
-Definition all_pred_npairs p R :=
-  all (fun r => all (fun s => all_pred_npairs_rule p r.1 r.2 s.1 s.2) R) R.
-
-Lemma all_pred_npairsE p R : all_pred_npairs p R = all p (all_npairs R).
-Proof.
-rewrite /all_pred_npairs /all_npairs.
-elim: {2 4}R => [// | /= [r1 r2] R1 IHR1].
-rewrite flatten_cat all_cat; congr andb => //= {R1 IHR1}.
-elim: R => [// | [s1 s2] R IHR] /=.
-rewrite !(flatten_cat, all_cat); congr andb => //= {R IHR}.
-rewrite /all_pred_npairs_rule /all_npairs_rule.
-rewrite all_map all_filter; apply: eq_all => i /=.
-by rewrite prefixE eq_sym.
-Qed.
-
-
 Lemma all_spairsP R u v : reflect (spair R u v) ((u, v) \in all_spairs R).
 Proof.
 apply (iffP flattenP) => /=.
@@ -1606,6 +1562,51 @@ apply/mapP; exists (size pre).
 by rewrite eqr1 eqs1 take_size_cat // -size_cat !catA drop_size_cat.
 Qed.
 
+
+Section PredicateOnNSPairs.
+
+Variable p : pred (word T * word T).
+
+Definition all_pred_spairs_rule (r1 r2 s1 s2 : seq T) :=
+  all (fun shift => (prefix (drop shift r1) s1)
+                  ==> p (r2 ++ drop (size r1 - shift) s1, take shift r1 ++ s2))
+      (iota 0 (size r1)).
+Definition all_pred_spairs R :=
+  all (fun r => all (fun s => all_pred_spairs_rule r.1 r.2 s.1 s.2) R) R.
+
+Lemma all_pred_spairsE R : all_pred_spairs R = all p (all_spairs R).
+Proof.
+rewrite /all_pred_spairs /all_spairs.
+elim: {2 4}R => [// | /= [r1 r2] R1 IHR1].
+rewrite flatten_cat all_cat; congr andb => //= {R1 IHR1}.
+elim: R => [// | [s1 s2] R IHR] /=.
+rewrite !(flatten_cat, all_cat); congr andb => //= {R IHR}.
+rewrite /all_pred_spairs_rule /all_spairs_rule.
+by rewrite all_map all_filter; apply: eq_all.
+Qed.
+
+Definition all_pred_npairs_rule (r1 r2 s1 s2 : seq T) :=
+  all (fun shift => (prefix s1 (drop shift r1))
+                  ==> p (r2, take shift r1 ++ s2 ++ drop (shift + size s1) r1))
+      (iota 0 (size r1 - size s1).+1).
+Definition all_pred_npairs R :=
+  all (fun r => all (fun s => all_pred_npairs_rule r.1 r.2 s.1 s.2) R) R.
+
+Lemma all_pred_npairsE R : all_pred_npairs R = all p (all_npairs R).
+Proof.
+rewrite /all_pred_npairs /all_npairs.
+elim: {2 4}R => [// | /= [r1 r2] R1 IHR1].
+rewrite flatten_cat all_cat; congr andb => //= {R1 IHR1}.
+elim: R => [// | [s1 s2] R IHR] /=.
+rewrite !(flatten_cat, all_cat); congr andb => //= {R IHR}.
+rewrite /all_pred_npairs_rule /all_npairs_rule.
+rewrite all_map all_filter; apply: eq_all => i /=.
+by rewrite prefixE eq_sym.
+Qed.
+
+End PredicateOnNSPairs.
+
+
 Lemma nspair_confluence R :
   (forall u v, npair R u v -> joinable R u v) ->
   (forall u v, spair R u v -> joinable R u v) -> locconfluent R.
@@ -1650,6 +1651,8 @@ move=> no_npair; apply: nspair_confluence => u v /no_npair ->.
 exact: joinable_refl.
 Qed.
 
+(** Compute a normal form using a rewriter function [rew1] *)
+(** The rewriter function must verify the specification *)
 Section Normalization.
 
 Variable (R : relat T).
@@ -1661,6 +1664,7 @@ Fixpoint norfuel fuel u :=
     if rew1 u is Some v then norfuel fuel' v else (u, true)
   else (u, false).
 
+(** The same with exponential fuel for efficiency *)
 Fixpoint norfuel2 fuel u :=
   if fuel is fuel'.+1 then
     if rew1 u is Some u1 then
@@ -1933,6 +1937,8 @@ Proof. by move/convergentrel_dec => H u v. Qed.
 End RewritingTheory.
 
 
+
+(** Permuting the generators of a presentation *)
 Section PermGen.
 
 Context {A : choiceType} (P : pres A) (gens : seq A).
@@ -1958,6 +1964,7 @@ Qed.
 End PermGen.
 
 
+(** Dual of a presentation (i.e. reverting all relation words)x *)
 Section DualRelat.
 
 Context {A : choiceType}.
@@ -2070,6 +2077,7 @@ Proof. rewrite -{1}(dual_presK R); exact: dual_decK. Qed.
 End DualPres.
 
 
+(** Reversing the sense of the relations *)
 Section FlipDirection.
 
 Context {A : choiceType}.
@@ -2135,6 +2143,7 @@ Qed.
 End FlipDirection.
 
 
+(** Renaming the generators *)
 Section RenameGenImpl.
 
 Context {A B : choiceType} {RA : relat A} {RB : relat B}.
