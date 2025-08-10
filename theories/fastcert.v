@@ -17,7 +17,7 @@
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 
-Require Import int_seq sizelexi present rewcert.
+Require Import int_seq sizelexi present rewcert well_founded.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -25,12 +25,6 @@ Unset Printing Implicit Defensive.
 
 Local Open Scope uint63_scope.
 
-(** Native int is a well founded choice and ordered type **)
-Lemma wf_ltint : well_founded (<%O : rel int).
-Proof.
-apply: (wf_f _ wf_ltnat) => x y.
-by rewrite ltintE ltEnat; apply.
-Qed.
 Definition sizelexi_int_wf := sizelexi_wf wf_ltint.
 Definition check_convergence_intP fuel R :
   is_Ok (check_convergence R (rewrites1 _) <%O fuel) -> convergent R :=

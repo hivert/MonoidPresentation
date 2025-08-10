@@ -74,7 +74,7 @@ Definition apply_triple :=
 Lemma apply_tripleP : wf_triple -> apply_triple \in rewrites (undirected R) w.
 Proof.
 rewrite /apply_triple; case/andP => ltpre.
-have /= := onth_int_mem R (nrel c).
+have /= := @onth_int_mem _ R (nrel c).
 case: (onth_int R (nrel c)) => [/=[r1 r2] /(_ _ erefl) rinR|] //.
 set src := if _ then _ else _; set dst := if _ then _ else _.
 have Rin : (src, dst) \in (undirected R).
@@ -196,7 +196,7 @@ case: t wft => /=.
     by apply/eqP; rewrite -eqpresE /= !eqxx.
   by exists (isopres_rcons_rule uin vin eq_u_v).
 - move=> n prf wf_prf.
-  have /= := onth_int_mem (prelat R) n.
+  have /= := @onth_int_mem _ (prelat R) n.
   case Hnth: (onth_int _ _) => [[/= u v] |]; first last.
     by exfalso; move: wf_prf; rewrite Hnth.
   have : check_rew_cert (remove_ith_int (prelat R) n) u v prf.
@@ -211,8 +211,8 @@ case: t wft => /=.
     apply: isopres_sym.
     apply: (isopres_trans (isopres_rcons_rule uin vin eq_u_v)).
     apply: pres_irrelevance_perm_eq => //=.
-    rewrite -(onth_intE _ _ _ Hnth ([::], [::])) remove_ith_intE.
-    exact/perm_eq_move_to_end/(onth_int_le _ _ (u, v)).
+    rewrite -(onth_intE Hnth ([::], [::])) remove_ith_intE.
+    exact/perm_eq_move_to_end/(onth_int_le Hnth).
   by exists iso2.
 Qed.
 Definition isopres_transfo : isopres R (pres_transfo wft)

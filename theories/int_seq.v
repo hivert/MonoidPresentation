@@ -17,6 +17,12 @@ From HB Require Import structures.
 From Coq Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 
+Require Import well_founded.
+
+Set Implicit Arguments.
+Unset Strict Implicit.
+Unset Printing Implicit Defensive.
+
 
 Section Nat.
 
@@ -117,6 +123,9 @@ rewrite min_spec Z2Nat.inj_min; apply anti_leq; apply/andP; split.
 by apply/leP; apply: Nat.min_glb; apply/leP; [apply: geq_minl | apply: geq_minr].
 Qed.
 
+Lemma wf_ltint : well_founded (<%O : rel int).
+Proof. by apply: (wf_f _ wf_ltnat) => x y; rewrite ltintE; apply. Qed.
+
 
 Notation wBnat := (BinInt.Z.to_nat wB).
 
@@ -130,6 +139,26 @@ Proof.
 move=> ltn; rewrite of_Z_spec BinInt.Z.mod_small; first by rewrite Nat2Z.id.
 split; first exact: Nat2Z.is_nonneg.
 by rewrite -(Z2Nat.id wB); first exact/inj_lt/ltP.
+Qed.
+
+Lemma succ_of_nat n : succ (of_nat n) = of_nat n.+1.
+Proof.
+apply: to_Z_inj; rewrite of_Z_spec succ_spec of_Z_spec.
+by rewrite Zdiv.Zplus_mod_idemp_l -addn1 Nat2Z.inj_add.
+Qed.
+
+Lemma succK : cancel succ Uint63.pred.
+Proof.
+move=> n; apply: to_Z_inj.
+rewrite pred_spec succ_spec Zdiv.Zplus_mod_idemp_l.
+rewrite -BinInt.Z.add_assoc BinInt.Z.add_opp_diag_r BinInt.Z.add_0_r.
+by rewrite BinInt.Z.mod_small.
+Qed.
+Lemma predK : cancel Uint63.pred succ.
+Proof.
+move=> n; apply: to_Z_inj.
+rewrite succ_spec pred_spec Zdiv.Zplus_mod_idemp_l.
+by rewrite BinInt.Z.sub_add BinInt.Z.mod_small.
 Qed.
 
 Lemma ltwBnat i : to_nat i < wBnat.
@@ -215,7 +244,7 @@ rewrite /remove_ith_int -[RHS](cat0s) -[X in X ++ _]/(rev [::]).
 elim: s i [::] => [| s0 s IHs] i acc /=; first by rewrite cats0.
 case: (boolP (i =? 0)%uint63) => [/eqb_correct -> | ineq0] /=.
   by rewrite catrevE drop0.
-by rewrite {}IHs /= -(succ_subint1E _ ineq0) //= rev_cons -cats1 -catA cat1s.
+by rewrite {}IHs /= -(succ_subint1E ineq0) //= rev_cons -cats1 -catA cat1s.
 Qed.
 
 

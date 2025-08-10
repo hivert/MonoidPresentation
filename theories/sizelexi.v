@@ -17,6 +17,8 @@ From HB Require Import structures.
 From mathcomp Require Import all_ssreflect.
 
 
+Require Import well_founded.
+
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -146,7 +148,5 @@ Qed.
 
 End SizelexiWF.
 
-Lemma wf_ltnat : well_founded (@Order.lt _ nat).
-Proof. by elim/ltn_ind => n IHn; apply: Acc_intro => m /IHn. Qed.
 Lemma sizelexi_nat_wf : well_founded (@Order.lt _ (seq nat)).
 Proof. exact: sizelexi_wf wf_ltnat. Qed.

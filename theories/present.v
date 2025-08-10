@@ -18,7 +18,7 @@ From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat seq eqtype
   choice path bigop.
 
 
-Require Import monoids factor.
+Require Import monoids factor well_founded.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -65,20 +65,6 @@ by rewrite rev_cons -cats1 -catA cat1s.
 Qed.
 
 End FilterRevTr.
-
-
-Lemma wf_f T1 T2 (R : T1 -> T1 -> Prop) (S : T2 -> T2 -> Prop) (f : T1 -> T2) :
-  (forall x y : T1, R x y -> S (f x) (f y)) -> well_founded S -> well_founded R.
-Proof.
-move=> RS WfS x.
-move: {2}(f x) (erefl (f x)) => a; move: a x.
-apply: (well_founded_induction_type WfS) => a IHa x Hx.
-by apply: Acc_intro => y {}/RS; rewrite Hx => /IHa; apply.
-Qed.
-
-Lemma wf_impl (T : Type) (R : T -> T -> Prop) (S : T -> T -> Prop) :
-  (forall x y : T, R x y -> S x y) -> well_founded S -> well_founded R.
-Proof. exact: wf_f. Qed.
 
 
 (* Relation words of a presentation *)

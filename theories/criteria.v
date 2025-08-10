@@ -17,7 +17,7 @@ From Coq Require Import Uint63.
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice ssrnat seq order.
 
-Require Import monoids present factor rewcert sizelexi.
+Require Import well_founded monoids present factor rewcert sizelexi.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -268,7 +268,7 @@ move=> Hrel; apply: convergent_dec; apply: diamond.
   apply: (wf_f (f := size) _ wf_ltnat) => u v.
   case/rewritesP => pre suf [r1 r2] {u}-> {v}->.
   rewrite Hrel inE => /eqP[{r1}-> {r2}->] /=.
-  by rewrite ltEnat /= !size_cat ltn_add2l ltn_add2r !size_nseq.
+  by rewrite !size_cat ltn_add2l ltn_add2r !size_nseq.
 rewrite {}Hrel => u v1 v2.
 case/rewritesP => pre1 suf1 [r1 r2] /= equ1 {v1}->.
 rewrite inE => /eqP[eqr {r2}->]; subst r1.
