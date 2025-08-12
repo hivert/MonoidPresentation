@@ -1,4 +1,5 @@
 From Coq Require Import Znat BinIntDef Uint63 PArray.
+From Coq Require NArith.
 From mathcomp Require Import all_ssreflect.
 
 Require Import factor int_seq present rewcert inttrie.
@@ -302,24 +303,58 @@ Qed.
 
 End Sorted.
 
+Section TrieSize.
 
-(** TODO use binary nats *)
-Fixpoint nbnodes (T : eqType) acc (tr : trie T) :=
-  match tr with
-  | Trie x a =>
-      if length a == 0 then acc
-      else foldl (fun acc g => nbnodes acc a.[g]) acc.+1 loopseq
-  | Empty => acc
-end.
+Context {T : eqType}.
+Implicit Type t : @trie T.
+
+Definition nbnodes_generic (N : Type) (ZN : N) (SN : N -> N) t :=
+  let fix aux acc t := match t with
+    | Trie x a =>
+        if length a == 0 then acc
+        else foldl (fun acc g => aux acc a.[g]) (SN acc) loopseq
+    | Empty => acc
+    end in aux ZN t.
+
+Lemma nbnodes_genericE (N1 N2 : Type)
+  (ZN1 : N1) (SN1 : N1 -> N1) (ZN2 : N2) (SN2 : N2 -> N2) (f : N1 -> N2) :
+  f ZN1 = ZN2 -> (forall n1 : N1, SN2 (f n1) = f (SN1 n1)) ->
+  forall t, f (nbnodes_generic ZN1 SN1 t) = nbnodes_generic ZN2 SN2 t.
+Proof.
+rewrite /nbnodes_generic => <- Hf t.
+set aux1 := (X in f (X _ _) ); set aux2 := (X in _ = (X _ _)).
+move: t ZN1; apply: indtrie => [|a Hdef IHtr x] //= acc.
+case: eqP => // _.
+rewrite /loopseq; elim: (to_nat _) acc => [//= |n IHn] acc.
+rewrite -(addn1 n) iotaD add0n /= map_cat /= !cats1 !foldl_rcons /= -{}IHn.
+case: (boolP (of_nat n <? length a)) => [{}/IHtr -> // |].
+by move/negbTE/get_out_of_bounds => ->.
+Qed.
+
+Definition nbnodes := nbnodes_generic 0%N succn.
+Definition nbnodes_bin := nbnodes_generic BinNat.N.zero BinNat.N.succ.
+Definition nbnodes_int := nbnodes_generic 0 succ.
+
+
+Lemma nbbodes_binE t : BinNat.N.to_nat (nbnodes_bin t) = nbnodes t.
+Proof. by apply: nbnodes_genericE => // n; rewrite -Nnat.N2Nat.inj_succ. Qed.
+Lemma nbbodes_intE t : of_nat (nbnodes t) = nbnodes_int t.
+Proof.
+apply: (nbnodes_genericE (f := fun n => of_nat n)) => // n.
+exact: succ_of_nat.
+Qed.
+
+End TrieSize.
+
+
 Fixpoint prefixes_trie_pos_acc acc tr : int * (@trie int) :=
   match tr with
   | Trie x a =>
       if length a == 0 then (acc, Empty)
       else let: (newacc, resa) :=
-             foldl (fun sza g =>
-                      let: (acc, ar) := sza in
-                      let: (recacc, reca) := prefixes_trie_pos_acc acc a.[g] in
-                      (recacc, ar.[g <- reca]))
+             foldl (fun acc_ar g =>
+                      let: (recacc, reca) := prefixes_trie_pos_acc acc_ar.1 a.[g] in
+                      (recacc, acc_ar.2.[g <- reca]))
                (acc + 1, make trielen (@Empty int)) loopseq in
            (newacc, Trie (Some acc) resa)
   | Empty => (acc, Empty)
@@ -327,27 +362,26 @@ Fixpoint prefixes_trie_pos_acc acc tr : int * (@trie int) :=
 Definition prefixes_trie_length tr := (prefixes_trie_pos_acc 0 tr).1.
 Definition prefixes_trie_pos tr := (prefixes_trie_pos_acc 0 tr).2.
 
-(*
 Lemma prefixes_trie_lengthE tr :
   is_fltrie trielen tr ->
-  prefixes_trie_length tr = of_nat (nbnodes 0 (prefixes_trie_pos tr)).
+  prefixes_trie_length tr = nbnodes_int (prefixes_trie_pos tr).
 Proof.
 rewrite /prefixes_trie_length /prefixes_trie_pos /=.
-rewrite -(to_nat0); move: 0 => i; move: tr i.
-apply: indtrie => [// | a _ IHa x] i /=; first by rewrite to_natK.
-case/(flarrayP maxlen) => [[-> /=| lena]] _; first by rewrite to_natK.
-rewrite /loopseq lena (negbTE (len_neq0 maxlen)) => /= flta.
+rewrite /nbnodes_int /nbnodes_generic; set nbnodes_aux := (X in _ = X _ _).
+move: 0 => acc; move: tr acc.
+apply: indtrie => [// | a _ IHa x] i /=.
+case/(flarrayP maxlen) => [[-> // | lena]] _ flta.
+rewrite /loopseq lena (negbTE (len_neq0 maxlen)) /=.
+set updatei := foldl _ _.
+
 have := leqnn (to_nat trielen).
 elim: {1 3 4}(to_nat trielen) => [| n IHn] ltn.
   rewrite /= length_make_trielen // (negbTE (len_neq0 maxlen)) /= /loopseq.
-  elim: (map _ _) => [// | m0 m /= IHm]; last by rewrite get_make.
-  rewrite [X in of_nat X]/=; apply (can_inj to_natK).
-  rewrite to_natDE to_nat1 addn1 of_Z_spec Z2Nat.inj_mod //.
-  by rewrite Nat2Z.id mod_natE.
+  by elim: (map _ _) => [// | m0 m /= IHm]; last by rewrite get_make.
 rewrite -(addn1) iotaD /= add0n !map_cat /= cats1 !foldl_rcons.
-move: IHn; set rec := (foldl _ _ _) => /=.
+move: IHn; set rec := (foldl _ _ _) => /= /(_ (ltnW ltn)).
 have: length rec.2 = trielen.
-  rewrite /rec; have := length_make_trielen int maxlen.
+  rewrite /rec; have := @length_make_trielen int trielen maxlen.
   elim: (map _ _) (i + 1) (make _ _) => [//| m0 m IHm]/= j ma lenma.
   case: (prefixes_trie_pos_acc j a.[m0]) => szm0 am0 /=.
   by apply: IHm; rewrite length_set.
@@ -357,12 +391,26 @@ have ltnn : (of_nat n < length a)%O.
 have := ltnn; rewrite lena => /flta.
 move/(_ _ ltnn): IHa => /[apply] Heq.
 case: rec => acc arec /= lenarec.
-rewrite lenarec (negbTE (len_neq0 maxlen)) => /(_ (ltnW ltn))->.
-set recn := of_nat (foldl _ _ _).
+rewrite lenarec (negbTE (len_neq0 maxlen)) => ->.
+set recn := (foldl _ _ _).
 case: prefixes_trie_pos_acc (Heq recn) => recn1 arec1 /= {Heq recn1}->.
-rewrite length_set lenarec (negbTE (len_neq0 maxlen)) {}/recn /=.
+rewrite length_set lenarec (negbTE (len_neq0 maxlen)) {}/recn.
+move: (succ i) => {acc}i.
+rewrite /loopseq.
+have := leqnn (to_nat trielen).
+elim: {1 2 4 5}(to_nat trielen) ltn => [//| m IHm].
+rewrite ltnS leq_eqVlt => /orP[/eqP {IHm m}<-|].
+  rewrite -{-1}(addn1) iotaD /= add0n !map_cat /= cats1 !foldl_rcons.
+  rewrite get_set_same; last by rewrite lenarec -lena.
+  admit.
+move=> /[dup] ltnm {}/IHm + /ltnW => /[apply].
+rewrite -(addn1) iotaD /= add0n !map_cat /= cats1 !foldl_rcons => <-.
+
+  
+  elim: (to_nat trielen) => [//= |].
 
 
+rewrite of_natK; last by admit.
 
 have ltnn : (of_nat n < length arec)%O.
   rewrite lenarec ltEint of_natK //.

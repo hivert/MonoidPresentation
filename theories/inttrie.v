@@ -46,6 +46,90 @@ by apply; apply/ltP/Z2Nat.inj_lt.
 Qed.
 
 
+(* iteri n g x0 == g n.-1 (g ... (g 0 x0)) *)
+Section IterTailRecursive.
+
+Context {S : Type}.
+Implicit Types (n : nat) (f : nat -> S -> S) (x : S).
+
+Definition iteritl n f x0 : S :=
+  let fix aux res m i :=
+    if m is m'.+1 then aux (f i res) m' i.+1
+    else res
+  in aux x0 n 0%N.
+
+Lemma iteritlS n f x0 : iteritl n.+1 f x0 = f n (iteritl n f x0).
+Proof.
+have shift m g y : iteritl m.+1 g y = iteritl m (g \o succn) (g 0%N y).
+  by rewrite /iteritl /=; elim: m g y 0%N.
+by rewrite shift; elim: n f x0 => //= n IHn f x0; rewrite !shift.
+Qed.
+Lemma iteritlE n f x0 : iteritl n f x0 = iteri n f x0.
+Proof. by elim: n => //= n <-; rewrite iteritlS. Qed.
+
+End IterTailRecursive.
+
+
+Section IterInt.
+
+Context {S : Type}.
+Implicit Types (n : int) (f : int -> S -> S) (x : S).
+
+Definition iterint n f x0 : S :=
+  let fix aux res m i :=
+    if m is m'.+1 then aux (f i res) m' (Uint63.succ i)
+    else res
+  in aux x0 (to_nat n) 0.
+
+Lemma interintE n f x0 :
+  iterint n f x0 = iteri (to_nat n) (fun i => f (of_nat i)) x0.
+Proof.
+rewrite -iteritlE /iterint /iteritl -(to_natK 0) to_nat0.
+elim: (to_nat n) 0%N x0 => // i IHi n0 x0.
+by rewrite -IHi succ_of_nat.
+Qed.
+
+End IterInt.
+
+
+Section Arrays.
+
+Definition array_foldl {S T : Type} (f : T -> S -> T) (x0 : T) (a : array S) : T :=
+  iterint (length a) (fun i x => f x a.[i]) x0.
+Definition array_map {S T : Type} (f : S -> T) (a : array S) : array T :=
+  iterint (length a) (fun i b => b.[i <- f a.[i]]) (make (length a) (f (default a))).
+Definition array_foldr {S T : Type} (f : S -> T -> T) (x0 : T) (a : array S) : T :=
+  let size := length a in
+  fst (nat_rect (fun _ => (T * int)%type) (x0, Uint63.pred size)%int63
+       (fun _ '(y, i) => (f a.[i] y, Uint63.pred i)) (to_nat size)).
+
+Context {S : Type}.
+Implicit Type a : array S.
+
+(* Definition to_seq a := array_foldr cons [::] a. *)
+Definition to_seq a := mkseq (fun i => a.[of_nat i]) (to_nat (length a)).
+
+Lemma size_to_seq a : size (to_seq a) = to_nat (length a).
+Proof. by rewrite /to_seq size_mkseq. Qed.
+Lemma nth_to_seq a i : nth (default a) (to_seq a) (to_nat i) = a.[i].
+Proof.
+case: (boolP (i < length a)%O) => [Hlt | /negbTE Hlt].
+  rewrite /to_seq nth_mkseq ?to_natK // -ltintE //.
+rewrite nth_default ?get_out_of_bounds //.
+by rewrite size_to_seq -leintE Order.TotalTheory.leNgt Hlt.
+Qed.
+
+End Arrays.
+
+Section Test.
+
+Let a := (make 5 0).[0 <- 1].[1 <- 2].[2 <- 8].[4 <- 1222].
+
+Time Eval compute in array_map (fun i => i * i) a.
+
+End Test.
+
+
 (** Data structure for tries *)
 Section Defs.
 
@@ -442,6 +526,50 @@ Qed.
 
 End Defs.
 Arguments Empty {T}.
+
+
+Section TrieSize.
+
+Context {T : eqType}.
+Implicit Type t : @trie T.
+
+Definition nbnodes_generic (N : Type) (ZN : N) (SN : N -> N) t :=
+  let fix aux acc t := match t with
+    | Trie x a =>
+        foldl (fun acc g => aux acc a.[g]) (SN acc)
+          [seq of_nat n | n <- iota 0 (to_nat (length a))]
+    | Empty => acc
+    end in aux ZN t.
+
+Lemma nbnodes_genericE (N1 N2 : Type)
+  (ZN1 : N1) (SN1 : N1 -> N1) (ZN2 : N2) (SN2 : N2 -> N2) (f : N1 -> N2) :
+  f ZN1 = ZN2 -> (forall n1 : N1, SN2 (f n1) = f (SN1 n1)) ->
+  forall t, f (nbnodes_generic ZN1 SN1 t) = nbnodes_generic ZN2 SN2 t.
+Proof.
+rewrite /nbnodes_generic => <- Hf t.
+set aux1 := (X in f (X _ _) ); set aux2 := (X in _ = (X _ _)).
+move: t ZN1; apply: indtrie => [|a Hdef IHtr x] //= acc.
+elim: (to_nat _) acc => [//= |n IHn] acc.
+rewrite -(addn1 n) iotaD add0n /= map_cat /= !cats1 !foldl_rcons /= -{}IHn.
+case: (boolP (of_nat n <? length a)) => [{}/IHtr -> // |].
+by move/negbTE/get_out_of_bounds => ->.
+Qed.
+
+Definition nbnodes := nbnodes_generic 0%N succn.
+Definition nbnodes_bin := nbnodes_generic BinNat.N.zero BinNat.N.succ.
+Definition nbnodes_int := nbnodes_generic 0 succ.
+
+
+Lemma nbbodes_binE t : BinNat.N.to_nat (nbnodes_bin t) = nbnodes t.
+Proof. by apply: nbnodes_genericE => // n; rewrite -Nnat.N2Nat.inj_succ. Qed.
+Lemma nbbodes_intE t : of_nat (nbnodes t) = nbnodes_int t.
+Proof.
+apply: (nbnodes_genericE (f := fun n => of_nat n)) => // n.
+exact: succ_of_nat.
+Qed.
+
+End TrieSize.
+
 
 (** Rewriting and normal forms using trie            *)
 (* Could be made even faster with a Gilman automaton *)
