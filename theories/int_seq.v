@@ -173,17 +173,29 @@ Lemma to_natD x y :
   to_nat x + to_nat y < wBnat -> to_nat (x + y) = (to_nat x + to_nat y)%N.
 Proof. by move=> lt; rewrite to_natDE modn_small. Qed.
 
-Lemma ltleint x y : (x < y)%O -> (x + 1 <= y)%O.
+Lemma ltleSint x y : (x < y)%O -> (x + 1 <= y)%O.
 Proof.
 move=> /[dup] ltxy; rewrite ltintE -addn1 -to_nat1 -to_natD ?leintE //.
 move: ltxy; rewrite to_nat1 addn1 ltintE => /leq_ltn_trans; apply.
 exact: ltwBnat.
 Qed.
 
+Lemma ltSleint x y : (x < y + 1)%O -> (x <= y)%O.
+Proof.
+move=> /[dup] H; rewrite ltintE -addn1 -to_nat1 to_natD.
+  by rewrite to_nat1 !addn1 ltnS -leintE.
+rewrite to_nat1 addn1 ltnNge; apply/negP => Habs.
+suff {H} Heq : y + 1 = 0 by move: H; rewrite Heq ltintE to_nat0.
+apply: to_nat_inj; rewrite to_nat0 to_natDE to_nat1.
+suff -> : (to_nat y + 1)%N = wBnat by rewrite modnn.
+rewrite addn1; apply anti_leq.
+by rewrite ltwBnat Habs.
+Qed.
+
 Lemma int_neq0 x : x != 0 -> (1 <= x)%O.
 Proof.
 rewrite eq_sym => /negbTE neq0; have := le0int x.
-rewrite Order.POrderTheory.le_eqVlt neq0 /= => /ltleint.
+rewrite Order.POrderTheory.le_eqVlt neq0 /= => /ltleSint.
 by rewrite leintE to_natD.
 Qed.
 

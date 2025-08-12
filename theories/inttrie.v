@@ -591,7 +591,7 @@ have foldlmaxlt : (foldl max 0 (pgen P) < max_length)%O.
   case/andP => ltg0 {}/IHg; apply.
   by rewrite ltintE maxintE gtn_max -!ltintE lti ltg0.
 apply/andP; split; first last.
-  by rewrite /pres_trielen; apply ltleint; exact: foldlmaxlt.
+  by rewrite /pres_trielen; apply ltleSint; exact: foldlmaxlt.
 rewrite /pres_trielen ltintE to_nat0 to_natD; first by rewrite addnS ltnS.
 rewrite addn1.
 move: foldlmaxlt; rewrite ltintE => /leq_ltn_trans; apply.
