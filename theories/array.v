@@ -40,52 +40,6 @@ by apply; apply/ssrnat.ltP/Z2Nat.inj_lt.
 Qed.
 
 
-(* iteri n g x0 == g n.-1 (g ... (g 0 x0)) *)
-Section IterTailRecursive.
-
-Context {S : Type}.
-Implicit Types (n : nat) (f : nat -> S -> S) (x : S).
-
-Definition iteritl n f x0 : S :=
-  let fix aux res m i :=
-    if m is m'.+1 then aux (f i res) m' i.+1
-    else res
-  in aux x0 n 0%N.
-
-Lemma iteritlS n f x0 : iteritl n.+1 f x0 = f n (iteritl n f x0).
-Proof.
-have shift m g y : iteritl m.+1 g y = iteritl m (g \o succn) (g 0%N y).
-  by rewrite /iteritl /=; elim: m g y 0%N.
-by rewrite shift; elim: n f x0 => //= n IHn f x0; rewrite !shift.
-Qed.
-Lemma iteritlE n f x0 : iteritl n f x0 = iteri n f x0.
-Proof. by elim: n => //= n <-; rewrite iteritlS. Qed.
-
-End IterTailRecursive.
-
-
-Section IterInt.
-
-Context {S : Type}.
-Implicit Types (n : int) (f : int -> S -> S) (x : S).
-
-Definition iterint n f x0 : S :=
-  let fix aux res m i :=
-    if m is m'.+1 then aux (f i res) m' (succ i)
-    else res
-  in aux x0 (to_nat n) 0.
-
-Lemma interintE n f x0 :
-  iterint n f x0 = iteri (to_nat n) (fun i => f (of_nat i)) x0.
-Proof.
-rewrite -iteritlE /iterint /iteritl -(to_natK 0) to_nat0.
-elim: (to_nat n) 0%N x0 => // i IHi n0 x0.
-by rewrite -IHi succ_of_nat.
-Qed.
-
-End IterInt.
-
-
 Local Open Scope order_scope.
 
 Section ForLoop.
@@ -95,7 +49,7 @@ Implicit Types (m n i j : int) (x y : A).
 
 Inductive loopresult := | Continue of A | Return of B.
 
-Variables (finish : A -> B) (body : (int -> A -> loopresult)).
+Variables (body : (int -> A -> loopresult)) (finish : A -> B).
 
 Lemma for_loop_rec_subproof m n : m < n -> n - succ m < n - m.
 Proof.
@@ -155,11 +109,11 @@ rewrite {1}/for_loop; case: (Acc_intro_generator _ _ _) => ACC /=.
 by rewrite -[m <? n]/(m < n); case (@idP (m < n)).
 Qed.
 
-Lemma for_loop_ind m n x0 (PA : int -> A -> Type) (PB : B -> Type) :
-  (forall i x, n <= i -> PA i x -> PB (finish x)) ->
-  (forall i x r, i < n -> body i x = Return r   -> PA i x -> PB r) ->
-  (forall i x c, i < n -> body i x = Continue c -> PA i x -> PA (succ i) c) ->
-  PA m x0 -> PB (for_loop m n x0).
+Lemma for_loop_ind m n x0 (invar : int -> A -> Type) (fin : B -> Type) :
+  (forall i x, n <= i -> invar i x -> fin (finish x)) ->
+  (forall i x r, i < n -> body i x = Return r   -> invar i x -> fin r) ->
+  (forall i x c, i < n -> body i x = Continue c -> invar i x -> invar (succ i) c) ->
+  invar m x0 -> fin (for_loop m n x0).
 Proof.
 move=> Hfin Hret Hcont.
 move: {1}(n - m) (erefl (n - m)) => d Hd.
@@ -196,28 +150,26 @@ Context {A : Type} (p : A -> bool) (a : array A).
 Implicit Types (i j m n len : int).
 
 Definition make_array (d : A) (len : int) (f : int -> A) :=
-  for_loop id (fun i a => Continue a.[i <- f i]) 0 len (make len d).
+  for_loop (fun i a => Continue a.[i <- f i]) id 0 len (make len d).
 Definition find_array : int :=
-  for_loop (fun=> length a)
-    (fun i _ => if p a.[i] then Return i else Continue tt)
-    0 (length a) tt.
+  for_loop (fun i _ => if p a.[i] then Return i else Continue tt)
+           (fun=> length a) 0 (length a) tt.
 Definition has_array : bool :=
-  for_loop xpred0
-    (fun i _ => if p a.[i] then Return true else Continue tt)
-    0 (length a) tt.
+  for_loop (fun i _ => if p a.[i] then Return true else Continue tt)
+           xpred0 0 (length a) tt.
 
 Lemma length_make_array d len f :
   len <= max_length -> length (make_array d len f) = len.
 Proof.
 rewrite /make_array => lelen; pose P (ar : array A) := length ar = len.
-apply: (for_loop_ind (PA := fun i ar => P ar) (PB := P)) => //.
+apply: (for_loop_ind (invar := fun i ar => P ar) (fin := P)) => //.
 - by rewrite {}/P => i c x _ [] <- <-; rewrite length_set.
 - by rewrite {}/P length_make -[len ≤? max_length]/(len <= max_length)%O lelen.
 Qed.
 Lemma default_make_array d len f : default (make_array d len f) = d.
 Proof.
 rewrite /make_array; pose P (ar : array A) := default ar = d.
-apply: (for_loop_ind (PA := fun i a => P a) (PB := P)) => //.
+apply: (for_loop_ind (invar := fun i a => P a) (fin := P)) => //.
 - by rewrite {}/P => i c x _ [] <- <-; rewrite default_set.
 - by rewrite {}/P default_make.
 Qed.
@@ -226,7 +178,7 @@ Lemma get_make_array len d f i :
 Proof.
 rewrite /make_array => /andP[ltil lelen]; set body := (X in for_loop _ X).
 pose IH n ar := length ar = len /\ forall j, j < n -> ar.[j] = f j.
-apply (for_loop_ind (PA := IH) (PB := fun ar => IH len ar)) => //.
+apply (for_loop_ind (invar := IH) (fin := fun ar => IH len ar)) => //.
 - rewrite /IH => j ar leli [Hlen Heq]; split => // k ltkl.
   exact: Heq (lt_le_trans ltkl leli).
 - rewrite /body {}/IH => j x c ltjl [] {c}<- [lenx Heq].
@@ -249,7 +201,7 @@ Qed.
 Lemma find_array_ltn n : n < find_array -> ~~ p a.[n].
 Proof.
 rewrite /find_array; pose IH i := forall j, j < i -> ~~ p a.[j].
-apply: (for_loop_ind (PA := fun i _ => IH i) (PB := IH)).
+apply: (for_loop_ind (invar := fun i _ => IH i) (fin := IH)).
 - rewrite {}/IH => i _ gti H j ltj.
   exact: H (lt_le_trans ltj gti).
 - rewrite {}/IH => i x r lti.
@@ -264,8 +216,8 @@ Proof.
 rewrite /find_array; set body := (X in for_loop _ X) => H.
 apply/contraLR: H; rewrite -leNgt.
 move: 0 (le0x _ : 0 <= length a) => j.
-apply: (for_loop_ind (PA := fun i _ => _)
-          (PB := fun b => ~~ p a.[b] -> length a <= b)) => //.
+apply: (for_loop_ind (invar := fun i _ => _)
+          (fin := fun b => ~~ p a.[b] -> length a <= b)) => //.
 - rewrite /body=> i x r ltil.
   by case: (boolP (p a.[i])) => // /[swap]-[{r}<- ->].
 - by rewrite /body=> i x c /ltleSint ltil; case: p.
@@ -275,19 +227,19 @@ Lemma has_arrayP : reflect (exists2 n : int, n < length a & p a.[n]) has_array.
 Proof.
 suff /equivP : reflect (exists2 n, 0 <= n < length a & p a.[n]) has_array.
   by apply; split => [][x xin pax]; exists x =>[]//; move: xin; rewrite le0x.
-rewrite /= /has_array; set body := (X in for_loop _ X).
+rewrite /= /has_array; set body := (X in for_loop X).
 apply (iffP idP).
   apply: (for_loop_ind (body := body)
-            (PA := fun _ _ => true) (PB := fun b => b -> _)) => //.
+            (invar := fun _ _ => true) (fin := fun b => b -> _)) => //.
   rewrite {}/body => i _ r lti + _ _.
   case: (boolP (p a.[i])) => Hp // [] _.
   by exists i => //; rewrite le0x lti.
 move=> [i /andP[_ lti] pai].
-have : for_loop xpred0 body i (length a) tt.
+have : for_loop body xpred0 i (length a) tt.
   by apply: for_loop_retE => //; rewrite {}/body pai.
 apply: contraLR; move: 0 (le0x i : 0 <= i) => j.
 apply (for_loop_ind (body := body) (m := j)
-          (PA := fun j _ => _) (PB := fun b => ~~ b -> _)) => // {j}.
+          (invar := fun j _ => _) (fin := fun b => ~~ b -> _)) => // {j}.
 - by move=> j _ /le_trans/[apply]/le_lt_trans/(_ lti); rewrite ltxx.
 - by rewrite /body => j x r _; case: p => // [][<-{r}].
 - rewrite /body=> j x c _ /[swap].
