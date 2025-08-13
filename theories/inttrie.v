@@ -114,9 +114,9 @@ Proof. by rewrite /to_seq size_mkseq. Qed.
 Lemma nth_to_seq a i : nth (default a) (to_seq a) (to_nat i) = a.[i].
 Proof.
 case: (boolP (i < length a)%O) => [Hlt | /negbTE Hlt].
-  rewrite /to_seq nth_mkseq ?to_natK // -ltintE //.
+  rewrite /to_seq nth_mkseq ?to_natK // -ltEint //.
 rewrite nth_default ?get_out_of_bounds //.
-by rewrite size_to_seq -leintE Order.TotalTheory.leNgt Hlt.
+by rewrite size_to_seq -leEint Order.TotalTheory.leNgt Hlt.
 Qed.
 
 End Arrays.

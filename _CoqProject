@@ -5,6 +5,7 @@
 -arg -w -arg -deprecated-since-8.19
 -arg -w -arg -deprecated-since-mathcomp-2.6.0
 -arg -w -arg -projection-no-head-constant
+theories/array.v
 theories/int_seq.v
 theories/sizelexi.v
 theories/monoids.v

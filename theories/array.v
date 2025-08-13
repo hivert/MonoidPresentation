@@ -15,11 +15,10 @@
 (******************************************************************************)
 From HB Require Import structures.
 From Coq Require Import Znat BinIntDef Uint63 PArray.
-From Coq Require Import Program.Wf.
 
 From mathcomp Require Import all_ssreflect.
 
-Require Import int_seq sizelexi fastcert.
+Require Import int_seq.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -32,11 +31,14 @@ Local Open Scope uint63_scope.
 
 Local Notation wBnat := (BinInt.Z.to_nat wB).
 
+
+Lemma lt_max_lenght_wB : to_nat (max_length) < wBnat.
+Proof. exact/ssrnat.ltP/Z2Nat.inj_lt. Qed.
+
 Lemma lt_lenght_wB (T : Type) (a : array T) : to_nat (length a) < wBnat.
 Proof.
-have /leq_ltn_trans : to_nat (length a) <= to_nat max_length.
-  by rewrite -leintE; exact: leb_length.
-by apply; apply/ssrnat.ltP/Z2Nat.inj_lt.
+apply: (leq_ltn_trans _ lt_max_lenght_wB).
+by rewrite -leEint; exact: leb_length.
 Qed.
 
 
@@ -53,12 +55,12 @@ Variables (body : (int -> A -> loopresult)) (finish : A -> B).
 
 Lemma for_loop_rec_subproof m n : m < n -> n - succ m < n - m.
 Proof.
-move=> /[dup] ltmn /ltW lemn; rewrite ltintE.
+move=> /[dup] ltmn /ltW lemn; rewrite ltEint.
 have leSmn : succ m <= n by apply ltleSint.
 rewrite [X in (_ < X)%N]to_natB // [X in (X < _)%N]to_natB //.
-rewrite ltn_sub2lE -?leintE //.
+rewrite ltn_sub2lE -?leEint //.
 rewrite -{2}(to_natK m) succ_of_nat of_natK; first by rewrite ltnS.
-move: ltmn; rewrite ltintE => /leq_ltn_trans; apply.
+move: ltmn; rewrite ltEint => /leq_ltn_trans; apply.
 exact: ltwBnat.
 Qed.
 
@@ -187,7 +189,7 @@ apply (for_loop_ind (invar := IH) (fin := fun ar => IH len ar)) => //.
     by rewrite get_set_same ?lenx.
   rewrite get_set_other ?Heq //.
   by apply/eqP; move: ltki; rewrite lt_def => /andP[].
-- split => [|j]; last by rewrite ltintE to_nat0.
+- split => [|j]; last by rewrite ltEint to_nat0.
   by rewrite length_make -[len ≤? max_length]/(len <= max_length) lelen.
 Qed.
 Lemma make_arrayE : make_array (default a) (length a) (get a) = a.
@@ -209,7 +211,7 @@ apply: (for_loop_ind (invar := fun i _ => IH i) (fin := IH)).
 - rewrite {}/IH => i c x lti.
   case: (boolP (p a.[i])) => Hp // _ H j /ltSleint.
   by rewrite le_eqVlt => /orP[/eqP -> // | /H].
-- by move=> j; rewrite {}/IH ltintE to_nat0.
+- by move=> j; rewrite {}/IH ltEint to_nat0.
 Qed.
 Lemma find_arrayE : find_array < length a -> p a.[find_array].
 Proof.
@@ -249,16 +251,6 @@ Qed.
 End ArrayManip.
 
 
-Section Test.
-
-Let taille := 1000000.
-Let a := make_array 0 taille (fun i => i).
-Time Eval vm_compute in has_array (fun i => (i > 2000000000)%O) a.
-Time Eval native_compute in has_array (fun i => (i > 2000000000)%O) a.
-
-End Test.
-
-
 Section ToSeq.
 
 Context {S : Type}.
@@ -274,10 +266,70 @@ Proof. by rewrite /to_seq size_mkseq. Qed.
 Lemma nth_to_seq a i : nth (default a) (to_seq a) (to_nat i) = a.[i].
 Proof.
 case: (boolP (i < length a)) => [Hlt | /negbTE Hlt].
-  rewrite /to_seq nth_mkseq ?to_natK // -ltintE //.
+  rewrite /to_seq nth_mkseq ?to_natK // -ltEint //.
 rewrite nth_default ?get_out_of_bounds //.
-by rewrite size_to_seq -leintE Order.TotalTheory.leNgt Hlt.
+by rewrite size_to_seq -leEint Order.TotalTheory.leNgt Hlt.
+Qed.
+
+Local Lemma size_max_wBnat s : (size s <= to_nat max_length -> size s < wBnat)%N.
+Proof. move/leq_ltn_trans; apply; exact: lt_max_lenght_wB. Qed.
+
+Lemma default_from_seq s d : default (from_seq s d) = d.
+Proof. exact: default_make_array. Qed.
+Lemma length_from_seq s d :
+  size s <= to_nat max_length -> length (from_seq s d) = of_nat (size s).
+Proof.
+by move=> H; rewrite length_make_array // leEint of_natK ?size_max_wBnat.
+Qed.
+Lemma nth_from_seq s d i :
+  size s <= to_nat max_length -> nth d s (to_nat i) = (from_seq s d).[i].
+Proof.
+move=> H.
+have ltsz : of_nat (size s) <= max_length.
+  by rewrite leEint of_natK ?size_max_wBnat.
+case: (boolP (to_nat i < size s)%N) => [lti | gei].
+  by rewrite get_make_array // ltEint of_natK ?size_max_wBnat // lti.
+rewrite -leqNgt in gei.
+rewrite (nth_default _ gei) get_out_of_bounds ?default_make_array //.
+rewrite length_make_array // -[i <? _]/(i < _).
+by rewrite ltNge leEint of_natK ?size_max_wBnat // gei.
+Qed.
+Lemma from_seqK s d :
+  size s <= to_nat max_length -> to_seq (from_seq s d) = s.
+Proof.
+move=> H.
+have eqsz : size (to_seq (from_seq s d)) = size s.
+  by rewrite size_to_seq length_from_seq // of_natK ?size_max_wBnat.
+apply: (eq_from_nth (x0 := d) eqsz).
+rewrite eqsz => i lti.
+have /of_natK eqi : (i < wBnat)%N by apply: (ltn_trans lti); apply: size_max_wBnat.
+rewrite -[in LHS]eqi -{1}(default_from_seq s d) nth_to_seq.
+by rewrite -nth_from_seq // eqi.
+Qed.
+Lemma to_seqK a : from_seq (to_seq a) (default a) = a.
+Proof.
+have to_natle : to_nat (length a) <= to_nat max_length.
+  by rewrite -[_ <= _]/(_ <= _)%N -leEint; exact: leb_length.
+have eqlen : length (from_seq (to_seq a) (default a)) = length a.
+  by rewrite length_from_seq size_to_seq ?to_natK.
+apply: array_ext; rewrite ?eqlen ?default_from_seq // => i lti.
+have {}lti : i < length a by [].
+by rewrite -nth_from_seq ?size_to_seq // nth_to_seq.
 Qed.
 
 End ToSeq.
+
+
+
+Section Test.
+
+Let taille := 1000000.
+Let a := make_array 0 taille (fun i => i).
+Time Eval vm_compute in has_array (fun i => (i > 2000000000)%O) a.
+Time Eval native_compute in has_array (fun i => (i > 2000000000)%O) a.
+
+Let b := from_seq [:: 1; 4; 6] 0.
+Eval compute in b.
+
+End Test.
 
