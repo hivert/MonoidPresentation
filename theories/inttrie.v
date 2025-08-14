@@ -33,7 +33,7 @@ Local Notation wBnat := (BinInt.Z.to_nat wB).
 Lemma lt_lenght_wB (T : Type) (a : array T) : to_nat (length a) < wBnat.
 Proof.
 have /leq_ltn_trans : to_nat (length a) <= to_nat max_length.
-  by rewrite -leintE; exact: leb_length.
+  by rewrite -leEint; exact: leb_length.
 by apply; apply/ltP/Z2Nat.inj_lt.
 Qed.
 
@@ -90,14 +90,14 @@ move=> s t; apply (iffP idP) => [|{s}->].
   rewrite /eq_trarray => /and3P[/eqP eqlen {}/IHdef eqdef /allP /= eq].
   congr Trie; apply: array_ext => // i /[dup] {}/IHa Hrec ltil.
   apply: Hrec; rewrite -(to_natK i); apply: eq.
-  by rewrite mem_iota /= add0n -ltintE; exact: ltil.
+  by rewrite mem_iota /= add0n -ltEint; exact: ltil.
 elim/rectrie: t => [//| a IHdef IHa] x; rewrite /= eqxx {x} /=.
 rewrite /eq_trarray !eqxx {}IHdef /=.
 apply/allP => /= n; rewrite mem_iota /= add0n => ltn.
-apply: IHa; rewrite ltintE of_natK //.
+apply: IHa; rewrite ltEint of_natK //.
 move/leq_trans: ltn; apply.
 have /leq_trans: to_nat (length a) <= to_nat max_length.
-  by rewrite -leintE; exact: leb_length.
+  by rewrite -leEint; exact: leb_length.
 by apply; apply/leP; rewrite -Z2Nat.inj_le.
 Qed.
 HB.instance Definition _ := hasDecEq.Build trie eqtrie_subproof.
@@ -135,7 +135,7 @@ apply (iffP and3P) => [[ /orP eqlen def0 /allP] | [eqlen def0]] /= trienth.
 - split => //; first by case: eqlen => [] /eqP ->; [left| right].
     by case: (default a) def0.
   move=> i ltisz; rewrite -(to_natK i); apply: trienth.
-  by rewrite mem_iota /= add0n -ltintE.
+  by rewrite mem_iota /= add0n -ltEint.
 - split; first by case: eqlen => ->; rewrite eqxx // orbT.
     by case: (default a) def0.
   apply/allP => n; rewrite mem_iota /= add0n => ltnsz.
@@ -143,7 +143,7 @@ apply (iffP and3P) => [[ /orP eqlen def0 /allP] | [eqlen def0]] /= trienth.
     apply: (ltn_trans ltnsz); apply/ltP; rewrite -Z2Nat.inj_lt; last by [].
     * by case/andP: le_trielen => _ /lebP/(BinInt.Z.le_lt_trans _); apply.
     * by rewrite -to_Z_0; apply/lebP; apply: le0int.
-  by move: ltnsz; rewrite -{1}eqn -ltintE => /trienth.
+  by move: ltnsz; rewrite -{1}eqn -ltEint => /trienth.
 Qed.
 
 Structure fltrie : Type := FLTrie {trval :> trie; _ : is_fltrie trval}.
@@ -199,7 +199,7 @@ Fixpoint getsubtrie t v :=
 Definition gettrie t v := if getsubtrie t v is Trie x a then x else None.
 
 Lemma get_empty i : [| | Empty : trie |].[i] = Empty.
-Proof. by rewrite get_out_of_bounds //= ltintbE ltn0. Qed.
+Proof. by rewrite get_out_of_bounds //= ltEintb ltn0. Qed.
 
 Lemma flarray_make0 : flarray (make 0 Empty).
 Proof.
@@ -221,7 +221,7 @@ Proof.
 move/flarrayP => [lena defa /= flt].
 case: (boolP (i < trielen)%O) => [| /negbTE H]; first exact: flt.
 rewrite get_out_of_bounds ?defa //=; case: lena => [] -> //.
-by rewrite ltintbE.
+by rewrite ltEintb.
 Qed.
 Lemma flarray_set a i t :
   flarray a -> is_fltrie t -> flarray a.[i <- t].
@@ -233,7 +233,7 @@ apply/flarrayP; split.
 - move=> /= j ltj; case: (altP (i =P j)) => [{i}->|/eqP ineqj].
     case: lena => lena; last by rewrite get_set_same // lena.
     rewrite get_out_of_bounds ?default_set ?defa //.
-    by rewrite length_set lena ltintbE.
+    by rewrite length_set lena ltEintb.
   by rewrite get_set_other // flta.
 Qed.
 
@@ -279,7 +279,7 @@ elim: w v t => [| w0 w IHw] [|v0 v] [|x t] //=.
   case/andP=> [ltv0 {}/IHw Hrec].
   case: eqlen => [len0 | leneq] /=.
     rewrite len0 /= [t.[w0]]get_out_of_bounds; first last.
-      by rewrite len0 ltintbE.
+      by rewrite len0 ltEintb.
     (* Duplication here *)
     case: eqP => /= [{w0}-> | neq] /=.
       rewrite get_set_same; last by rewrite length_make_trielen; exact: ltv0.
@@ -580,7 +580,7 @@ Proof.
 have : (0 < max_length)%O by [].
 elim: (pgen P) (0) pgenOk => [|g0 g IHg] //= i /[swap] lti.
 case/andP => ltg0 {}/IHg; apply.
-by rewrite ltintE maxintE gtn_max -!ltintE lti ltg0.
+by rewrite ltEint maxEint gtn_max -!ltEint lti ltg0.
 Qed.
 
 Lemma pgen_maxlen : (0 < pres_trielen <= max_length)%O.
@@ -589,12 +589,12 @@ have foldlmaxlt : (foldl max 0 (pgen P) < max_length)%O.
   have : (0 < max_length)%O by [].
   elim: (pgen P) (0) pgenOk => [|g0 g IHg] //= i /[swap] lti.
   case/andP => ltg0 {}/IHg; apply.
-  by rewrite ltintE maxintE gtn_max -!ltintE lti ltg0.
+  by rewrite ltEint maxEint gtn_max -!ltEint lti ltg0.
 apply/andP; split; first last.
   by rewrite /pres_trielen; apply ltleSint; exact: foldlmaxlt.
-rewrite /pres_trielen ltintE to_nat0 to_natD; first by rewrite addnS ltnS.
+rewrite /pres_trielen ltEint to_nat0 to_natD; first by rewrite addnS ltnS.
 rewrite addn1.
-move: foldlmaxlt; rewrite ltintE => /leq_ltn_trans; apply.
+move: foldlmaxlt; rewrite ltEint => /leq_ltn_trans; apply.
 by apply/ltP; rewrite -Z2Nat.inj_lt.
 Qed.
 
@@ -605,20 +605,20 @@ rewrite /pres_trielen.
 have : (0 < max_length)%O by [].
 elim: (pgen P) (0) => // [g0 g IHg] /= i lti.
 case/andP => ltg0 alllt; apply/andP; split; first last.
-  by apply: IHg => //; rewrite ltintE maxintE gtn_max -!ltintE lti ltg0.
+  by apply: IHg => //; rewrite ltEint maxEint gtn_max -!ltEint lti ltg0.
 elim: g alllt {IHg} i lti g0 ltg0 => [| g1 g IHg] /=.
-  move=> _ i lti g ltg; rewrite ltintE to_natD to_nat1 addn1 maxintE.
+  move=> _ i lti g ltg; rewrite ltEint to_natD to_nat1 addn1 maxEint.
     by rewrite ltnS leq_maxr.
   apply: (leq_trans (n := (to_nat max_length).+1)).
-    by rewrite ltnS gtn_max -!ltintE lti ltg.
+    by rewrite ltnS gtn_max -!ltEint lti ltg.
   by apply/ltP; rewrite -Z2Nat.inj_lt.
 case/andP => [ltg1 alllt] i lti g0 ltg0.
 have -> : max (max i g0) g1 = max (max i g1) g0.
   apply: to_nat_inj.
-  rewrite [LHS]maxintE [in LHS]maxintE [RHS]maxintE [in RHS]maxintE.
+  rewrite [LHS]maxEint [in LHS]maxEint [RHS]maxEint [in RHS]maxEint.
   by rewrite -!maxnA [maxn (to_nat g1) _]maxnC.
 apply: IHg => //=.
-by rewrite ltintE maxintE gtn_max -!ltintE lti ltg1.
+by rewrite ltEint maxEint gtn_max -!ltEint lti ltg1.
 Qed.
 
 Lemma corrrelat_trielen : all_relwords (prelat P) (<%O^~ pres_trielen).

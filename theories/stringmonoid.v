@@ -38,7 +38,7 @@ Lemma lengthE s : to_nat (length s) = size (to_list s).
 Proof. by rewrite length_spec. Qed.
 
 Lemma length_max s : (length s <= max_length)%O.
-Proof. by rewrite leintE -leintbE; apply/lebP; exact: valid_length. Qed.
+Proof. by rewrite leEint -leintbE; apply/lebP; exact: valid_length. Qed.
 
 Definition takes s i := sub s 0 i.
 Definition drops s i := sub s i (length s).
@@ -85,8 +85,8 @@ rewrite sub_spec !firstnE !skipnE (lengthE r1).
 have lesz : size (drop (size (to_list r1)) (to_list u)) <= to_nat (length u).
   by rewrite size_drop lengthE leq_subr.
 rewrite !take_oversize // {lesz} size_cat size_drop.
-have:= length_max u; rewrite leintE => /(leq_trans _); apply.
-move: lenr; rewrite leintE !lengthE.
+have:= length_max u; rewrite leEint => /(leq_trans _); apply.
+move: lenr; rewrite leEint !lengthE.
 move/size_prefix/subnKC : Hpref => {2}<-.
 by rewrite leq_add2r.
 Qed.
@@ -101,14 +101,14 @@ Lemma length_rewrites1_front_leq u v :
   str_rewrites1_front R u = Some v -> (length v <= length u)%O.
 Proof.
 move=> H.
-rewrite leintE !lengthE.
+rewrite leEint !lengthE.
 have:= length_rewrites1_frontE u.
 rewrite -str_rewrites1_frontE H /= => -[] eq.
 have := str_rewrites1_frontE u.
 rewrite H => /esym/rewrites1_frontP/rewrites_frontP[/= suf [s1 s2] /= -> ->].
 case/mapP => /= -[r1 r2] /[swap] /= -[{s1}-> {s2}->]/=.
 move/(allP Hdecr) => /=.
-by rewrite leintE !size_cat leq_add2r !lengthE.
+by rewrite leEint !size_cat leq_add2r !lengthE.
 Qed.
 
 Definition str_rewrites1_at R u i :=
@@ -139,7 +139,7 @@ have -> : drops (drops u n) i = drops u (n + i).
   by rewrite (to_natD _ _ ltsum) addnC.
 case H: str_rewrites1_front => [s|//]; congr Some.
 move/length_rewrites1_front_leq : H.
-rewrite leintE !lengthE !dropsE size_drop (to_natD _ _ ltsum) => ltl.
+rewrite leEint !lengthE !dropsE size_drop (to_natD _ _ ltsum) => ltl.
 apply: (can_inj of_to_list); rewrite !dropsE !cat_spec !firstnE.
 rewrite !(takesE, dropsE).
 rewrite !take_drop (to_natD _ _ ltsum).
@@ -150,7 +150,7 @@ rewrite take_oversize; first last.
   have:= ltl; rewrite subnDA -(leq_add2l (to_nat i)) => /leq_trans; apply.
   rewrite addnC subnK.
     apply (leq_trans (leq_subr _ _)).
-    by rewrite -lengthE -leintE length_max.
+    by rewrite -lengthE -leEint length_max.
   rewrite -(leq_add2l (to_nat n)) -lengthE subnKC; first exact: lesum.
   exact: (leq_trans (leq_addr _ _) lesum).
 rewrite (take_oversize (n := to_nat max_length)).
@@ -172,14 +172,14 @@ case Hrew : (str_rewrites1_front _ _) => [s|] //=; congr Some.
 move/length_rewrites1_front_leq: Hrew => lens.
 rewrite cat_spec takesE firstnE take_oversize //.
 rewrite size_cat size_take_min -!lengthE.
-have:= leiu; rewrite leintE => /minn_idPl ->.
+have:= leiu; rewrite leEint => /minn_idPl ->.
 apply: (leq_trans (n := to_nat (length u))); first last.
-  rewrite -(leintE (length u) max_length) /Order.le /=.
+  rewrite -(leEint (length u) max_length) /Order.le /=.
   by have := valid_length u; rewrite -leb_spec.
-move: lens; rewrite leintE lengthE.
+move: lens; rewrite leEint lengthE.
 rewrite (lengthE (sub _ _ _)) dropsE // size_drop.
 rewrite -(leq_add2l (to_nat i)) => /leq_trans; apply.
-by rewrite subnKC -(lengthE u) // -leintE.
+by rewrite subnKC -(lengthE u) // -leEint.
 Qed.
 
 Fixpoint str_rewrites1_loop u n i :=
@@ -201,7 +201,7 @@ elim: l u Hl => [|l0 l IHl] u eql0l /=.
 case: rewrites1_front => [res|]//=.
 have {}/IHl <- : to_list (drops u 1) = l by rewrite dropsE eql0l /= drop0.
 rewrite -(isSome_omap to_list) fun_if.
-rewrite str_rewrites1_atE /=; last by rewrite leintE lengthE eql0l.
+rewrite str_rewrites1_atE /=; last by rewrite leEint lengthE eql0l.
 rewrite eql0l /= drop0 isSome_omap.
 case: rewrites1_front => [res|] /=; first by rewrite take0.
 have -> : option_map (cons l0) =1 omap (cons l0) by case.
@@ -213,7 +213,7 @@ rewrite isSome_omap.
 case: (size l) => // n.
 rewrite /option_map. 
 /  rewrite /=.
-  have /str_rewrites1_atE : (0 <= length u)%O by rewrite leintE.
+  have /str_rewrites1_atE : (0 <= length u)%O by rewrite leEint.
   rewrite eql0l take0 drop0 /=.
   by case: (str_rewrites1_at R u 0) => [res|] ->; case: rewrites1_front.
 

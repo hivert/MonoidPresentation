@@ -76,38 +76,38 @@ Proof. exact: can_inj to_natK. Qed.
 
 Fact int_disp : Order.disp_t. by []. Qed.
 
-Lemma leintbE x y : (x ≤? y) = (to_nat x <= to_nat y).
+Lemma leEintb x y : (x ≤? y) = (to_nat x <= to_nat y).
 Proof. by apply/lebP/leP; rewrite Z2Nat.inj_le. Qed.
-Lemma ltintbE x y : (x <? y) = (to_nat x < to_nat y).
+Lemma ltEintb x y : (x <? y) = (to_nat x < to_nat y).
 Proof. by apply/ltbP/ltP; rewrite Z2Nat.inj_lt. Qed.
 
 Fact ltint_def x y : (x <? y) = (y != x) && (x ≤? y).
 Proof.
-by rewrite ltintbE leintbE -(inj_eq to_nat_inj) ltn_neqAle eq_sym.
+by rewrite ltEintb leEintb -(inj_eq to_nat_inj) ltn_neqAle eq_sym.
 Qed.
 Fact leint_refl x : (x <=? x).
-Proof. by rewrite leintbE leqnn. Qed.
+Proof. by rewrite leEintb leqnn. Qed.
 Fact leint_anti : antisymmetric leb.
-Proof. by move=> x y; rewrite !leintbE -eqn_leq => /eqP/to_nat_inj. Qed.
+Proof. by move=> x y; rewrite !leEintb -eqn_leq => /eqP/to_nat_inj. Qed.
 Fact leint_trans : transitive leb.
-Proof. by move=> y x z; rewrite !leintbE => /leq_trans/[apply]. Qed.
+Proof. by move=> y x z; rewrite !leEintb => /leq_trans/[apply]. Qed.
 HB.instance Definition _ := Order.isPOrder.Build int_disp int
                               ltint_def leint_refl leint_anti leint_trans.
 
-Lemma leintE x y : (x <= y)%O = (to_nat x <= to_nat y).
-Proof. exact: leintbE. Qed.
-Lemma ltintE x y : (x < y)%O = (to_nat x < to_nat y).
-Proof. exact: ltintbE. Qed.
+Lemma leEint x y : (x <= y)%O = (to_nat x <= to_nat y).
+Proof. exact: leEintb. Qed.
+Lemma ltEint x y : (x < y)%O = (to_nat x < to_nat y).
+Proof. exact: ltEintb. Qed.
 
 Fact leint_total : total (<=%O : rel int).
-Proof. by move=> x y; rewrite !leintE -!leEnat Order.le_total. Qed.
+Proof. by move=> x y; rewrite !leEint -!leEnat Order.le_total. Qed.
 HB.instance Definition _ := Order.POrder_isTotal.Build int_disp int leint_total.
 
 Fact le0int x : (0 <= x)%O.
-Proof. by rewrite leintE. Qed.
+Proof. by rewrite leEint. Qed.
 HB.instance Definition _ := Order.hasBottom.Build int_disp int le0int.
 
-Lemma maxintE x y : to_nat (max x y) = maxn (to_nat x) (to_nat y).
+Lemma maxEint x y : to_nat (max x y) = maxn (to_nat x) (to_nat y).
 Proof.
 rewrite max_spec Z2Nat.inj_max; apply anti_leq; apply/andP; split.
   by apply/leP; apply: Nat.max_lub; apply/leP; [apply: leq_maxl | apply: leq_maxr].
@@ -115,7 +115,7 @@ rewrite geq_max; apply/andP.
 by split; apply/leP; [apply: Nat.le_max_l | apply: Nat.le_max_r].
 Qed.
 
-Lemma minintE x y : to_nat (min x y) = minn (to_nat x) (to_nat y).
+Lemma minEint x y : to_nat (min x y) = minn (to_nat x) (to_nat y).
 Proof.
 rewrite min_spec Z2Nat.inj_min; apply anti_leq; apply/andP; split.
   rewrite leq_min; apply/andP.
@@ -124,7 +124,7 @@ by apply/leP; apply: Nat.min_glb; apply/leP; [apply: geq_minl | apply: geq_minr]
 Qed.
 
 Lemma wf_ltint : well_founded (<%O : rel int).
-Proof. by apply: (wf_f _ wf_ltnat) => x y; rewrite ltintE; apply. Qed.
+Proof. by apply: (wf_f _ wf_ltnat) => x y; rewrite ltEint; apply. Qed.
 
 
 Notation wBnat := (BinInt.Z.to_nat wB).
@@ -175,17 +175,17 @@ Proof. by move=> lt; rewrite to_natDE modn_small. Qed.
 
 Lemma ltleSint x y : (x < y)%O -> (x + 1 <= y)%O.
 Proof.
-move=> /[dup] ltxy; rewrite ltintE -addn1 -to_nat1 -to_natD ?leintE //.
-move: ltxy; rewrite to_nat1 addn1 ltintE => /leq_ltn_trans; apply.
+move=> /[dup] ltxy; rewrite ltEint -addn1 -to_nat1 -to_natD ?leEint //.
+move: ltxy; rewrite to_nat1 addn1 ltEint => /leq_ltn_trans; apply.
 exact: ltwBnat.
 Qed.
 
 Lemma ltSleint x y : (x < y + 1)%O -> (x <= y)%O.
 Proof.
-move=> /[dup] H; rewrite ltintE -addn1 -to_nat1 to_natD.
-  by rewrite to_nat1 !addn1 ltnS -leintE.
+move=> /[dup] H; rewrite ltEint -addn1 -to_nat1 to_natD.
+  by rewrite to_nat1 !addn1 ltnS -leEint.
 rewrite to_nat1 addn1 ltnNge; apply/negP => Habs.
-suff {H} Heq : y + 1 = 0 by move: H; rewrite Heq ltintE to_nat0.
+suff {H} Heq : y + 1 = 0 by move: H; rewrite Heq ltEint to_nat0.
 apply: to_nat_inj; rewrite to_nat0 to_natDE to_nat1.
 suff -> : (to_nat y + 1)%N = wBnat by rewrite modnn.
 rewrite addn1; apply anti_leq.
@@ -196,7 +196,7 @@ Lemma int_neq0 x : x != 0 -> (1 <= x)%O.
 Proof.
 rewrite eq_sym => /negbTE neq0; have := le0int x.
 rewrite Order.POrderTheory.le_eqVlt neq0 /= => /ltleSint.
-by rewrite leintE to_natD.
+by rewrite leEint to_natD.
 Qed.
 
 Lemma to_natB x y : (x <= y)%O -> to_nat (y - x) = (to_nat y - to_nat x)%N.
@@ -211,7 +211,7 @@ Lemma succ_subint1E x : x != 0 -> (to_nat (x - 1)).+1 = to_nat x.
 Proof.
 move=> /int_neq0/[dup] lt1x /to_natB ->.
 rewrite to_nat1 subn1 prednK //.
-by move: lt1x; rewrite leintE to_nat1.
+by move: lt1x; rewrite leEint to_nat1.
 Qed.
 
 Lemma to_natME x y : to_nat (x * y) = (to_nat x * to_nat y) %% wBnat.
