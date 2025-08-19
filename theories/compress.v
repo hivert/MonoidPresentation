@@ -70,6 +70,8 @@ rewrite /is_special; apply (iffP idP).
 - by move=> [u] []->; rewrite eqxx // orbC.
 Qed.
 
+End Special.
+
 (* The word problem in special monoids reduces to the corresponding problem in
   groups. This is Corollary 2.8 in "The word problem for one-relation monoids: a
   survey" by Carl-Fredrik Nyberg-Brodda.
@@ -77,10 +79,9 @@ Qed.
    https://arxiv.org/abs/2102.00745 Makanin, G.S.: On the identity problem for
    finitely presented groups and semigroups. PhD thesis, Steklov Mathematical
    Institute, Moscow (1966) *)
-Theorem special_dec P : is_special (prelat P) -> WPdecidable P.
-Admitted.
-
-End Special.
+Definition Hyp_special_dec :=
+  forall (Alph : choiceType) (P : pres Alph),
+    is_special (prelat P) -> WPdecidable P.
 
 
 Section StrongCompress.
@@ -122,28 +123,28 @@ Definition strong_compress_pres P k : pres (word Alph) :=
     (allwords_uniq k (uniq_pgen P))
     (all_relwords_strong_compress P k).
 
+End StrongCompress.
+
+
 (* The assumption that both side of the relation starts with a implies
    that k >= 1, which in turn implies that there is a non trivial common suffix *)
-Theorem strong_compress_dec (P : pres Alph) :
-  forall a u v,
+Definition Hyp_strong_compress_dec :=
+  forall (Alph : choiceType) (P : pres Alph) (a : Alph) (u v : word Alph),
     size (pgen P) = 2 -> prelat P = [:: (a :: u, a :: v)] -> u != v ->
     let k := size (long_cprefix (a :: u) (a :: v)) in
     k <= size (long_csuffix (a :: u) (a :: v)) ->
     WPdecidable (strong_compress_pres P k.+1) -> WPdecidable P.
-Admitted.
-
-End StrongCompress.
 
 
 Section ReduceTo2letters.
 
-Context {Alph Beta : choiceType}.
+Context {Alph : choiceType}.
 
 Implicit Type (u v w : word Alph).
 
 (* map A to a and all other to b *)
-Variables (P : pres Alph) (A B : Alph) (a b : Beta).
-Hypothesis neqab : a != b.
+Variables (P : pres Alph) (A B : Alph)
+  (Beta : choiceType) (a b : Beta) (neqab : a != b).
 
 Definition word_to2letters U :=
   [seq if l == A then a else b | l <- U].
@@ -161,12 +162,14 @@ Qed.
 Definition reduce2letters :=
   Pres [:: a; b] rel2letters uniq_ab correct_rel2letters.
 
-Theorem reduce2letters_dec :
-  forall U V, A != B -> prelat P = [:: (A :: U, B :: V)] ->
-    WPdecidable reduce2letters -> WPdecidable P.
-Admitted.
-
 End ReduceTo2letters.
+
+
+Definition Hyp_reduce2letters_dec :=
+  forall (Alph : choiceType) (P : pres Alph) (A B : Alph), A != B ->
+    forall U V, prelat P = [:: (A :: U, B :: V)] ->
+      forall (Beta : choiceType) (a b : Beta) (neqab : a != b),
+             WPdecidable (reduce2letters P A neqab) -> WPdecidable P.
 
 
 Section FastCompressReduce.
@@ -188,9 +191,10 @@ End FastCompressReduce.
 
 Section StrongCompressAndReduce.
 
-Context {Alph : choiceType}.
-Variable (P : pres Alph).
-Variable (a : Alph) (u v : word Alph).
+Hypotheses (Hstrong : Hyp_strong_compress_dec)
+           (Hreduce : Hyp_reduce2letters_dec).
+
+Context {Alph : choiceType} (P : pres Alph) (a : Alph) (u v : word Alph).
 Hypotheses
   (Hgen : size (pgen P) = 2)
   (Hrel : prelat P = [:: (a :: u, a :: v)])
@@ -252,11 +256,8 @@ Theorem compress_reduce_dec :
   WPdecidable reduced_compressed_pres -> WPdecidable P.
 Proof.
 move=> Hdec.
-suff: WPdecidable (strong_compress_pres P k.+1).
-    exact: (strong_compress_dec Hgen Hrel nequv).
-pose U := strong_compress k.+1 u.
-pose V := strong_compress k.+1 v.
-move/(reduce2letters_dec (U := U) (V := V) strcAneqB): Hdec; apply.
+apply: (Hstrong Hgen Hrel nequv Hleft).
+move/(Hreduce strcAneqB): Hdec; apply.
 by rewrite /= Hrel /= !ltnS !ltnNge ltkszu ltkszv /=.
 Qed.
 
@@ -285,36 +286,42 @@ Proof. by rewrite fast_reduced_compressed_presE => /compress_reduce_dec. Qed.
 
 End StrongCompressAndReduce.
 
-Local Open Scope uint63_scope.
-
 
 Module ExampleCompress.
 
+Local Open Scope uint63_scope.
+
 Definition testpres :=
   make_pres [:: 0; 1] [:: ([:: 0;0;1;1;1], [:: 0;1;0;1;1;1])].
+(* Reduce to  = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])] which is Watier *)
+
 Definition compressed := strong_compress_pres testpres 2.
 
-Definition reduced := @reduce2letters _ _ compressed [:: 0; 0] 0 1 is_true_true.
+Definition reduced := @reduce2letters _ compressed [:: 0; 0] _ 0 1 is_true_true.
 Definition fast_reduced :=
   @fast_reduced_compressed_pres int testpres 0 [:: 0; 1; 1; 1] [:: 1; 0; 1; 1; 1]
     erefl is_true_true int 0 1 is_true_true.
 
-(* Reduce to  = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])] which is Watier *)
-Goal prelat reduced = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])]. by []. Qed.
-Goal prelat fast_reduced = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])]. by []. Qed.
+Goal prelat reduced = [:: ([:: 0; 1; 1; 1], [:: 1; 1; 1; 1; 1])].
+Proof. by []. Qed.
+Goal fast_reduced = reduced. Proof. exact/eqP. Qed.
 
-Goal WPdecidable testpres.
+Goal Hyp_is_Watier_dec -> Hyp_strong_compress_dec ->
+     Hyp_reduce2letters_dec -> WPdecidable testpres.
 Proof.
 have neq : 0 != 1 by [].
-apply: (fast_compress_reduce_dec _ _ (neqxy := neq)) => // eqrel Hpre.
+move=> HWatier /fast_compress_reduce_dec/[apply] fast_dec.
+apply: (fast_dec _ _ _ _ _ _ _ _ _ _ _ _ neq) => // eqrel Hpre.
 apply: (perm_gen_pres_dec (gens := [:: 1; 0])).
-exact/is_Watier_dec/(@check_WatierP _ _ 1 0 [:: 1; 1] [:: 1; 1; 1; 1] 1).
+exact/HWatier/(@check_WatierP _ _ 1 0 [:: 1; 1] [:: 1; 1; 1; 1] 1).
 Qed.
 
 End ExampleCompress.
 
 
 Section StrongCompressAndSpecial.
+
+Hypotheses (Hstrong : Hyp_strong_compress_dec) (Hspecial : Hyp_special_dec).
 
 Context {Alph : choiceType}.
 Variable (P : pres Alph).
@@ -342,11 +349,11 @@ apply (suffix_sizeE (long_csuffixr _ _)).
 apply/size_suffix/long_csuffixP; [exact: suff | exact: suffix_refl].
 Qed.
 
-Theorem strong_and_special_dec: WPdecidable P.
+Theorem strong_and_special_dec : WPdecidable P.
 Proof.
-apply: (strong_compress_dec Hgen Hrel NonTrivial).
+apply: (Hstrong Hgen Hrel NonTrivial).
   by rewrite prefE suffE.
-by apply: special_dec; rewrite /is_special prefE /= Hrel /= !ltnS leqnn eqxx orbT.
+by apply: Hspecial; rewrite /is_special prefE /= Hrel /= !ltnS leqnn eqxx orbT.
 Qed.
 
 End StrongCompressAndSpecial.

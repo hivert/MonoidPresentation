@@ -485,15 +485,20 @@ rewrite /cycle_free_1rel.
 by apply (iffP andP) => -[]/is_left_cycle_free_1relP H1 /is_left_cycle_free_1relP H2.
 Qed.
 
+End CycleFree.
+
+
 (* Theorem 2.6 in Carl-Fredrik Nyberg-Brodda1,
    The word problem for one-relation monoids: a survey *)
-Theorem cycle_free_1rel_dec P : cycle_free_1rel P -> WPdecidable P.
-Admitted.
+Definition Hyp_cycle_free_1rel_dec :=
+  forall (Alph : choiceType) (P : pres Alph),
+    cycle_free_1rel P -> WPdecidable P.
 
-Theorem is_cycle_free_1rel_dec P : is_cycle_free_1rel P -> WPdecidable P.
-Proof. move/is_cycle_free_1relP; exact: cycle_free_1rel_dec. Qed.
-
-End CycleFree.
+Corollary is_cycle_free_1rel_dec :
+  Hyp_cycle_free_1rel_dec ->
+  forall (Alph : choiceType) (P : pres Alph),
+    is_cycle_free_1rel P -> WPdecidable P.
+Proof. by move=> + Alph P /is_cycle_free_1relP; apply. Qed.
 
 
 Section NbOcc.
@@ -518,21 +523,22 @@ rewrite /has_same_number_of_occ /same_number_of_occ.
 by apply (iffP allP) => /= H r {}/H => [/andP[-> /eqP ->]// | [-> /= ->]].
 Qed.
 
-(* Theorem 4.1 in https://github.com/james-d-mitchell/1-relation-paper *)
-Theorem left_cycle_free_1rel_same_number_occ_dec P a :
-  left_cycle_free_1rel P -> same_number_of_occ P a ->
-  WPdecidable P.
-Admitted.
+End NbOcc.
 
-Corollary check_same_number_occ_dec P a :
+
+(* Theorem 4.1 in https://github.com/james-d-mitchell/1-relation-paper *)
+Definition Hyp_left_cycle_free_1rel_same_number_occ_dec :=
+  forall (Alph : choiceType) (P : pres Alph), left_cycle_free_1rel P ->
+    forall a, same_number_of_occ P a -> WPdecidable P.
+
+Corollary check_same_number_occ_dec (Alph : choiceType) (P : pres Alph) a :
+  Hyp_left_cycle_free_1rel_same_number_occ_dec ->
   is_left_cycle_free_1rel P -> has_same_number_of_occ P a ->
   WPdecidable P.
 Proof.
-move=> /is_left_cycle_free_1relP H1 /has_same_number_of_occP.
-exact: left_cycle_free_1rel_same_number_occ_dec.
+by move=> + /is_left_cycle_free_1relP H1 /has_same_number_of_occP; apply.
 Qed.
 
-End NbOcc.
 
 
 Section SmallOverlap.
@@ -713,15 +719,16 @@ have {}/lesz : all (mem (pieces (unzip1 pairs))) f.
 by move/(leq_trans _ ); apply.
 Qed.
 
-(* Section 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
-Theorem c3_monoid_dec P : small_overlap 3 P -> WPdecidable P.
-Admitted.
-
-Corollary check_c3_monoid_dec P facts :
-  check_small_overlap 3 P facts -> WPdecidable P.
-Proof. by move/check_small_overlapP/c3_monoid_dec. Qed.
-
 End SmallOverlap.
+
+
+(* Section 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
+Definition Hyp_c3_monoid_dec :=
+ forall (Alph : choiceType) (P : pres Alph), small_overlap 3 P -> WPdecidable P.
+
+Corollary check_c3_monoid_dec (Alph : choiceType) (P : pres Alph) facts :
+  Hyp_c3_monoid_dec -> check_small_overlap 3 P facts -> WPdecidable P.
+Proof. by move=> + /check_small_overlapP; apply. Qed.
 
 
 Section Watier.
@@ -743,28 +750,34 @@ Definition check_Watier P (a b : Alph) (u v : word Alph) (k : nat) :=
 Lemma check_WatierP P a b u v k : check_Watier P a b u v k -> isWatier P.
 Proof. by case/and4P => H1 /eqP H2 /eqP H3 H4; exists a b u v k. Qed.
 
-(* Theorem 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
-Theorem is_Watier_dec P : isWatier P -> WPdecidable P.
-Admitted.
-Corollary check_Watier_dec P a b u v k : check_Watier P a b u v k -> WPdecidable P.
-Proof. move/check_WatierP; exact: is_Watier_dec. Qed.
-
 End Watier.
+
+
+(* Theorem 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
+Definition Hyp_is_Watier_dec :=
+  forall (Alph : choiceType) (P : pres Alph), isWatier P -> WPdecidable P.
+
+Corollary check_Watier_dec (Alph : choiceType) (P : pres Alph) a b u v k :
+  Hyp_is_Watier_dec -> check_Watier P a b u v k -> WPdecidable P.
+Proof. by move=> + /check_WatierP; apply. Qed.
 
 
 Module Examples.
 Section Examples.
 
-Definition testWatier :=
+Hypothesis
+  (HWatier : Hyp_is_Watier_dec)
+  (Hcycle : Hyp_left_cycle_free_1rel_same_number_occ_dec)
+  (HC3 : Hyp_c3_monoid_dec).
+
+Definition AB_BBBABBA_A :=
   make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])].
 
-Lemma testWatierP : isWatier testWatier.
+Lemma testWatierP : isWatier AB_BBBABBA_A.
 Proof. by exists 0 1 [:: 1; 1; 0] [::] 3. Qed.
 
-Definition AB_AAAB_A :=
-  make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])].
-Lemma AB_AAAB_A_dec : WPdecidable AB_AAAB_A.
-Proof. exact: (@check_Watier_dec _ _ 0 1 [:: 1; 1; 0] [::] 3). Qed.
+Lemma AB_AAAB_A_dec : WPdecidable AB_BBBABBA_A.
+Proof. exact: (HWatier testWatierP). Qed.
 
 Definition A_AAA_A := make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])].
 Lemma A_AAA_A_dec : WPdecidable A_AAA_A.

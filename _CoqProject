@@ -4,7 +4,7 @@
 -arg -w -arg -redundant-canonical-projection
 -arg -w -arg -deprecated-since-8.19
 -arg -w -arg -projection-no-head-constant
--arg -noglob
+
 theories/int_seq.v
 theories/sizelexi.v
 theories/monoids.v
@@ -21,6 +21,7 @@ theories/batchchecker.v
 theories/inttrie.v
 theories/freecom.v
 theories/well_founded.v
+theories/hypothses.v
 
 theories/examples/symmetricgroup4.v
 theories/examples/RennerB41.v
