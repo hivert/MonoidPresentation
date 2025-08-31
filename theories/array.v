@@ -325,11 +325,10 @@ Section Test.
 
 Let taille := 1000000.
 Let a := make_array 0 taille (fun i => i).
-Time Eval vm_compute in has_array (fun i => (i > 2000000000)%O) a.
-Time Eval native_compute in has_array (fun i => (i > 2000000000)%O) a.
-
-Let b := from_seq [:: 1; 4; 6] 0.
-Eval compute in b.
+Goal has_array (fun i => (i > 2000000000)%O) a = false.
+Proof. by vm_cast_no_check (erefl false). Time Qed.
+Goal has_array (fun i => (i > 2000000000)%O) a = false.
+Proof. by native_cast_no_check (erefl false). Time Qed.
 
 End Test.
 
