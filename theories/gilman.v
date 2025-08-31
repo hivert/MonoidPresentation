@@ -135,7 +135,7 @@ have := leqnn (to_nat trielen).
 elim: {1 3 4}(to_nat trielen) => [//| n IHn] ltn.
 rewrite -(addn1) iotaD /= add0n !map_cat flatten_cat /= cats0.
 have ltnint : (of_nat n < trielen)%O.
-  rewrite ltintE of_natK //.
+  rewrite ltEint of_natK //.
   by apply: (ltn_trans ltn); rewrite -lena; apply: lt_lenght_wB.
 rewrite cats1 foldl_rcons {}IHn ?(@ltnW n) // {}IHa ?lena //; last exact: flta.
 by rewrite catA /= !rev_cons -rcons_cat map_cat rev_cat.
@@ -166,7 +166,7 @@ rewrite -!map_comp map_flatten; congr flatten.
 rewrite -map_comp; apply eq_in_map => /= n; rewrite mem_iota add0n /= => ltn.
 have /of_natK Hn : n < BinInt.Z.to_nat wB.
   exact: (ltn_trans ltn (lt_lenght_wB _)).
-move: ltn; rewrite -{1}Hn -ltintE; move: (of_nat n) {Hn} => {}n ltn.
+move: ltn; rewrite -{1}Hn -ltEint; move: (of_nat n) {Hn} => {}n ltn.
 rewrite IHtr // (IHtr _ _ [:: n]) //.
 rewrite -!map_comp; apply eq_map => u /=.
 by rewrite !revK -catA cat1s.
@@ -199,7 +199,7 @@ apply/flatten_mapP/idP => [[ /= j /mapP[/= n]] | uin].
   by move/(congr1 rev); rewrite !rev_cat /= !revK => [[-> ->]].
 exists i.
   apply/mapP; exists (to_nat i); last by rewrite to_natK.
-  rewrite mem_iota /= add0n -ltintE.
+  rewrite mem_iota /= add0n -ltEint.
   apply: get_not_default_lt; apply/eqP; rewrite defa.
   by case: eqP uin => // ->.
 rewrite -cats1 prefixes_trie_recE.
@@ -229,7 +229,7 @@ elim: {1 3}(to_nat (length a)) => [//| n IHn] ltn.
 rewrite -(addn1) iotaD /= add0n !map_cat flatten_cat cat_path /= cats0.
 rewrite {}IHn ?(ltnW ltn) //=.
 rewrite (path_sortedE ltxirev_trans) {}IH; first last.
-  rewrite ltintE of_natK //.
+  rewrite ltEint of_natK //.
   exact/(ltn_trans ltn)/lt_lenght_wB.
 rewrite andbT; apply/allP => /= u /suffix_prefixes_trie_rec.
 rewrite -prefix_rev rev_cons -cats1 => /prefixP[/= suf ->].
@@ -239,7 +239,7 @@ have : fn \in rcons f fn by rewrite mem_rcons inE eqxx.
 rewrite last_rcons -{}Hflat => /flatten_mapP[/= i] /mapP[/= m].
 rewrite mem_iota /= add0n => ltmn {i}->.
 have {}ltmn : (of_nat m < of_nat n)%O.
-  rewrite ltintE !of_natK //.
+  rewrite ltEint !of_natK //.
   exact/(ltn_trans ltn)/lt_lenght_wB.
   exact/(ltn_trans ltmn)/(ltn_trans ltn)/lt_lenght_wB.
 move/suffix_prefixes_trie_rec.
@@ -352,7 +352,7 @@ have: length rec.2 = trielen.
   case: (prefixes_trie_pos_acc j a.[m0]) => szm0 am0 /=.
   by apply: IHm; rewrite length_set.
 have ltnn : (of_nat n < length a)%O.
-  rewrite lena ltintE of_natK //.
+  rewrite lena ltEint of_natK //.
   by apply: (ltn_trans ltn); rewrite -lena; apply: lt_lenght_wB.
 have := ltnn; rewrite lena => /flta.
 move/(_ _ ltnn): IHa => /[apply] Heq.
@@ -365,7 +365,7 @@ rewrite length_set lenarec (negbTE (len_neq0 maxlen)) {}/recn /=.
 
 
 have ltnn : (of_nat n < length arec)%O.
-  rewrite lenarec ltintE of_natK //.
+  rewrite lenarec ltEint of_natK //.
   by apply: (ltn_trans ltn); rewrite -lenarec; apply: lt_lenght_wB.
 have := 
 
@@ -376,7 +376,7 @@ rewrite length_set lenarec (negbTE (len_neq0 maxlen)).
 rewrite IHa /=. rewrite IHn.
 
 have ltnint : (of_nat n < trielen)%O.
-  rewrite ltintE of_natK //.
+  rewrite ltEint of_natK //.
   by apply: (ltn_trans ltn); rewrite -lena; apply: lt_lenght_wB.
 rewrite cats1 foldl_rcons {}IHn ?(@ltnW n) // {}IHa ?lena //; last exact: flta.
 by rewrite catA /= !rev_cons -rcons_cat map_cat rev_cat.
@@ -402,7 +402,7 @@ elim: {1 3 4}(to_nat trielen) => [//=| n IHn] ltn.
   rewrite addnC -to_nat1 -to_natD //; admit.
 rewrite -(addn1) iotaD /= add0n !map_cat.
 have ltnint : (of_nat n < trielen)%O.
-  rewrite ltintE of_natK //.
+  rewrite ltEint of_natK //.
   by apply: (ltn_trans ltn); rewrite -lena; apply: lt_lenght_wB.
 
 
