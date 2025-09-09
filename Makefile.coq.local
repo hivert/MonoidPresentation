@@ -1,0 +1,1 @@
+theories/test/%.vo: COQFLAGS += -noglob
