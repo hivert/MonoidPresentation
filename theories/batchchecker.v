@@ -104,6 +104,7 @@ Variant check_certified_presentation_result :=
   | CPMonogenicError
   | CPCycleFreeError
   | CPFreeProductMonogenicAndFreeError
+  | CPRightCyclic1RelError
   | CPLeftCycleFree1RelError
   | CPOccError
   | CPSmallOverlapError
@@ -181,6 +182,7 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
           CPFreeProductMonogenicAndFreeError
         else CPOk
   | EqualNumberOfOccurences l =>
+      if ~~ is_right_cyclic_1rel P then CPRightCyclic1RelError else
       if ~~ is_left_cycle_free_1rel P then CPLeftCycleFree1RelError else
       if ~~ has_same_number_of_occ P l then CPOccError else CPOk
   | SmallOverlap facts =>
@@ -284,9 +286,10 @@ rewrite /check_certpres; case: C => [].
   case: (boolP (free_product_monogenic_free P)) => //= fp _.
   exact: free_product_monogenic_free_1rel_dec.
 - move=> l.
+  case: (boolP (is_right_cyclic_1rel P)) => //= cyclic.
   case: (boolP (is_left_cycle_free_1rel P)) => //= free.
   case: (boolP (has_same_number_of_occ P l)) => //= nbocc _.
-  exact: (check_same_number_occ_dec free nbocc).
+  exact: (check_same_number_occ_dec cyclic free nbocc).
 - move=> facts.
   case: (boolP (check_small_overlap 3 P facts)) => //= c3 _.
   exact: (check_c3_monoid_dec c3).
@@ -414,7 +417,9 @@ Definition AB_AAAAAA_ABAABA :=
 Definition AB_AAAB_A :=
   make_pres [:: 0; 1] [:: ([:: 1; 1; 1; 0; 1; 1; 0], [:: 0])].
 Definition A_AAA_A := make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])].
-Definition AB_ABB_BA := make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])].
+Definition AB_BBABAAAA_ABBBBAAABA :=
+  make_pres [:: 0;1]
+    [:: ([:: 1;1;0;1;0;0;0;0], [:: 0;1;1;1;1;0;0;0;1;0])].
 Definition AB_BAAAABBAAA_ABBBAABA :=
   make_pres [:: 0; 1]
        [:: ([:: 1; 0; 0; 0; 0; 1; 1; 0; 0; 0], [:: 0; 1; 1; 1; 0; 0; 1; 0]) ].
@@ -428,7 +433,7 @@ Definition BA_BABAABAA_BABBBABBB := make_pres [::1; 0]
 Definition list_pres := [:: AB_AAAAAA_ABAABA;
                          AB_AAAB_A;
                          A_AAA_A;
-                         AB_ABB_BA;
+                         AB_BBABAAAA_ABBBBAAABA;
                          AB_BAAAABBAAA_ABBBAABA;
                          AB_ABA_ABABA;
                          BA_ABBB_BBBBB;
@@ -477,20 +482,24 @@ apply: (check_batchP (lc :=
    by native_cast_no_check (erefl BatchOk).
 Qed.
 
-Definition AB_BBA_AB :=
-  make_pres [::0;1]  [:: ([:: 1;1;0], [:: 0;1])].
+Definition AB_AAAABABB_ABAAABBBBA :=
+  make_pres [:: 0;1]
+    [:: ([:: 0;0;0;0;1;0;1;1], [:: 0;1;0;0;0;1;1;1;1;0])].
 Definition AB_ABBABBB_A :=
   make_pres [:: 0; 1] [:: ([:: 0;1;1;0;1;1;1], [:: 0])].
 Definition BA_BBBABBA_A :=
   make_pres [:: 1; 0] [:: ([:: 1;1;1;0;1;1;0], [:: 0])].
-Definition AB_BA_ABB :=
-  make_pres [:: 0; 1] [:: ([:: 1; 0], [:: 0; 1; 1])].
+
+Definition AB_ABBBBAAABA_BBABAAAA :=
+  make_pres [:: 0;1]
+    [:: ([:: 0;1;1;1;1;0;0;0;1;0], [:: 1;1;0;1;0;0;0;0])].
 Definition AB_AABBB_ABABBB :=
   make_pres [:: 0; 1] [:: ([:: 0; 0; 1; 1; 1], [:: 0; 1; 0; 1; 1; 1])].
 
 
 Definition list_recpres :=
-  [:: AB_BBA_AB; AB_ABBABBB_A; BA_BBBABBA_A; AB_BA_ABB; AB_AABBB_ABABBB].
+  [:: AB_AAAABABB_ABAAABBBBA; AB_ABBABBB_A; BA_BBBABBA_A;
+   AB_ABBBBAAABA_BBABAAAA; AB_AABBB_ABABBB].
 
 
 (* Eval compute in prelat AB_AABBB_ABABBB.

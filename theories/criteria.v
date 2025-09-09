@@ -462,6 +462,17 @@ Definition left_cycle_free_1rel P : Prop :=
 Definition is_left_cycle_free_1rel P : bool :=
   if (prelat P) is [:: (a :: u, b :: v)] then a != b else false.
 
+Definition right_cyclic_1rel P : Prop :=
+  exists (a : Alph) (u v : word Alph),
+    prelat P = [:: (rcons u a, rcons v a)].
+Definition is_right_cyclic_1rel P : bool :=
+  if (prelat P) is [:: (u, v)] then
+    if rev u is a :: u' then
+      if rev v is b :: v' then a == b else false
+    else false
+  else false.
+
+
 Definition cycle_free_1rel P :=
   left_cycle_free_1rel P /\ left_cycle_free_1rel (dual_pres P).
 Definition is_cycle_free_1rel P :=
@@ -478,12 +489,18 @@ apply (iffP idP); case: r1 {Hrel} => [[|a u][|b v]] //;
 by case: l => // neqab; exists a; exists b; exists u; exists v.
 Qed.
 
+Lemma is_right_cyclic_1relP P :
+  reflect (right_cyclic_1rel P) (is_right_cyclic_1rel P).
+Proof.
+Admitted.
+
 Lemma is_cycle_free_1relP P :
   reflect (cycle_free_1rel P) (is_cycle_free_1rel P).
 Proof.
 rewrite /cycle_free_1rel.
 by apply (iffP andP) => -[]/is_left_cycle_free_1relP H1 /is_left_cycle_free_1relP H2.
 Qed.
+
 
 (* Theorem 2.6 in Carl-Fredrik Nyberg-Brodda1,
    The word problem for one-relation monoids: a survey *)
@@ -518,17 +535,20 @@ rewrite /has_same_number_of_occ /same_number_of_occ.
 by apply (iffP allP) => /= H r {}/H => [/andP[-> /eqP ->]// | [-> /= ->]].
 Qed.
 
-(* Theorem 4.1 in https://github.com/james-d-mitchell/1-relation-paper *)
+(* Theorem 4.9 in Carl-Fredrik Nyberg-Brodda1,
+   The word problem for one-relation monoids: a survey *)
 Theorem left_cycle_free_1rel_same_number_occ_dec P a :
-  left_cycle_free_1rel P -> same_number_of_occ P a ->
+  right_cyclic_1rel P -> left_cycle_free_1rel P -> same_number_of_occ P a ->
   WPdecidable P.
 Admitted.
 
 Corollary check_same_number_occ_dec P a :
-  is_left_cycle_free_1rel P -> has_same_number_of_occ P a ->
+  is_right_cyclic_1rel P -> is_left_cycle_free_1rel P ->
+  has_same_number_of_occ P a ->
   WPdecidable P.
 Proof.
-move=> /is_left_cycle_free_1relP H1 /has_same_number_of_occP.
+move=> /is_right_cyclic_1relP H1 /is_left_cycle_free_1relP H2
+         /has_same_number_of_occP.
 exact: left_cycle_free_1rel_same_number_occ_dec.
 Qed.
 
@@ -743,7 +763,8 @@ Definition check_Watier P (a b : Alph) (u v : word Alph) (k : nat) :=
 Lemma check_WatierP P a b u v k : check_Watier P a b u v k -> isWatier P.
 Proof. by case/and4P => H1 /eqP H2 /eqP H3 H4; exists a b u v k. Qed.
 
-(* Theorem 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
+(* Theorem 4.10 in Carl-Fredrik Nyberg-Brodda1,
+   The word problem for one-relation monoids: a survey *)
 Theorem is_Watier_dec P : isWatier P -> WPdecidable P.
 Admitted.
 Corollary check_Watier_dec P a b u v k : check_Watier P a b u v k -> WPdecidable P.
@@ -770,8 +791,10 @@ Definition A_AAA_A := make_pres [:: 0] [:: ([:: 0; 0; 0], [:: 0])].
 Lemma A_AAA_A_dec : WPdecidable A_AAA_A.
 Proof. exact: monogenic_1rel_dec. Qed.
 
-Definition AB_ABB_BA := make_pres [:: 0; 1] [:: ([:: 0; 1; 1], [:: 1; 0])].
-Lemma AB_ABB_BA_dec : WPdecidable AB_ABB_BA.
+Definition AB_BBABAAAA_ABBBBAAABA :=
+  make_pres [:: 0;1]
+    [:: ([:: 1;1;0;1;0;0;0;0], [:: 0;1;1;1;1;0;0;0;1;0])].
+Lemma AB_BBABAAAA_ABBBBAAABA_dec : WPdecidable AB_BBABAAAA_ABBBBAAABA.
 Proof. exact: (check_same_number_occ_dec (a := 0)). Qed.
 
 Definition AB_BAAAABBAAA_ABBBAABA :=
