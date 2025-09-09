@@ -239,10 +239,10 @@ Definition wfpres_cert R c := wf_cert (pgen R) (prelat R) c.
 
 Definition final_pres R c (wfc : wfpres_cert R c) : pres A.
 Proof.
-rewrite /wfpres_cert.
 elim: c R wfc => [R _ | t c IHc R /= /andP[wft wfc]]; first exact: R.
 exact: (IHc (pres_transfo wft) wfc).
 Defined.
+
 
 Lemma pgen_final_pres R c (wfc : wfpres_cert R c) :
   pgen (final_pres wfc) = gen_cert (pgen R) c.
