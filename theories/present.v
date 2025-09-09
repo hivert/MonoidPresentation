@@ -1643,7 +1643,7 @@ Section Normalization.
 
 Variable (R : relat T).
 Variable (rew1 : word T -> option (word T)).
-Hypothesis (rew1P : forall u, rewrites1_spec R u (rew1 u)).
+Hypothesis (rew1P : rewrites1_Ok R rew1).
 
 Fixpoint norfuel fuel u :=
   if fuel is fuel'.+1 then
@@ -1950,7 +1950,7 @@ Qed.
 End PermGen.
 
 
-(** Dual of a presentation (i.e. reverting all relation words)x *)
+(** Dual of a presentation (i.e. reverting all relation words) *)
 Section DualRelat.
 
 Context {A : choiceType}.

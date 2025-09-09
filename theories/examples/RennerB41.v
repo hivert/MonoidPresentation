@@ -8604,6 +8604,10 @@ have pgenOk : all (<%O^~ PArray.max_length) (pgen not_RennerB41_rws) by [].
 apply: (spair_confluence_loop_trieP pgenOk (fuel := 10)).
 rewrite spair_confluence_loop_trieE.
 by native_cast_no_check is_true_true.
+(* Non Optimized by trie version : 
+Finished transaction in 621.188 secs (620.892u,0.026s) (successful) 
+apply: (spair_confluence_loopP (rewrites1P not_RennerB41_rws) (fuel := 10)).
+by native_cast_no_check is_true_true. *)
 Time Qed.
 
 Goal foldl (fun acc s => acc + size_int s) 0
