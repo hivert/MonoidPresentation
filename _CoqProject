@@ -21,58 +21,13 @@ theories/inttrie.v
 theories/freecom.v
 theories/well_founded.v
 
+theories/database_pres.v
+theories/database_dec.v
+
 theories/examples/symmetricgroup4.v
 theories/examples/RennerB41.v
 theories/examples/RennerB51.v
 theories/examples/RennerD41.v
 theories/examples/RennerD51.v
 
-theories/samples/bbaaaabbba_abbbaa.v
-
 theories/test/
-
-
-# theories/autocerts/aaaaaa_abaaba.v
-# theories/autocerts/aaaaaaa_bbbabbb.v
-# theories/autocerts/aaabb_aabbbbbbab.v
-# theories/autocerts/aabbabb_aaababbbab.v
-# theories/autocerts/ababaaa_abaabab.v
-# theories/autocerts/baaaaabaa_aaaaaa.v
-# theories/autocerts/baaabaaaba_ababa.v
-# theories/autocerts/baaabaa_abbaaab.v
-# theories/autocerts/baaabba_abbaababa.v
-# theories/autocerts/baaabbaba_aaaaaaaaaa.v
-# theories/autocerts/baabaaaa_aaaaaaaaaa.v
-# theories/autocerts/baabaa_aabbbbabaa.v
-# theories/autocerts/baaba_ababaaaaba.v
-# theories/autocerts/baabaa_bababab.v
-# theories/autocerts/baabaabba_aaaabbaa.v
-# theories/autocerts/baababba_aabaababaa.v
-# theories/autocerts/baabbaaaba_abaaabba.v
-# theories/autocerts/baabbaabaa_aaa.v
-# theories/autocerts/baabbaba_abaaaaa.v
-# theories/autocerts/baabbbabaa_aaaaaabaa.v
-# theories/autocerts/baabbbba_abaabbaaaa.v
-# theories/autocerts/babaababa_aaaaababaa.v
-# theories/autocerts/baba_abbaaaa.v
-# theories/autocerts/bababbaa_abbbaabbaa.v
-# theories/autocerts/babba_abaaabaa.v
-# theories/autocerts/babbaabba_abbaabaaba.v
-# theories/autocerts/babbaba_aaababaaa.v
-# theories/autocerts/babbabbba_abaaaabbba.v
-# theories/autocerts/babbbabbba_aabbababa.v
-# theories/autocerts/babbbba_abaababba.v
-# theories/autocerts/babbbbbaba_aaaaaba.v
-# theories/autocerts/babbbbbba_aaaaaaaa.v
-# theories/autocerts/bbaaabbaa_abbabaa.v
-# theories/autocerts/bbaaabbbba_aaabbbbaa.v
-# theories/autocerts/bb_aab.v
-# theories/autocerts/bbabba_aaaabababa.v
-# theories/autocerts/bbabba_aaabaaaa.v
-# theories/autocerts/bbabbaa_abbaaabbba.v
-# theories/autocerts/bbabba_abbaaba.v
-# theories/autocerts/bbabbabba_abba.v
-# theories/autocerts/bbbaabbbaa_abaaaaaaa.v
-# theories/autocerts/bbbaabbba_ababbbbaaa.v
-# theories/autocerts/bbbabbba_abbabaaaa.v
-
