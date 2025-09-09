@@ -18,7 +18,6 @@ theories/criteria.v
 theories/compress.v
 theories/batchchecker.v
 theories/inttrie.v
-theories/freecom.v
 theories/well_founded.v
 
 theories/database_pres.v
@@ -29,5 +28,6 @@ theories/examples/RennerB41.v
 theories/examples/RennerB51.v
 theories/examples/RennerD41.v
 theories/examples/RennerD51.v
+theories/examples/freecom.v
 
 theories/test/
