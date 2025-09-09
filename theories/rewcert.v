@@ -237,45 +237,36 @@ Fixpoint wf_cert (gens : seq A) (rels : relat A) (c : pres_cert) :=
 
 Definition wfpres_cert R c := wf_cert (pgen R) (prelat R) c.
 
-
-Lemma pres_certP R c (wfc : wfpres_cert R c) :
-  { Res : pres A |
-    pgen Res = gen_cert (pgen R) c /\ prelat Res = rel_cert (prelat R) c }.
+Definition final_pres R c (wfc : wfpres_cert R c) : pres A.
 Proof.
-elim: c R wfc => [R _ | t c IHc R /= /andP[wft wfc]]; first by exists R.
-pose R1 := pres_transfo wft; move: wfc.
-have <- : pgen R1 = gen_transfo (pgen R) t by [].
-have <- : prelat R1 = rel_transfo (prelat R) t by [].
-exact: IHc.
-Qed.
-
-Definition final_pres R c (wfc : wfpres_cert R c) :=
-  let: exist Res _ := pres_certP wfc in Res.
+rewrite /wfpres_cert.
+elim: c R wfc => [R _ | t c IHc R /= /andP[wft wfc]]; first exact: R.
+exact: (IHc (pres_transfo wft) wfc).
+Defined.
 
 Lemma pgen_final_pres R c (wfc : wfpres_cert R c) :
   pgen (final_pres wfc) = gen_cert (pgen R) c.
-Proof. by rewrite /final_pres; case: (pres_certP wfc) => /= Res []. Qed.
+Proof.
+elim: c R wfc => // t c IHc R /= /andP[wft /= wfc].
+exact: (IHc (pres_transfo wft) wfc).
+Qed.
+
 Lemma prelat_final_pres R c (wfc : wfpres_cert R c) :
   prelat (final_pres wfc) = rel_cert (prelat R) c.
-Proof. by rewrite /final_pres; case: (pres_certP wfc) => /= Res []. Qed.
+Proof.
+elim: c R wfc => // t c IHc R /= /andP[wft /= wfc].
+exact: (IHc (pres_transfo wft) wfc).
+Qed.
 
 Theorem iso_final_pres_ex R c (wfc : wfpres_cert R c) :
   { p : isopres R (final_pres wfc) | p =1 idfun :> (_ -> _) }.
 Proof.
-elim: c R wfc => [| t c IHc] R /= wf.
-  have -> : final_pres wf = R.
-    by apply/eqP; rewrite -eqpresE pgen_final_pres /= prelat_final_pres /= !eqxx.
-  by exists (isopres_refl R).
-have:= wf => /andP[wft wfc].
-set R1 := pres_transfo wft.
-have genR1 : pgen R1 = gen_transfo (pgen R) t by [].
-have relR1 : prelat R1 = rel_transfo (prelat R) t by [].
-move: wfc; rewrite -{1}genR1 -{1}relR1 => wfcR1.
-case: (IHc R1 wfcR1) => iso2 eqiso2.
-have -> : final_pres wf = final_pres wfcR1.
-  by apply/eqP; rewrite -eqpresE !pgen_final_pres !prelat_final_pres /= !eqxx.
-exists (isopres_trans (isopres_transfo wft) iso2).
-by move=> u /=; rewrite eqiso2 isopres_transfoE.
+elim: c R wfc => [| t c IHc] R /= wf; first by exists (isopres_refl R).
+case/andP : wf => [wft wfc].
+have [isotr eqisotr] := isopres_transfo_ex wft.
+have [isoc eqisoc] := IHc (pres_transfo wft) wfc.
+exists (isopres_trans isotr isoc) => u /=.
+by rewrite eqisoc eqisotr.
 Qed.
 Definition iso_final_pres R c (wfc : wfpres_cert R c) :
   isopres R (final_pres wfc) := let: exist x _ := iso_final_pres_ex wfc in x.
