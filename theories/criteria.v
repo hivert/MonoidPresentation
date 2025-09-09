@@ -492,7 +492,16 @@ Qed.
 Lemma is_right_cyclic_1relP P :
   reflect (right_cyclic_1rel P) (is_right_cyclic_1rel P).
 Proof.
-Admitted.
+rewrite /is_right_cyclic_1rel /right_cyclic_1rel.
+case Hrel: (prelat P) => [|r1 l] //=.
+  by apply (iffP idP) => [|[a][b][_]] //.
+apply (iffP idP); case: r1 {Hrel} => [u v]; case: l => //; last first.
+- by move=> p l [a][u'][v'].
+- by move=> [a][u'][v'][{u}->{v}->]; rewrite !rev_rcons eqxx.
+case/lastP: u => // u a; rewrite rev_rcons.
+case/lastP: v => // v b; rewrite rev_rcons => /eqP {b}<-.
+by exists a; exists u; exists v.
+Qed.
 
 Lemma is_cycle_free_1relP P :
   reflect (cycle_free_1rel P) (is_cycle_free_1rel P).
