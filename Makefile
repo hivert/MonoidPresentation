@@ -11,7 +11,7 @@ Makefile.coq: _CoqProject
 
 database/rocq:
 	echo Building the Rocq database... This may take a long time
-	cd database && ./to_rocq_proof.py 2000 && cd ..
+	cd database && ./to_rocq_proof.py -b 2000 && cd ..
 
 database: database/rocq
 	mv _CoqProject _CoqProject-no-database
