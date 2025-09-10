@@ -30,6 +30,3 @@ theories/examples/RennerD41.v
 theories/examples/RennerD51.v
 theories/examples/freecom.v
 theories/examples/ab_babaaba_abaabaaa.v
-
--R database/rocq MonPres
-database/rocq/
