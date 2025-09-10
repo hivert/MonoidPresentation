@@ -1118,6 +1118,17 @@ def sort_into_layers(adj: list[set[int]]) -> tuple[dict[int, int], set[int]]:
 
     return result, failed
 
+READ_BUFFER_SIZE = 128 * 1024
+def decompress_database():
+    print("Decompressing the database . . .")
+    import gzip
+    with gzip.open('database.db.gz', "rb") as f:
+        with open('database.db', "wb") as g:
+            while True:
+                chunk = f.read(READ_BUFFER_SIZE)
+                if not chunk:
+                    break
+                g.write(chunk)
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser("to_rocq_proof.py")
@@ -1151,6 +1162,7 @@ if __name__ == "__main__":
             f"The given output directory path {output_directory} is not empty!"
         )
 
+    decompress_database()
     con = sqlite3.connect("database.db")
     cur = con.cursor()
 
