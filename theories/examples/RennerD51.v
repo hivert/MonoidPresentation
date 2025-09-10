@@ -22502,6 +22502,13 @@ Definition RennerD51_Gay_cert : pres_cert := [:: add_rel [::11;7] [::11]
 
 Definition RennerD51_Gay_order :=  [::0;1;2;3;4;5;6;7;8;9;10;11].
 
+(*
+Eval compute in size (prelat RennerD51_Gay).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat RennerD51_Gay)].
+Eval compute in size (prelat RennerD51_Gay_rws).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat RennerD51_Gay_rws)].
+Eval compute in size RennerD51_Gay_cert.
+*)
 
 Theorem isopres_RennerD51_Gay : isopres RennerD51_Gay RennerD51_Gay_rws.
 Proof.
@@ -48181,6 +48188,14 @@ Definition not_RennerD51_cert : pres_cert := [:: add_rel [::1;0] [::0;1]
          RTriple 110 0 false]].
 
 Definition not_RennerD51_order := [::0;1;2;3;4;5;6;7;8;9;10;11].
+
+(*
+Eval compute in size (prelat not_RennerD51).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat not_RennerD51)].
+Eval compute in size (prelat not_RennerD51_rws).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat not_RennerD51_rws)].
+Eval compute in size not_RennerD51_cert.
+*)
 
 Theorem isopres_not_RennerD51 : isopres not_RennerD51 not_RennerD51_rws.
 Proof.

@@ -4473,6 +4473,17 @@ Definition RennerB41_Gay_cert : pres_cert := [:: add_rel [::2;0] [::0;2]
 Definition RennerB41_Gay_order := [::0;1;2;3;4;5;6;7;8].
 
 
+(*
+Eval compute in size (prelat RennerB41_Gay).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat RennerB41_Gay)].
+Eval compute in size (prelat RennerB41_Gay_rws).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat RennerB41_Gay_rws)].
+Eval compute in size RennerB41_Gay_cert.
+
+Time Eval native_compute in foldl (fun acc s => acc + size_int s) 0
+  (traject (enum_normal_next_trie RennerB41_Gay_rws) [:: [::]] 30).
+*)
+
 Theorem isopres_RennerB41_Gay : isopres RennerB41_Gay RennerB41_Gay_rws.
 Proof.
 have wfc : wfpres_cert RennerB41_Gay RennerB41_Gay_cert
@@ -8610,6 +8621,13 @@ apply: (spair_confluence_loopP (rewrites1P not_RennerB41_rws) (fuel := 10)).
 by native_cast_no_check is_true_true. *)
 Time Qed.
 
+(*
+Eval compute in size (prelat not_RennerB41).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat not_RennerB41)].
+Eval compute in size (prelat not_RennerB41_rws).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat not_RennerB41_rws)].
+Eval compute in size not_RennerB41_cert.
+*)
 Goal foldl (fun acc s => acc + size_int s) 0
   (traject (enum_normal_next_trie RennerB41_Gay_rws) [:: [::]] 30) = 13889.
 Proof.

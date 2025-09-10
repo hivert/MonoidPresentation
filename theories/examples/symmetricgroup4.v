@@ -84,6 +84,17 @@ rewrite spair_confluence_loop_trieE.
 by native_cast_no_check is_true_true.
 Time Qed.
 
+(*
+Eval compute in size (prelat S4_Moore).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat S4_Moore)].
+Eval compute in size (prelat S4_rws).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat S4_rws)].
+Eval compute in size S4_Moore_cert.
+
+Time Eval compute in foldl (fun acc s => acc + size_int s) 0
+  (traject (enum_normal_next_trie S4_rws) [:: [::]] 30).
+*)
+
 
 Definition not_S4 := make_pres [::0;1;2]
   [:: ([::0;0], [::]);
@@ -1031,6 +1042,18 @@ Definition not_S4_cert : pres_cert := [:: add_rel [::1;2;0;1;2;0] [::0;2;1;0;2;1
          RTriple 0 0 true]].
 
 Definition not_S4_order := [::0;1;2].
+
+(*
+Eval compute in size (prelat not_S4).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat not_S4)].
+Eval compute in size (prelat not_S4_rws).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat not_S4_rws)].
+Eval compute in size not_S4_cert.
+
+Time Eval compute in foldl (fun acc s => acc + size_int s) 0
+  (traject (enum_normal_next_trie not_S4_rws) [:: [::]] 30).
+*)
+
 
 Theorem isopres_not_S4 : isopres not_S4 not_S4_rws.
 Proof.

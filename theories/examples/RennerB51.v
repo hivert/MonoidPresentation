@@ -38039,6 +38039,14 @@ Definition RennerB51_cert : pres_cert := [:: add_rel [::2;0] [::0;2]
 
 Definition RennerB51_order := [::0;1;2;3;4;5;6;7;8;9;10].
 
+(*
+Eval compute in size (prelat RennerB51_Gay).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat RennerB51_Gay)].
+Eval compute in size (prelat RennerB51_rws).
+Eval compute in sumn [seq (size r.1 + size r.2)%N | r <- (prelat RennerB51_rws)].
+Eval compute in size RennerB51_cert.
+*)
+
 Theorem isopres_RennerB51 : isopres RennerB51_Gay RennerB51_rws.
 Proof.
 have wfc : wfpres_cert RennerB51_Gay RennerB51_cert
