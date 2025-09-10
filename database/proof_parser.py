@@ -2,13 +2,13 @@
 # TODO(reiniscirpons): factor the code in this section out when doing the tidy
 
 from dataclasses import dataclass
-from typing import NamedTuple, ClassVar
+from typing import NamedTuple, ClassVar, Generic, TypeVar, Union
 from collections.abc import Iterable
 from ast import literal_eval
 
 
 def _validate_args_simple(
-    arg_types: tuple[type | None, ...],
+    arg_types: tuple[Union[type, None], ...],
     args: tuple,
     wrong_number_args_message: str = "Wrong number of arguments!",
     wrong_arg_type_message: str = "Wrong argument type!",
@@ -85,10 +85,13 @@ class Presentation:
         )
 
 
+T = TypeVar("T")
+
+
 @dataclass
-class ProofStep[T]:
+class ProofStep(Generic[T]):
     args_type: ClassVar[type] = tuple
-    step: ClassVar[str | None] = None
+    step: ClassVar[Union[str, None]] = None
     current_presentation: Presentation
     number: int
     args: T
@@ -315,8 +318,9 @@ class ProofStepIsCompleteRws(ProofStep[_ArgsIsCompleteRws]):
         if termination_method == "lenlex" and sorted(
             self.current_presentation.gens
         ) != sorted(termination_certificate):
+            mess = "<".join(termination_certificate)
             raise ValueError(
-                f"Provided lenlex ordering {"<".join(termination_certificate)} "
+                f"Provided lenlex ordering {mess} "
                 f"is not valid for given presentation {self.current_presentation}."
             )
         self.args = self.args_type(

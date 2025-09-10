@@ -4,7 +4,7 @@ import sqlite3
 import argparse
 from pathlib import Path
 from collections import Counter
-from typing import NamedTuple, Iterable
+from typing import NamedTuple, Iterable, Union
 from ast import literal_eval
 from proof_parser import (
     ElementaryRewrite,
@@ -33,17 +33,17 @@ from proof_parser import (
 
 
 class Indent(NamedTuple):
-    level: int | None = None
+    level: Union[int, None] = None
 
 
 class Dedent(NamedTuple):
-    level: int | None = None
+    level: Union[int, None] = None
 
 
-Layout = list[Indent | Dedent | str]
+Layout = list[Union[Indent, Dedent, str]]
 
 
-def layout_to_str(layout: Layout | str, default_indent: int = 2) -> str:
+def layout_to_str(layout: Union[Layout, str], default_indent: int = 2) -> str:
     if isinstance(layout, str):
         return layout
     indent_level = 0
@@ -77,7 +77,7 @@ def layout_to_str(layout: Layout | str, default_indent: int = 2) -> str:
 ## Generating rocq code
 
 
-def to_rocq_list(seq: Iterable[Layout | str], sep: str = ";") -> Layout:
+def to_rocq_list(seq: Iterable[Union[Layout, str]], sep: str = ";") -> Layout:
     pref = "[:: "
     suff = "]"
     result: Layout = [pref, Indent(len(pref))]
@@ -248,7 +248,7 @@ def to_rocq_is_watier1(
 
 
 def to_rocq_small_overlap(
-    proof_step: ProofStepIsC3Monoid | ProofStepIsC4Monoid,
+    proof_step: Union[ProofStepIsC3Monoid, ProofStepIsC4Monoid],
 ) -> Layout:
     assert len(proof_step.args.factorizations) == 2 * len(
         proof_step.current_presentation.relations
@@ -347,7 +347,9 @@ _to_rocq_proof_steps = {
 }
 
 
-def to_rocq_presentation_certificate_type(proof: tuple[ProofStep, ...]) -> str | None:
+def to_rocq_presentation_certificate_type(
+    proof: tuple[ProofStep, ...]
+) -> Union[str, None]:
     step_to_cert_type = {
         # "is_complete_rws": "CompleteRewritingSystem" # This is a special case and we handle in if below
         # "is_monogenic": "Monogenic", # Need to check how many gens, handled in if below
@@ -394,7 +396,7 @@ def to_rocq_presentation_certificate_type(proof: tuple[ProofStep, ...]) -> str |
 def to_rocq_presentation_certificate(
     proof: tuple[ProofStep, ...],
     proof_position: dict[tuple[str, ...], tuple[str, int]],
-) -> tuple[Layout, str | None]:
+) -> tuple[Layout, Union[str, None]]:
     result: Layout = []
     rocq_certificate_type = to_rocq_presentation_certificate_type(proof)
     assert rocq_certificate_type is not None
@@ -408,7 +410,7 @@ def to_rocq_presentation_certificate(
         "StronglyCompressToSpecial",
         "CycleFree",
     }
-    filename: str | None = None
+    filename: Union[str, None] = None
     if rocq_certificate_type == "CompleteRewritingSystem":
         result.extend([Indent(), "\n"])
         tietze_step_layouts = []
@@ -496,7 +498,7 @@ def to_rocq_presentation_certificate(
 def to_rocq_presentation_file(
     batch: list[tuple[Presentation, tuple[ProofStep, ...]]]
 ) -> Layout:
-    result: Layout = ['Require Import database_pres.\n\n']
+    result: Layout = ["Require Import database_pres.\n\n"]
 
     layouts = [
         to_rocq_presentation(initial_presentation) for initial_presentation, _ in batch
@@ -524,7 +526,7 @@ def to_rocq_decideable_file(
     proof_position: dict[tuple[str, ...], tuple[str, int]],
 ) -> Layout:
     result: Layout = [
-        'Require Import database_dec.\n',
+        "Require Import database_dec.\n",
         f"Require {presentation_filename}.\n\n",
     ]
 
@@ -577,7 +579,7 @@ def pop_batch_and_write_to_file(
     certificate_type: str,
     current_batches: dict[str, list[tuple[Presentation, tuple[ProofStep]]]],
     current_batches_number: Counter[str],
-    batch_size: int | None,
+    batch_size: Union[int, None],
     proof_position: dict[tuple[str, ...], tuple[str, int]],
     output_directory: Path,
 ):
@@ -1087,7 +1089,7 @@ def reverse_adj(adj: list[set[int]]) -> list[set[int]]:
 def sort_into_layers(adj: list[set[int]]) -> tuple[dict[int, int], set[int]]:
     rev_adj = reverse_adj(adj)
     n = len(adj)
-    layer_of_idx: list[int | None] = [None for _ in range(n)]
+    layer_of_idx: list[Union[int, None]] = [None for _ in range(n)]
     seen = set()
     que = []
     for i in range(n):
@@ -1118,6 +1120,7 @@ def sort_into_layers(adj: list[set[int]]) -> tuple[dict[int, int], set[int]]:
 
     return result, failed
 
+
 READ_BUFFER_SIZE = 128 * 1024
 def decompress_database():
     print("Decompressing the database . . .")
@@ -1129,6 +1132,7 @@ def decompress_database():
                 if not chunk:
                     break
                 g.write(chunk)
+
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser("to_rocq_proof.py")
