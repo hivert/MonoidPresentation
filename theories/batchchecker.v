@@ -85,12 +85,7 @@ Variant prescertificate :=
   | StronglyCompressAndReduce of recursive_certificate & word & Alph
   (* We don't recurse here as the special presentation can have *)
   (* more than two generators and thus is not in the database.  *)
-  | StronglyCompressToSpecial
-  (* TODO: remove me when done *)
-  | DecidabilityAdmitted.
-
-Axiom DecidabilityTmpAdmitted : forall (P : pres Alph), WPdecidable P.
-
+  | StronglyCompressToSpecial.
 
 Variant check_certified_presentation_result :=
   | CPOk
@@ -119,10 +114,7 @@ Variant check_certified_presentation_result :=
   | CPStrongCompressNotSpecial
   | CPStrongCompressBadPrefixSuffix
   | CPStrongCompressBadLetter
-  (* TODO: trie construction error *)
-  | CPTrieError
-  (* TODO: remove me when done *)
-  | CPNotImplemented.
+  | CPTrieError.
 
 Definition certpres_Ok r := if r is CPOk then true else false.
 
@@ -252,7 +244,6 @@ Definition check_certpres (P : pres int) (PC : prescertificate) :=
           else CPStrongCompressBadRel
         else CPStrongCompressBadRel
       else CPNot2Gen
-  | DecidabilityAdmitted => CPOk
   end.
 
 
@@ -359,8 +350,6 @@ rewrite /check_certpres; case: C => [].
     by rewrite /= Hrel.
   apply: (strong_and_special_dec flgen flrel) => //.
   by rewrite eq_sym.
-- (* TODO : Remove me !!!!!!!!!!!!!!!!! *)
-  by move=> _; exact: DecidabilityTmpAdmitted.
 Qed.
 
 Variant batchresult :=
@@ -502,15 +491,6 @@ Definition list_recpres :=
    AB_ABBBBAAABA_BBABAAAA; AB_AABBB_ABABBB].
 
 
-(* Eval compute in prelat AB_AABBB_ABABBB.
-[:: ([:: 0; 0; 1; 1; 1], [:: 0; 1; 0; 1; 1; 1])]
-
-Eval compute in
-  check_certpres
-    AB_AABBB_ABABBB
-    (StronglyCompressAndReduce (RecCert all_pres_dec 6) [:: 0] 1).
-*)
-
 Lemma all_recpres_dec (P : pres int) : P \in list_recpres -> WPdecidable P.
 Proof.
 apply: (check_batchP (lc :=
@@ -520,21 +500,11 @@ apply: (check_batchP (lc :=
    Reorder (RecCert all_pres_dec 1);
    FlipAllRelations (RecCert all_pres_dec 3);
    (* params: the word which is kept and sent to a which letter among 0 and 1 *)
-                     (* TODO : Alph & Alph or bool *)
    (* http://127.0.0.1:5000/proof/654489/ *)
    StronglyCompressAndReduce (RecCert all_pres_dec 6) [:: 1; 1; 1] 0
   ])).
 by native_cast_no_check (erefl BatchOk).
 Qed.
-
-(* http://127.0.0.1:5000/proof/404857/ <a, b | aabab = aaabbb > Compress aa -> a *)
-(* 
-
-abbbb aaabbb
-
-http://127.0.0.1:5000/proof/86021/
-
-*)
 
 End Examples.
 
