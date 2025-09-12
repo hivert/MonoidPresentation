@@ -31,10 +31,15 @@ WARNING: compiling the database can be very memory consuming. Some files take
 7GB of memory to compile. You shouldn't try wo check the database with more
 than 'j4' if you have only 16GB.
 
-# Checking the database with Python 
+# Checking the database with Python / C++
 
-need `libsemigroups_pybind11` see
-https://pypi.org/project/libsemigroups-pybind11/ for installation instruction
+See also `database/README.md`. There are two possibilities
 
-- run `check_proofs.py` in the `database` directory.
+- either run `check_proofs.py` in the `database` directory : this launch a
+  slow and incomplete Python only checker
+- or run `check_proofs.py -l` in the `database` directory : this launch a
+  faster Python / C++ checker based on `libsemigroups`. To be able to run this
+  second checker you need to install `libsemigroups_pybind11` see
+  https://pypi.org/project/libsemigroups-pybind11/ for installation instruction.
+
 
