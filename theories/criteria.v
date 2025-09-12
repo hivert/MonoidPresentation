@@ -1,6 +1,6 @@
 (** * Various Word Problem Decidability criteria (most are admitted)          *)
 (******************************************************************************)
-(*      Copyright (C) 2025      Florent Hivert <florent.hivert@lri.fr>        *)
+(*      Copyright (C) 2025      Anonymous        *)
 (*                                                                            *)
 (*  Distributed under the terms of the GNU General Public License (GPL)       *)
 (*                                                                            *)
