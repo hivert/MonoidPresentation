@@ -742,10 +742,15 @@ have {}/lesz : all (mem (pieces (unzip1 pairs))) f.
 by move/(leq_trans _ ); apply.
 Qed.
 
-(* Section 4.2 in https://github.com/james-d-mitchell/1-relation-paper *)
-Theorem c3_monoid_dec P : small_overlap 3 P -> WPdecidable P.
-Admitted.
+(* Mark Kambites "Small overlap monoids I: The word problem"
+Journal of Algebra Volume 321, Issue 8, 15 April 2009, Pages 2187-2205
+Theorem 1
 
+And
+
+John Hermann Remmers. Some Algorithmic Problems for Semigroups: A Geometric Approach.
+PhD thesis, University of Michigan, USA, 1971. AAI7123856.
+ *)
 Corollary check_c3_monoid_dec P facts :
   check_small_overlap 3 P facts -> WPdecidable P.
 Proof. by move/check_small_overlapP/c3_monoid_dec. Qed.
