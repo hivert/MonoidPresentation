@@ -1,5 +1,4 @@
 ## Parsing proof tuple into structured form
-# TODO(reiniscirpons): factor the code in this section out when doing the tidy
 
 from dataclasses import dataclass
 from typing import NamedTuple, ClassVar, Generic, TypeVar, Union
