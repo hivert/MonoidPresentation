@@ -723,12 +723,10 @@ Definition rewmorphism A B (R : pres A) (S : pres B)
   forall u v : word A, u \in words_of R -> v \in words_of R ->
   v \in rewrites R u -> rewrites_to S (f u) (f v).
 
-(* assia : or may be axiom on generators and this as a theory lemma *)
 Definition rewmorphism_in A B (R : pres A) (S : pres B)
   (f : seq A -> seq B) :=
   forall u : word A, u \in words_of R -> (f u \in words_of S).
 
-(* assia: where is this needed? *)
 Definition rewmorphism_to A B (R : pres A) (S : pres B)
   (f : seq A -> seq B) :=
   forall u v : word A, u \in words_of R -> v \in words_of R ->
@@ -805,7 +803,7 @@ HB.instance Definition _  :=
   isRewMorphism.Build A B R S f rewmorphism_toP rewmorphism_to_inP.
 HB.end.
 
-(* assia: builds the instance of morphism on symmetrized relations,
+(* Builds the instance of morphism on symmetrized relations,
 from a morphism on the undirected relations. *)
 HB.factory Record isPresMorphism
   A B (R : pres A) (S : pres B) (f : {freemon A} -> {freemon B}) := {
@@ -815,7 +813,6 @@ HB.factory Record isPresMorphism
 HB.builders Context A B (R : pres A) (S : pres B) f of
   isPresMorphism A B R S f.
 
-(* what is "fresh_name_22"? *)
 Lemma rewmorphism_undirected :
   rewmorphism (undirected_pres R) (undirected_pres S) f.
 Proof.
@@ -850,7 +847,6 @@ Proof.
 move=> u v hu hv /rewrites_to1/presmorphism_to_subproof; exact.
 Qed.
 
-(* assia: is this name ok ?*)
 Lemma rewmorphism_in_undirected :
   rewmorphism_in (undirected_pres R) (undirected_pres S) f.
 Proof. move=> u hu; exact: presmorphism_in_subproof. Qed.
