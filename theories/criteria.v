@@ -751,6 +751,9 @@ And
 John Hermann Remmers. Some Algorithmic Problems for Semigroups: A Geometric Approach.
 PhD thesis, University of Michigan, USA, 1971. AAI7123856.
  *)
+Theorem c3_monoid_dec P : small_overlap 3 P -> WPdecidable P.
+Admitted.
+
 Corollary check_c3_monoid_dec P facts :
   check_small_overlap 3 P facts -> WPdecidable P.
 Proof. by move/check_small_overlapP/c3_monoid_dec. Qed.
