@@ -1,11 +1,13 @@
 """
 This module contains a reference implementation of a checker for the proof
 database using the python package `libsemigroups_pybind11`.
+
+The actual verification of the database is done using the check_proofs.py script.
 """
 
 from inspect import getfullargspec as get_args
 from textwrap import TextWrapper
-from typing import Callable, Any
+from typing import Callable, Any, Union
 
 from libsemigroups_pybind11 import (
     Kambites,
@@ -57,7 +59,7 @@ def _is_cn_monoid(
     expected_pieces: tuple[tuple[str, ...], ...],
     n: int,
     called_by: Callable,
-) -> None | tuple[str, ...]:
+) -> Union[None, tuple[str, ...]]:
     if len(expected_pieces) != len(p) - 1:
         _warn(
             called_by,
@@ -111,7 +113,7 @@ def _validate_relations(
 
 def _find_relation(
     p: tuple[str, ...], u: str, v: str
-) -> tuple[int, int] | tuple[None, None]:
+) -> Union[tuple[int, int], tuple[None, None]]:
     for i in range(1, len(p), 2):
         if p[i] == u and p[i + 1] == v:
             return i, i + 1
@@ -236,7 +238,7 @@ def lenlex_order(letter_perm: str) -> Callable[[str, str], bool]:
 
 def tietze_add_generator(
     p: tuple[str, ...], letter: str, subword: str
-) -> tuple[str, ...] | None:
+) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     if len(letter) != 1:
         _warn(
@@ -259,7 +261,9 @@ def tietze_add_generator(
     return (p[0] + letter, *p[1:]) + (letter, subword)
 
 
-def tietze_rm_generator(p: tuple[str, ...], letter: str) -> tuple[str, ...] | None:
+def tietze_rm_generator(
+    p: tuple[str, ...], letter: str
+) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     if len(letter) != 1:
         _warn(
@@ -303,14 +307,16 @@ def tietze_rm_generator(p: tuple[str, ...], letter: str) -> tuple[str, ...] | No
 
 def tietze_add_relation(
     p: tuple[str, ...], lhs: str, rhs: str, e
-) -> tuple[str, ...] | None:
+) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     if not _validate_elementary_sequence(tietze_add_relation, p, lhs, rhs, e):
         return None
     return (*p, lhs, rhs)
 
 
-def tietze_rm_relation(p: tuple[str, ...], u: str, v: str, e) -> tuple[str, ...] | None:
+def tietze_rm_relation(
+    p: tuple[str, ...], u: str, v: str, e
+) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     pos_u, pos_v = _find_relation(p, u, v)
 
@@ -360,21 +366,21 @@ def tietze_rm_relation(p: tuple[str, ...], u: str, v: str, e) -> tuple[str, ...]
 # Decidable word problem checks
 def is_c3_monoid(
     p: tuple[str, ...], expected_pieces: tuple[tuple[str, ...], ...]
-) -> None | tuple[str, ...]:
+) -> Union[None, tuple[str, ...]]:
     assert is_valid_presentation(p)
     return _is_cn_monoid(p, expected_pieces, 3, is_c3_monoid)
 
 
 def is_c4_monoid(
     p: tuple[str, ...], expected_pieces: tuple[tuple[str, ...], ...]
-) -> None | tuple[str, ...]:
+) -> Union[None, tuple[str, ...]]:
     assert is_valid_presentation(p)
     return _is_cn_monoid(p, expected_pieces, 4, is_c4_monoid)
 
 
 def equal_number_of_occurrences_of(
     p: tuple[str, ...], letter: str
-) -> None | tuple[str, ...]:
+) -> Union[None, tuple[str, ...]]:
     assert is_valid_presentation(p)
     if not p[0] in ("ab", "ba"):
         _warn(
@@ -412,7 +418,7 @@ def equal_number_of_occurrences_of(
     return p
 
 
-def is_watier1(p: tuple[str, ...]) -> tuple[str, ...] | None:
+def is_watier1(p: tuple[str, ...]) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     if not p[0] in ("ab", "ba"):
         _warn(
@@ -469,7 +475,7 @@ def is_watier1(p: tuple[str, ...]) -> tuple[str, ...] | None:
     return p
 
 
-def is_special(p: tuple[str, ...]) -> tuple[str, ...] | None:
+def is_special(p: tuple[str, ...]) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     if len(p) != 3:
         _warn(
@@ -488,7 +494,7 @@ def is_special(p: tuple[str, ...]) -> tuple[str, ...] | None:
     return p
 
 
-def is_monogenic(p: tuple[str, ...]) -> tuple[str, ...] | None:
+def is_monogenic(p: tuple[str, ...]) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     seen = set()
     for i in range(1, len(p)):
@@ -510,7 +516,7 @@ def is_monogenic(p: tuple[str, ...]) -> tuple[str, ...] | None:
     return p
 
 
-def is_cycle_free(p: tuple[str, ...]) -> tuple[str, ...] | None:
+def is_cycle_free(p: tuple[str, ...]) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     for i in range(1, len(p), 2):
         if len(p[i]) == 0 or len(p[i + 1]) == 0:
@@ -537,7 +543,7 @@ def is_cycle_free(p: tuple[str, ...]) -> tuple[str, ...] | None:
     return p
 
 
-def recursive(p: tuple[str, ...]) -> tuple[str, ...] | None:
+def recursive(p: tuple[str, ...]) -> Union[tuple[str, ...], None]:
     # TODO: This is a hack for now.
     # In the future should pull data from database to check
     # if p has a valid proof.
@@ -546,7 +552,7 @@ def recursive(p: tuple[str, ...]) -> tuple[str, ...] | None:
 
 def strongly_compress(
     p: tuple[str, ...], morph: tuple[tuple[str, str], ...]
-) -> tuple[str, ...] | None:
+) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     if len(morph) == 0:
         return None
@@ -566,7 +572,9 @@ def strongly_compress(
     return tuple(q)
 
 
-def reduce_to_2_generators(p: tuple[str, ...], morph: str) -> tuple[str, ...] | None:
+def reduce_to_2_generators(
+    p: tuple[str, ...], morph: str
+) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     if morph.count(morph[p[0].index(p[1][0])]) == len(morph) - 1:
         idx = 0
@@ -580,14 +588,16 @@ def reduce_to_2_generators(p: tuple[str, ...], morph: str) -> tuple[str, ...] | 
     return from_presentation(q)
 
 
-def reverse(p: tuple[str, ...]) -> tuple[str, ...] | None:
+def reverse(p: tuple[str, ...]) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     q = to_presentation(p)
     presentation.reverse(q)
     return from_presentation(q)
 
 
-def alphabet_isomorphism(p: tuple[str, ...], morph: str) -> tuple[str, ...] | None:
+def alphabet_isomorphism(
+    p: tuple[str, ...], morph: str
+) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
     if len(p[0]) != len(morph) or len(morph) != len(set(morph)):
         _warn(
@@ -607,7 +617,7 @@ def alphabet_isomorphism(p: tuple[str, ...], morph: str) -> tuple[str, ...] | No
 
 def is_complete_rws(
     p: tuple[str, ...], term_method: str, term_cert: str
-) -> tuple[str, ...] | None:
+) -> Union[tuple[str, ...], None]:
     assert is_valid_presentation(p)
 
     if term_method not in {"lenlex", "cpf"}:
@@ -655,7 +665,7 @@ def is_complete_rws(
     return p
 
 
-def no_proof(_: tuple[str, ...]) -> tuple[str, ...] | None:
+def no_proof(_: tuple[str, ...]) -> Union[tuple[str, ...], None]:
     return None
 
 
