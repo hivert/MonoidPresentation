@@ -3,18 +3,18 @@ Certifying the word problem in monoids
 
 This archive contains two components:
 
-- theory : a rocq infrastructure to deal with word problem
-- database : a database of proof of the decidabilitiy of the word problem for
+- `theory` : a rocq infrastructure to deal with word problem
+- `database` : a database of proof of the decidabilitiy of the word problem for
              1-relation monoids
 
-Requirements:
+# Requirements:
 
 - Coq version 8.20 with coq-native enabled (this can be done on opam by
   installing the pseudo package coq-native)
 - Mathematical Component version 2.3
 - Python at least version 3.9
 
-Building:
+# Building:
 
 This is done in two steps:
 - `make database` extract the database to Rocq (takes about 15min)
@@ -26,12 +26,15 @@ If the database is not extracted then
 When the database is extracted
 - `make clean-database` revert back to the infrastructure only repository
 
-On can compile with several core by `make -j12` but
+One can compile with several core by `make -j12` but
 WARNING: compiling the database can be very memory consuming. Some files take
 7GB of memory to compile. You shouldn't try wo check the database with more
 than 'j4' if you have only 16GB.
 
-Checking the database with Python (need `libsemigroups_pybind11` see
-https://pypi.org/project/libsemigroups-pybind11/ for installation instruction):
+# Checking the database with Python 
+
+need `libsemigroups_pybind11` see
+https://pypi.org/project/libsemigroups-pybind11/ for installation instruction
+
 - run `check_proofs.py` in the `database` directory.
 
