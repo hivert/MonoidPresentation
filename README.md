@@ -39,7 +39,5 @@ See also `database/README.md`. There are two possibilities
   slow and incomplete Python only checker
 - or run `check_proofs.py -l` in the `database` directory : this launch a
   faster Python / C++ checker based on `libsemigroups`. To be able to run this
-  second checker you need to install `libsemigroups_pybind11` see
-  https://pypi.org/project/libsemigroups-pybind11/ for installation instruction.
-
+  second checker you need to install `libsemigroups_pybind11`.
 
