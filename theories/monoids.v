@@ -28,6 +28,7 @@ Reserved Notation "'{' 'mmorphism' U '->' V '}'"
 Reserved Notation "{ 'freemon' T }"  (at level 0, format "{ 'freemon'  T }").
 Reserved Notation "[fmon x ]" (at level 0, format "[fmon  x ]").
 Reserved Notation "{ 'transf' T }" (at level 0, format "{ 'transf'  T }").
+Reserved Notation "{ 'ptransf' T }" (at level 0, format "{ 'ptransf'  T }").
 Reserved Notation "{ 'relat' T }" (at level 0, format "{ 'relat'  T }").
 
 
@@ -471,6 +472,54 @@ HB.export Transformation.Exports.
 Notation "{ 'transf' T }" := (Transformation.type T).
 
 
+(* Monoid structure on the type of partial finite endofunctions *)
+Module PartialTransformation.
+Section PartialTransformation.
+
+Variable (T : finType).
+Definition type := {ffun T -> option T}.
+Implicit Types (f g h : type).
+#[export]
+HB.instance Definition _ := Finite.on type.
+
+Let multr f g : type := finfun (obind f \o g).
+Lemma multrE f g x : (multr f g) x = obind f (g x).
+Proof. by rewrite ffunE. Qed.
+Lemma multrA : associative multr.
+Proof.
+move=> f g h; apply/ffunP => x; rewrite !multrE /=.
+by case: (h x) => [{}x|] //=; rewrite multrE.
+Qed.
+Lemma mul1tr : left_id (finfun Some) multr.
+Proof.
+move=> f; apply/ffunP => x; rewrite multrE /=.
+by case: (f x) => [{}x|] //=; rewrite ffunE.
+Qed.
+Lemma multr1 : right_id (finfun Some) multr.
+Proof. by move=> f; apply/ffunP => x; rewrite multrE ffunE /=. Qed.
+#[export]
+HB.instance Definition _ := isMonoid.Build type multrA mul1tr multr1.
+
+End PartialTransformation.
+
+Module Exports.
+HB.reexport PartialTransformation.
+Section Theory.
+Variable (T : finType).
+Implicit Types (f g h : type T).
+Lemma multrP f g : f * g = finfun (obind f \o g).
+Proof. by []. Qed.
+Lemma multrE f g x : (f * g) x = obind f (g x).
+Proof. exact: multrE. Qed.
+Lemma onetrP : (1 : type T) = finfun Some.
+Proof. by []. Qed.
+End Theory.
+End Exports.
+End PartialTransformation.
+HB.export PartialTransformation.Exports.
+Notation "{ 'ptransf' T }" := (PartialTransformation.type T).
+
+
 (* Monoid structure on the type of binary relations on a finType *)
 Module Relation.
 Section Relation.
@@ -665,7 +714,7 @@ HB.instance Definition _ :=
 
 End Product.
 
-(* A product of commutative monoid is a canonical instance of monoid *)
+(* A product of commutative monoid is a canonical instance of comoid *)
 Section ComProduct.
 
 Variable (U V : comMonoidType).
