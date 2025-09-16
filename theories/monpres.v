@@ -106,6 +106,21 @@ Record presentation_of (M : monoidType) (I : choiceType) (P : pres I) : Type
 Notation "P \present M" := (presentation_of M P).
 
 
+Section PresOfTheory.
+
+Context {M : monoidType} {I : choiceType} {P : pres I}.
+
+Lemma satisfy_pres (presM : P \present M) : satisfy (prelat P) (mgen presM).
+Proof.
+case: presM => /= gen prex preq.
+apply/satisfyP => /= [[r1 r2] /[dup]rinP /mem_relwords/andP[r1inP r2inP]] /=.
+rewrite -{}preq ?relwords_of //.
+exact/rewrites_to_equiv/rewrites_to1/rewrites_rel.
+Qed.
+
+End PresOfTheory.
+
+
 (** * Get a morphism from M thanks to a presentation P *)
 Section MorphFromPres.
 
@@ -113,21 +128,21 @@ Context {M : monoidType} {I : choiceType} (P : pres I) (presP : P \present M).
 Variable (N : monoidType) (f : I -> N).
 Hypothesis (fmor : satisfy P f).
 
-Definition presmor (m : M) : N :=
-  let: exist2 u _ _ := (sig2_eqW (mgenP presP m)) in univmor f u.
+Definition presmorfun (m : M) : N :=
+  let: exist2 u _ _ := sig2_eqW (mgenP presP m) in univmor f u.
 
-Lemma presmor_mgenE i : i \in pgen P -> presmor (mgen presP i) = f i.
+Local Lemma presmorfun_mgenE i : i \in pgen P -> presmorfun (mgen presP i) = f i.
 Proof.
 move=> iinP.
 have i1inP : [:: i] \in words_of P by apply/allP => j /[!inE] /eqP->.
-rewrite /presmor; case: sig2_eqW => u uinP.
+rewrite /presmorfun; case: sig2_eqW => u uinP.
 rewrite -(univmor1 _ i) -mgen_eq // => /(satisfy_univmor fmor) ->.
 by rewrite univmor1.
 Qed.
 
-Fact presmor_monmorphism : monmorphism presmor.
+Fact presmorfun_monmorphism : monmorphism presmorfun.
 Proof.
-rewrite /presmor; split.
+rewrite /presmorfun; split.
   case: sig2_eqW => u uinP.
   rewrite -(univmor_nil (mgen presP)) -mgen_eq //.
   move=> /(satisfy_univmor fmor) ->.
@@ -140,9 +155,16 @@ rewrite -mmorphM /=; apply: (satisfy_univmor fmor).
 move: eq12; rewrite -eq1 -eq2 -mmorphM /= -mgen_eq //.
 by rewrite words_of_cat u1inP u2inP.
 Qed.
-HB.instance Definition _ := isMonMorphism.Build M N presmor presmor_monmorphism.
+HB.instance Definition _ :=
+  isMonMorphism.Build M N presmorfun presmorfun_monmorphism.
+
+Definition presmor : {mmorphism M -> N} := presmorfun.
+
+Lemma presmor_mgenE i : i \in pgen P -> presmor (mgen presP i) = f i.
+Proof. exact: presmorfun_mgenE. Qed.
 
 End MorphFromPres.
+
 
 Section IsoPresMorph.
 
@@ -237,14 +259,14 @@ Qed.
 
 End IsoMorphCancel.
 
-Definition present_mon_isopres (M : monoidType) {I J : choiceType}
+Definition present_mon_isopres {M : monoidType} {I J : choiceType}
   (P : pres I) (presP : P \present M) (Q : pres J) (presQ : Q \present M)
   : isopres P Q := IsoPres (isomonK presP presQ) (isomonK presQ presP).
 
 
 Section ConverseMonoid.
 
-Context (M : monoidType) {I : choiceType} (P : pres I) (presP : P \present M).
+Context {M : monoidType} {I : choiceType} (P : pres I) (presP : P \present M).
 
 Let cgen : I -> (M^c)%M := mgen presP.
 Let PC := dual_pres P.

@@ -143,6 +143,35 @@ Qed.
 Definition nword_monoid_present : P \present (nword_monoid convP) :=
   Presentation nword_monoid_genP nword_monoid_eq.
 
+Variables (M : monoidType) (presM : P \present M).
+Definition nword_monoid_mor := presmor nword_monoid_present (satisfy_pres presM).
+Definition nword_monoid_inv := presmor presM (satisfy_pres nword_monoid_present).
+
+Lemma nword_monoid_morK : cancel nword_monoid_mor nword_monoid_inv.
+Proof.
+move=> m.
+have [u /allP allu {m}<-]:= mgenP nword_monoid_present m.
+rewrite (FreeMonoidE u) !mmorph_prod -(FreeMonoidE u) !big_seq.
+apply: eq_bigr => i iinu /=.
+have {iinu} iinP : i \in pgen P by apply: allu.
+rewrite univmorE !presmor_mgenE // ?satisfy_pres //.
+exact: (satisfy_pres nword_monoid_present).
+Qed.
+Lemma nword_monoid_invK : cancel nword_monoid_inv nword_monoid_mor.
+Proof.
+move=> m.
+have [u /allP allu {m}<-]:= mgenP presM m.
+rewrite (FreeMonoidE u) !mmorph_prod -(FreeMonoidE u) !big_seq.
+apply: eq_bigr => i iinu /=.
+have {iinu} iinP : i \in pgen P by apply: allu.
+rewrite univmorE !presmor_mgenE // ?satisfy_pres //.
+exact: (satisfy_pres nword_monoid_present).
+Qed.
+Lemma nword_monoid_mor_bij : bijective nword_monoid_mor.
+Proof.
+exists nword_monoid_inv; [exact: nword_monoid_morK | exact: nword_monoid_invK].
+Qed.
+
 End Convergent.
 
 
