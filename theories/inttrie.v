@@ -14,7 +14,7 @@
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
 From HB Require Import structures.
-From Coq Require Import Znat BinIntDef Uint63 PArray.
+From Stdlib Require Import Znat BinIntDef Uint63 PArray.
 From mathcomp Require Import all_ssreflect.
 
 Require Import factor int_seq present fastcert enumnf.

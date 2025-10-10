@@ -14,7 +14,7 @@
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
 (** The two main optimization tools here are native int and code inlining.    *)
-From Coq Require Import Znat BinIntDef Uint63.
+From Stdlib Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_ssreflect.
 
 Require Import int_seq sizelexi present rewcert well_founded.
