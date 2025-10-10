@@ -38,7 +38,7 @@ Lemma lengthE s : to_nat (length s) = size (to_list s).
 Proof. by rewrite length_spec. Qed.
 
 Lemma length_max s : (length s <= max_length)%O.
-Proof. by rewrite leEint -leintbE; apply/lebP; exact: valid_length. Qed.
+Proof. rewrite leEint -leEintb; apply/lebP; exact: valid_length. Qed.
 
 Definition takes s i := sub s 0 i.
 Definition drops s i := sub s i (length s).
@@ -55,6 +55,13 @@ Lemma drops0E s : drops s 0 = s.
 Proof. by apply: (can_inj of_to_list); rewrite dropsE drop0. Qed.
 Lemma takes0E s : takes s 0 = ""%pstring.
 Proof. by apply: (can_inj of_to_list); rewrite takesE take0. Qed.
+Lemma dropsD s i j :
+  to_nat i + to_nat j < BinInt.Z.to_nat wB ->
+  drops (drops s i) j = drops s (i + j).
+Proof.
+move=> ltD; apply: (can_inj of_to_list); rewrite !dropsE drop_drop.
+by rewrite (to_natD ltD) addnC.
+Qed.
 
 Definition str_prefix u v := sub v 0 (length u) == u.
 Lemma str_prefixE u v : str_prefix u v = prefix (to_list u) (to_list v).
@@ -105,7 +112,7 @@ rewrite leEint !lengthE.
 have:= length_rewrites1_frontE u.
 rewrite -str_rewrites1_frontE H /= => -[] eq.
 have := str_rewrites1_frontE u.
-rewrite H => /esym/rewrites1_frontP/rewrites_frontP[/= suf [s1 s2] /= -> ->].
+rewrite H => /esym/rewrites1_front_SomeP/rewrites_frontP[/= suf [s1 s2] /= -> ->].
 case/mapP => /= -[r1 r2] /[swap] /= -[{s1}-> {s2}->]/=.
 move/(allP Hdecr) => /=.
 by rewrite leEint !size_cat leq_add2r !lengthE.
@@ -133,16 +140,12 @@ have ltsum : to_nat n + to_nat i < BinInt.Z.to_nat wB.
   have /leP/leq_ltn_trans := (to_list_length u); apply.
   rewrite /max_length; apply/ltP.
   by rewrite -Z2Nat.inj_lt.
-rewrite /str_rewrites1_at.
-have -> : drops (drops u n) i = drops u (n + i).
-  apply: (can_inj of_to_list); rewrite !dropsE drop_drop.
-  by rewrite (to_natD _ _ ltsum) addnC.
+rewrite /str_rewrites1_at (dropsD _ ltsum).
 case H: str_rewrites1_front => [s|//]; congr Some.
 move/length_rewrites1_front_leq : H.
-rewrite leEint !lengthE !dropsE size_drop (to_natD _ _ ltsum) => ltl.
+rewrite leEint !lengthE !dropsE size_drop (to_natD ltsum) => ltl.
 apply: (can_inj of_to_list); rewrite !dropsE !cat_spec !firstnE.
-rewrite !(takesE, dropsE).
-rewrite !take_drop (to_natD _ _ ltsum).
+rewrite !(takesE, dropsE) !take_drop (to_natD ltsum).
 rewrite take_oversize; first last.
   rewrite size_cat size_drop size_take_min (addnC (to_nat i)).
   have:= lesum; rewrite lengthE => /minn_idPl ->.
@@ -153,9 +156,11 @@ rewrite take_oversize; first last.
     by rewrite -lengthE -leEint length_max.
   rewrite -(leq_add2l (to_nat n)) -lengthE subnKC; first exact: lesum.
   exact: (leq_trans (leq_addr _ _) lesum).
-rewrite (take_oversize (n := to_nat max_length)).
-  rewrite [X in take X]addnC.
-  rewrite drop_cat.
+rewrite (take_oversize (n := to_nat max_length)); first last.
+  rewrite size_cat size_take_min.
+
+rewrite [X in take X]addnC.
+  rewrite drop_catl.
 
 
   
