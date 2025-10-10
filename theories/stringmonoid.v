@@ -1,5 +1,5 @@
 From HB Require Import structures.
-From Coq Require Import Znat BinIntDef Uint63 PString.
+From Stdlib Require Import Znat BinIntDef Uint63 PString.
 From mathcomp Require Import all_ssreflect.
 
 

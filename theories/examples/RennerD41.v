@@ -13,7 +13,7 @@
 (*                                                                            *)
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
-From Coq Require Import (* Znat BinIntDef *) Uint63.
+From Stdlib Require Import (* Znat BinIntDef *) Uint63.
 From mathcomp Require Import ssreflect ssrbool ssrfun seq choice.
 From mathcomp Require Import eqtype order ssrnat path.
 

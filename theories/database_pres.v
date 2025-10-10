@@ -1,5 +1,5 @@
 (* This file is imported by all the presentation files of the database *)
-From Coq Require Export Uint63.
+From Stdlib Require Export Uint63.
 From mathcomp Require Export ssreflect seq.
 Require Export int_seq present.
 

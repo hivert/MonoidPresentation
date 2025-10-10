@@ -608,8 +608,8 @@ Import GRing.Theory.
 Local Open Scope ring_scope.
 
 (* The multiplicative monoid of a semi-ring *)
-Record multMon (R : semiRingType) := MkMultMon { multmonval : R }.
-Coercion to_multMon (R : semiRingType) (x : R) := MkMultMon x.
+Record multMon (R : pzSemiRingType) := MkMultMon { multmonval : R }.
+Coercion to_multMon (R : pzSemiRingType) (x : R) := MkMultMon x.
 Lemma to_multMonK R : cancel (@MkMultMon R) (@multmonval R).
 Proof. by []. Qed.
 HB.instance Definition _ R := [isNew of multMon R for @multmonval R].
@@ -619,7 +619,7 @@ Module Monoid_of_SemiRing.
 
 Section CanonicalSR.
 
-Variable R : semiRingType.
+Variable R : pzSemiRingType.
 Implicit Type (x y : multMon R).
 
 Let one : multMon R := 1%R.
@@ -637,7 +637,7 @@ End CanonicalSR.
 
 Section CanonicalCSR.
 
-Variable R : comSemiRingType.
+Variable R : comPzSemiRingType.
 Implicit Type (x y : multMon R).
 
 Fact mulmC : commutative (@mul (multMon R)).
@@ -654,7 +654,7 @@ Notation multMon R := (multMon R).
 
 Section Theory.
 
-Variable R : semiRingType.
+Variable R : pzSemiRingType.
 Implicit Type (x y : multMon R).
 
 Lemma monE : (1%M : multMon R) = 1%R. Proof. by []. Qed.
@@ -670,7 +670,7 @@ HB.export Monoid_of_SemiRing.Exports.
    multiplicative monoids *)
 Section Functoriality.
 
-Variable (R S : semiRingType) (f : {rmorphism R -> S}).
+Variable (R S : pzSemiRingType) (f : {rmorphism R -> S}).
 
 Definition multMon_mor (r : multMon R) : multMon S := to_multMon (f (val r)).
 Fact multMon_mor_monmorphism : monmorphism multMon_mor.

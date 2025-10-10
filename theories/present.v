@@ -13,6 +13,7 @@
 (*                                                                            *)
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
+From Corelib Require Import Setoid.
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat seq eqtype
   choice path bigop.
