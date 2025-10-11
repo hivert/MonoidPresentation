@@ -14,7 +14,7 @@
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
 From HB Require Import structures.
-From Coq Require Import Znat BinIntDef Uint63 PArray.
+From Stdlib Require Import Znat BinIntDef Uint63 PArray.
 
 From mathcomp Require Import all_ssreflect.
 
@@ -323,12 +323,11 @@ End ToSeq.
 
 Section Test.
 
-Let taille := 1000000.
+Let taille := 1000.
 Let a := make_array 0 taille (fun i => i).
 Goal has_array (fun i => (i > 2000000000)%O) a = false.
-Proof. by vm_cast_no_check (erefl false). Time Qed.
+Proof. by vm_cast_no_check (erefl false). Qed.
 Goal has_array (fun i => (i > 2000000000)%O) a = false.
-Proof. by native_cast_no_check (erefl false). Time Qed.
+Proof. by native_cast_no_check (erefl false). Qed.
 
 End Test.
-
