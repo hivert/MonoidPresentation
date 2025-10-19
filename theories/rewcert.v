@@ -15,7 +15,7 @@
 (******************************************************************************)
 (** Presentation isomorphism certificate / To be extracted from James database *)
 From Stdlib Require Import Uint63.
-From mathcomp Require Import all_ssreflect.
+From mathcomp Require Import all_boot all_order.
 Require Import int_seq sizelexi monoids present.
 
 

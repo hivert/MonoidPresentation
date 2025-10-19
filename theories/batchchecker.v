@@ -14,7 +14,7 @@
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
 From Stdlib Require Import Znat BinIntDef Uint63.
-From mathcomp Require Import all_ssreflect.
+From mathcomp Require Import all_boot all_order.
 Require Import int_seq sizelexi present rewcert fastcert factor
   criteria compress homogeneous inttrie.
 

@@ -15,7 +15,7 @@
 (******************************************************************************)
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat seq eqtype
-  choice path bigop.
+  choice path bigop monoid.
 
 Require Import factor monoids present monpres.
 
@@ -151,7 +151,7 @@ Lemma nword_monoid_morK : cancel nword_monoid_mor nword_monoid_inv.
 Proof.
 move=> m.
 have [u /allP allu {m}<-]:= mgenP nword_monoid_present m.
-rewrite (FreeMonoidE u) !mmorph_prod -(FreeMonoidE u) !big_seq.
+rewrite (FreeMonoidE u) !gmulf_prod -(FreeMonoidE u) !big_seq.
 apply: eq_bigr => i iinu /=.
 have {iinu} iinP : i \in pgen P by apply: allu.
 rewrite univmorE !presmor_mgenE // ?satisfy_pres //.
@@ -161,7 +161,7 @@ Lemma nword_monoid_invK : cancel nword_monoid_inv nword_monoid_mor.
 Proof.
 move=> m.
 have [u /allP allu {m}<-]:= mgenP presM m.
-rewrite (FreeMonoidE u) !mmorph_prod -(FreeMonoidE u) !big_seq.
+rewrite (FreeMonoidE u) !gmulf_prod -(FreeMonoidE u) !big_seq.
 apply: eq_bigr => i iinu /=.
 have {iinu} iinP : i \in pgen P by apply: allu.
 rewrite univmorE !presmor_mgenE // ?satisfy_pres //.

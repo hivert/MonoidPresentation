@@ -15,7 +15,7 @@
 (******************************************************************************)
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq path.
-From mathcomp Require Import choice bigop fintype finfun finset ssralg tuple.
+From mathcomp Require Import choice bigop fintype finfun finset ssralg tuple monoid.
 
 Require Import monoids present.
 
@@ -86,11 +86,11 @@ Lemma morph_satisfy (I : choiceType)
   satisfy rels gens -> satisfy rels (f \o gens).
 Proof.
 move=> /satisfyP /= sat; apply/satisfyP => s {}/sat /(congr1 f).
-by rewrite !mmorph_prod.
+by rewrite !gmulf_prod.
 Qed.
 
 
-Import GRing.Theory.
+(* Import GRing.Theory. *)
 
 Local Open Scope ring_scope.
 
@@ -140,7 +140,7 @@ rewrite -(univmor1 _ i) -mgen_eq // => /(satisfy_univmor fmor) ->.
 by rewrite univmor1.
 Qed.
 
-Fact presmorfun_monmorphism : monmorphism presmorfun.
+Fact presmorfun_monmorphism : monoid_morphism presmorfun.
 Proof.
 rewrite /presmorfun; split.
   case: sig2_eqW => u uinP.
@@ -151,12 +151,12 @@ move=> m1 m2.
 case: sig2_eqW => /= u12 u12inP eq12.
 case: sig2_eqW => /= u1 u1inP eq1.
 case: sig2_eqW => /= u2 u2inP eq2.
-rewrite -mmorphM /=; apply: (satisfy_univmor fmor).
-move: eq12; rewrite -eq1 -eq2 -mmorphM /= -mgen_eq //.
+rewrite -gmulfM /=; apply: (satisfy_univmor fmor).
+move: eq12; rewrite -eq1 -eq2 -gmulfM /= -mgen_eq //.
 by rewrite words_of_cat u1inP u2inP.
 Qed.
 HB.instance Definition _ :=
-  isMonMorphism.Build M N presmorfun presmorfun_monmorphism.
+  isUMagmaMorphism.Build M N presmorfun presmorfun_monmorphism.
 
 Definition presmor : {mmorphism M -> N} := presmorfun.
 
@@ -176,7 +176,7 @@ Definition isomgen (i : I) := univmor (mgen presQ) (isoPQ [:: i]).
 
 Lemma isomgenE u : univmor isomgen u = univmor (mgen presQ) (isoPQ u).
 Proof.
-rewrite (FreeMonoidE u) !mmorph_prod /=; apply: eq_bigr => i _ /=.
+rewrite (FreeMonoidE u) !gmulf_prod /=; apply: eq_bigr => i _ /=.
 by rewrite univmor1.
 Qed.
 
@@ -235,7 +235,7 @@ rewrite (mgen_eq presP uinP vinP) -!isomonE /=.
 by rewrite (mgen_eq presQ) // isomon_word_of.
 Qed.
 
-HB.instance Definition _ := MonMorphism.on isomon.
+HB.instance Definition _ := UMagmaMorphism.on isomon.
 HB.instance Definition _ := isRewMorphismTo.Build I J
     (undirected_pres P) (undirected_pres Q) isomon isomon_eq isomon_word_of.
 
@@ -268,7 +268,7 @@ Section ConverseMonoid.
 
 Context {M : monoidType} {I : choiceType} (P : pres I) (presP : P \present M).
 
-Let cgen : I -> (M^c)%M := mgen presP.
+Let cgen : I -> M^c := mgen presP.
 Let PC := dual_pres P.
 
 Lemma words_of_dual_presE u : (rev u \in words_of PC) = (u \in words_of P).
