@@ -16,7 +16,7 @@
 From Corelib Require Import Setoid.
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat seq eqtype
-  choice path bigop.
+  choice path bigop monoid.
 
 
 Require Import monoids factor well_founded.
@@ -604,13 +604,13 @@ Section FreeMonoidInterface.
 Variable A : choiceType.
 Implicit Types (u v w x y : word A).
 
-Lemma mul_catE u v : u ++ v = ((u : {freemon A}) * (v : {freemon A}))%M.
+Lemma mul_catE u v : u ++ v = ((u : {freemon A}) * (v : {freemon A}))%g.
 Proof. by []. Qed.
 Lemma flatten_map_prodE I (s : seq I) (g : I -> word A) :
-  flatten [seq g i | i <- s] = (\prod_(i <- s) (g i : {freemon A}))%M.
+  flatten [seq g i | i <- s] = (\prod_(i <- s) (g i : {freemon A}))%g.
 Proof. by elim: s => /=[| s0 s ->]; rewrite ?big_nil ?big_cons. Qed.
 Lemma flatten_prodE (s : seq (word A)) :
-  flatten s = (\prod_(l <- s) (l : {freemon A}))%M.
+  flatten s = (\prod_(l <- s) (l : {freemon A}))%g.
 Proof. by rewrite -{1}(map_id s) flatten_map_prodE. Qed.
 
 End FreeMonoidInterface.
@@ -623,11 +623,11 @@ Implicit Types (u v w x y : word A).
 
 Variable f : {mmorphism {freemon A} -> {freemon B}}.
 
-Lemma mmorph_cat : {morph f: x y  / x ++ y}.
-Proof. exact: mmorphM. Qed.
-Lemma mmorph_flatten (s : seq (word A)) :
+Lemma gmulf_cat : {morph f: x y  / x ++ y}.
+Proof. exact: gmulfM. Qed.
+Lemma gmulf_flatten (s : seq (word A)) :
   f (flatten s) = flatten [seq f l | l <- s].
-Proof. by rewrite flatten_prodE mmorph_prod [RHS]flatten_map_prodE. Qed.
+Proof. by rewrite flatten_prodE gmulf_prod [RHS]flatten_map_prodE. Qed.
 
 End Morphism.
 
@@ -755,7 +755,7 @@ HB.mixin Record isRewMorphism
   }.
 
 HB.structure Definition RewMorphism A B (R : pres A) (S : pres B) :=
-  {f of MonMorphism {freemon A} f & isRewMorphism A B R S f}.
+  {f of UMagmaMorphism {freemon A} f & isRewMorphism A B R S f}.
 Notation "{ 'rewmorph' R -> S }" := (RewMorphism.type R S) : type_scope.
 Notation "{ 'presmorph' R -> S }" :=
   (RewMorphism.type (undirected_pres R) (undirected_pres S)) : type_scope.
@@ -870,7 +870,7 @@ Hypothesis eqR : forall u v, u \in words_of R -> v \in words_of R ->
 Hypothesis inR : forall u, u \in words_of R ->  u \in words_of R'.
 
 Definition idRR' : {freemon A} -> {freemon A} := idfun.
-HB.instance Definition _  := MonMorphism.on idRR'.
+HB.instance Definition _  := UMagmaMorphism.on idRR'.
 HB.instance Definition _  := isRewMorphismTo.Build A A R R' idRR' eqR inR.
 Definition idmorRR' : {rewmorph R -> R'} := idRR'.
 
@@ -1260,11 +1260,11 @@ apply: idmorRR'.
 Defined.
 
 Definition T2inv : {freemon A} -> {freemon A} :=
-  fun u => (\prod_(i <- u) if i != gen then [fmon i] else w)%M.
-Fact T2inv_monmorphism : monmorphism T2inv.
+  fun u => (\prod_(i <- u) if i != gen then [fmon i] else w)%g.
+Fact T2inv_monmorphism : monoid_morphism T2inv.
 Proof. by rewrite /T2inv; split => [|u v]; rewrite ?big_nil ?big_cat. Qed.
 HB.instance Definition _ :=
-  isMonMorphism.Build {freemon A} {freemon A} T2inv T2inv_monmorphism.
+  isUMagmaMorphism.Build {freemon A} {freemon A} T2inv T2inv_monmorphism.
 
 Lemma T2inv_gen : T2inv [:: gen] = w.
 Proof. by rewrite /T2inv big_seq1 eqxx. Qed.
@@ -1297,9 +1297,9 @@ Fact rewmorphism_T2inv : rewmorphism T2_pres R T2inv.
 Proof.
 rewrite /T2_pres => u v /= wu wv /rewritesP [pre suf [r1 r2]] /= eu ev.
 rewrite eu ev  mem_rcons inE => /orP [/eqP [er1 er2] | rinR] /=.
-  rewrite er1 er2 -cat1s !mul_catE !mmorphM /= -!mul_catE; apply: rewrites_to_stable.
+  rewrite er1 er2 -cat1s !mul_catE !gmulfM /= -!mul_catE; apply: rewrites_to_stable.
   by rewrite T2inv_gen T2inv_w /T2inv big_nil cats0; apply: rewrites_to_refl.
-rewrite !mul_catE !mmorphM /= -!mul_catE.
+rewrite !mul_catE !gmulfM /= -!mul_catE.
 move/allP: (wf_relat R) => /=/(_ _ rinR) /= /andP[/allP_T2inv-> /allP_T2inv->].
 by apply: rewrites_to1; apply/rewritesP; exists (T2inv pre) (T2inv suf) (r1, r2).
 Qed.
@@ -1675,7 +1675,7 @@ rewrite /expfuel.
 elim: fuel => [| fuel IHfuel] u //=.
 rewrite expnSr muln2 -addnn.
 have -> : (2 ^ fuel + 2 ^ fuel).-1 = 1 + ((2 ^ fuel).-1 + (2 ^ fuel).-1).
-  case: (2 ^ fuel) (expn_non2 fuel) => // n _ /=.
+  case: (2 ^ fuel)%N (expn_non2 fuel) => // n _ /=.
   by rewrite -/(addn _ _) !add1n addnS.
 rewrite norfuelD /=; case: rew1 => // {}u.
 rewrite IHfuel /= norfuelD /= -!IHfuel.

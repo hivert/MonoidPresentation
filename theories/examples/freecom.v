@@ -16,7 +16,7 @@
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq path.
 From mathcomp Require Import choice bigop fintype finfun finset ssralg tuple.
-From mathcomp Require Import order.
+From mathcomp Require Import order monoid.
 
 Require Import monoids present enumnf monpres sizelexi.
 
@@ -225,20 +225,20 @@ Qed.
 HB.instance Definition _ := Countable.on FCMT.
 HB.instance Definition _ := isComMonoid.Build FCMT FCMTmulA FCMTmulC FCMTmul1m.
 
-Lemma tnth1 i : tnth (1%M%M : FCMT) i = 0%N.
+Lemma tnth1 i : tnth (1%g : FCMT) i = 0%N.
 Proof. by rewrite tnth_mktuple. Qed.
-Lemma tnthM x y i : tnth (x * y)%M i = tnth x i + tnth y i.
+Lemma tnthM x y i : tnth (x * y)%g i = tnth x i + tnth y i.
 Proof. by rewrite tnth_map tnth_zip. Qed.
 Lemma tnth_morph i :
-  {morph (fun m : FCMT => tnth m i) : x y / (x * y)%M >-> x + y}.
+  {morph (fun m : FCMT => tnth m i) : x y / (x * y)%g >-> x + y}.
 Proof. by move=> x y; rewrite tnthM. Qed.
 Lemma tnth_prod [I : Type] (s : seq I) [P : pred I] [F : I -> FCMT] i :
-  tnth (\prod_(x <- s | P x) F x)%M i = (\sum_(x <- s | P x) tnth (F x) i)%N.
+  tnth (\prod_(x <- s | P x) F x)%g i = (\sum_(x <- s | P x) tnth (F x) i)%N.
 Proof. by apply: (big_morph _ (tnth_morph i)); rewrite tnth1. Qed.
-Lemma tnthX x k i : tnth (x ^+ k)%M i = (tnth x i * k)%N.
+Lemma tnthX x k i : tnth (x ^+ k)%g i = (tnth x i * k)%N.
 Proof.
-elim: k => [|k IHk]; first by rewrite expm0 tnth1 muln0.
-by rewrite expmS tnthM mulnS IHk.
+elim: k => [|k IHk]; first by rewrite expg0 tnth1 muln0.
+by rewrite expgS tnthM mulnS IHk.
 Qed.
 
 
@@ -292,7 +292,7 @@ have tnth_nseq k (i : 'I_n) (j : nat) :
   by rewrite univmor_nseq tnthX tnth_mktuple.
 exists (flatten [seq nseq (nth 0 m i) i | i <- iota 0 n]).
   by apply/allP=> i /flatten_mapP[/= j] iin /nseqP[-> _].
-rewrite flatten_prodE big_map mmorph_prod /=.
+rewrite flatten_prodE big_map gmulf_prod /=.
 apply: eq_from_tnth => i; rewrite tnth_prod.
 have iin : \val i \in iota 0 n by rewrite mem_iota /= add0n ltn_ord.
 rewrite (bigD1_seq (\val i) iin) /= ?iota_uniq //.

@@ -15,7 +15,7 @@
 (******************************************************************************)
 (** The two main optimization tools here are native int and code inlining.    *)
 From Stdlib Require Import Znat BinIntDef Uint63.
-From mathcomp Require Import all_ssreflect.
+From mathcomp Require Import all_boot all_order.
 
 Require Import int_seq sizelexi present rewcert well_founded.
 

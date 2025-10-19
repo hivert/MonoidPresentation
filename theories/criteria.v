@@ -15,7 +15,8 @@
 (******************************************************************************)
 From Stdlib Require Import Uint63.
 From HB Require Import structures.
-From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice ssrnat seq order.
+From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice ssrnat
+  seq order monoid.
 
 Require Import well_founded monoids present factor rewcert sizelexi.
 
@@ -328,13 +329,13 @@ Qed.
 Definition unit_pres : pres unit :=
   Pres [:: tt] _ is_true_true all_relwords_unit_relats.
 
-Fact to_unit_monmorphism : monmorphism to_unit.
+Fact to_unit_monmorphism : monoid_morphism to_unit.
 Proof.
 rewrite /to_unit; split => [// | u v].
 by rewrite size_cat nseqD.
 Qed.
 HB.instance Definition _ :=
-  isMonMorphism.Build {freemon Alph} {freemon unit}
+  isUMagmaMorphism.Build {freemon Alph} {freemon unit}
     to_unit to_unit_monmorphism.
 Fact to_unit_presmorphism : rewmorphism P unit_pres to_unit.
 Proof.
@@ -354,19 +355,19 @@ HB.instance Definition _ :=
     to_unit_presmorphism to_unit_in_presmorphism.
 
 
-Fact from_unit_monmorphism : monmorphism from_unit.
+Fact from_unit_monmorphism : monoid_morphism from_unit.
 Proof.
 rewrite /from_unit; split => [// | u v].
 by rewrite size_cat nseqD.
 Qed.
 HB.instance Definition _ :=
-  isMonMorphism.Build {freemon unit} {freemon Alph} from_unit
+  isUMagmaMorphism.Build {freemon unit} {freemon Alph} from_unit
     from_unit_monmorphism.
 Fact from_unit_presmorphism : rewmorphism unit_pres P from_unit.
 Proof.
 move=> u v uin vin /rewritesP[pre suf [s1 s2] /= equ eqv /=].
 case/mapP => /= [[r1 r2] inP /= [eqs1 eqs2]]; subst u v s1 s2.
-rewrite !mmorph_cat /=; apply: rewrites_to1.
+rewrite !gmulf_cat /=; apply: rewrites_to1.
 have /allP/(_ _ inP)/=/andP[r1P r2P] := wf_relat P.
 rewrite !to_unitK //.
 by apply/rewritesP; exists (from_unit pre) (from_unit suf) (r1, r2).
