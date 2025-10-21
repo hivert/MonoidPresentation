@@ -20,10 +20,9 @@ From mathcomp Require Import all_boot all_order.
 
 
 (* Workaround for MathComp / PArray notation incompatibilities *)
+Notation "t .[ i ]" := (get t i).
 Notation "t .[ i <- a ]" := (set t i a)
   (at level 1, left associativity, format "t .[ i <- a ]").
-Notation "t .[ i ]" := (get t i).
-Notation "t .[ i <- a ]" := (set t i a).
 
 Require Import factor int_seq present fastcert enumnf.
 
