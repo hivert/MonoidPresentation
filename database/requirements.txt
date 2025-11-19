@@ -1,0 +1,2 @@
+libsemigroups_pybind11>=1.0.1
+typing_extensions>=4.0.0

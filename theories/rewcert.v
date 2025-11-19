@@ -13,7 +13,7 @@
 (*                                                                            *)
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
-(** Presentation isomorphism certificate / To be extracted from James database *)
+(** Presentation isomorphism certificate / To be extracted from SA database *)
 From Stdlib Require Import Uint63.
 From mathcomp Require Import all_boot all_order.
 Require Import int_seq sizelexi monoids present.

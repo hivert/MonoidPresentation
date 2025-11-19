@@ -32,3 +32,5 @@ Makefile.coq.conf
 *.cmx
 *.o
 TAGS
+CoqMakefile.conf
+_CoqProject

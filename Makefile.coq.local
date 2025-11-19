@@ -1,1 +1,1 @@
-theories/test/%.vo: COQFLAGS += -noglob
+database/rocq/%.vo: COQFLAGS += -noglob
