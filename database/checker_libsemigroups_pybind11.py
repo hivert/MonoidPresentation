@@ -1,4 +1,7 @@
 """
+(c) Copyright 2025 Reinis Cirpons.
+Distributed under the terms of CeCILL-B.
+
 This module contains a reference implementation of a checker for the proof
 database using the python package `libsemigroups_pybind11`.
 

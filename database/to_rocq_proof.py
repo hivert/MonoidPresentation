@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+"""
+(c) Copyright 2025 Reinis Cirpons.
+Distributed under the terms of CeCILL-B.
+
+Script for converting SA certificate proofs from the "database.db" proof
+database into Rocq proofs of decidability.
+"""
+
 import sqlite3
 import argparse
 from pathlib import Path

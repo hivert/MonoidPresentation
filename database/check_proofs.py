@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 """
+(c) Copyright 2025 Reinis Cirpons and Finn Smith.
+Distributed under the terms of CeCILL-B.
+
 This script runs a Python proof checker over the database of proofs for
 comparison purposes with the ROCQ implementation.
 """

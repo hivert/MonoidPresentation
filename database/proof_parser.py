@@ -1,4 +1,11 @@
-## Parsing proof tuple into structured form
+"""
+(c) Copyright 2025 Reinis Cirpons.
+Distributed under the terms of CeCILL-B.
+
+A library file for parsing SA certificate proof tuples into structured form.
+The SA certificate specification is available in the "SA_certificate_format.md"
+file.
+"""
 
 from dataclasses import dataclass
 from typing import NamedTuple, ClassVar, Generic, TypeVar, Union

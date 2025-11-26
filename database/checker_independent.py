@@ -1,4 +1,7 @@
 """
+(c) Copyright 2025 Finn Smith.
+Distributed under the terms of CeCILL-B.
+
 An independent proof verifier for the 1-relation database.
 
 A largely faithful implementation of the proof spec. Functions have often been implemented in a slightly naive

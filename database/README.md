@@ -4,30 +4,130 @@ This directory contains data and helper scripts pertaining to the Certified
 Programs and Proofs (CPP) 2026 conference submission "Certifying the
 decidability of the word problem in monoids at large".
 
-## Data
+## Overview
 
-The file `database.db` contains the 1-relation monoid word problem proof
-database. The database consists of proofs in the SA certificate format. This
+The 1-relation monoid word problem proof database consists of presentations and
+proofs of decidability of the word problem in the SA certificate format. This
 database is used to generate ROCQ proofs certifying the decidability of the
 word problem using the accompanying tools as described below.
 
-The subdirectory `rocq_proofs/` contains ROCQ proofs certifying the decidability
-of the word problem for a subset of the proofs found in `database.db` that are
-currently implemented in ROCQ. The proofs in this subdirectory were produced
-by using the `to_rocq_proof.py` script from `database.db`.
+Additionally, the directory contains Python based checkers for verifying the
+SA certificates. Code for checking the Rocq proofs is available as part of the
+`MonoidPresentation` project, which is currently hosted at the following URL:
+
+> https://github.com/hivert/MonoidPresentation/
+
+## Basic usage
+
+- To convert the database of SA certificates to ROCQ proof certificate batch
+  files run:
+
+  ```bash
+  rm -rf ./rocq
+  ./to_rocq_proof.py
+  ```
+
+  This will create a new directory `rocq` containing the certificates in
+  its subfolders.
+
+- To check the correctness of SA certificates stored in the database using the
+  Python checker run:
+
+  ```bash
+  gzip -kdv ./database.db.gz
+  ./check_proofs.py
+  ```
+
+  This will extract the proof database and run the Python checker.
+
+## Data
+
+The file `database.db.gz` is a gzip compressed archive of the SA certificate
+database. To extract it run:
+
+```bash
+gzip -kdv ./database.db.gz
+```
+
+This should extract the full proof database as the file `database.db`, the
+decompressed database file is about `655 MB` large. To inspect the database,
+any tool for browsing SQlite databases should work, for example the
+[DB Browser for SQlite](https://sqlitebrowser.org/).
+
+The SA certificate database consists of three tables:
+
+- `presentation_table`: Each entry in this table is a 1-relation monoid
+  presentation.
+- `proof_table`: Each entry in this table contains a SA certificate describing
+  a proof of the decidability of a presentation stored in `presentation_table`.
+  Note that a single presentation may have multiple proofs associated to it.
+  The SA certificate is stored in the `proof_steps` field of the `proof_table`.
+- `proof_validator_table`: This table is not currently used and contains some
+  test data.
+
+The SA certificate format is described in more detail in the
+`SA_certificate_format.md` file.
+
+Once the ROCQ proofs are generated using the `to_rocq_proof.py` script (see
+above), the subdirectory `rocq/` should be populated with ROCQ proofs
+certifying the decidability of the word problem for a subset of the proofs
+found in `database.db`. Note that not all proof steps of the SA certificate
+format have been implemented in ROCQ, so not all proofs from the database are
+converted.
+
+Once generated, the `rocq/` directory of ROCQ proofs should contain
+subdirectories such as `AlphabetIsom/`, `CompleteRewritingSystem/` etc.
+Each of these subdirectories is named after a particular reduction or
+decidability criterion, and contains the presentation definitions and proofs
+using this criterion. For more info on the criteria implemented in ROCQ,
+see the `MonoidPresentation` project.
+
+Every subdirectory of the `rocq/` directory contains two further subdirectories:
+
+- `pres/`: storing the presentation definitions that will be proved.
+- `dec/`: storing ROCQ theorems establishing the decidability of the word
+  problem for presentations in `pres/` as well as their proofs, which have been
+  obtained by translating the SA certificate into ROCQ.
+
+To improve the time it takes to verify the proofs using ROCQ, the ROCQ
+presentations and proofs are batched. So, every file in the `pres/` and `dec/`
+directories contains multiple (by default 1000) presentations and proofs.
+The batch size can be adjusted by passing a parameter to the `to_rocq_proof.py`
+script, see below.
 
 ## Tools
 
-There are two tools included in this directory. The `to_rocq_proof.py` script
-is a tool for converting the SA oracle produced proof format to a ROCQ
-proof. The `check_proofs.py` script is a tool for running python "proof
-checkers" on the SA certificate format directly. Passing the `-l` option to the
-script toggles the use of the `libsemigroups_pybind11` library.
+There are two tools included in this directory:
 
-Note that the `to_rocq_proof.py` script requires an output directory (defaults
+- The `to_rocq_proof.py` script is a tool for converting the SA oracle produced
+  proof format to a ROCQ proof.
+- The `check_proofs.py` script is a tool for running Python "proof
+  checkers" on the SA certificate format directly.
+  This script is mainly intended as a timing benchmark.
+
+The files `checker_independent.py`, `checker_libsemigroups_pybind11.py` and
+`proof_parser.py` are library files that implement some functionality used by the
+conversion script and proof checker. These should not be used directly, instead
+the scripts `to_rocq_proof.py` and `check_proofs.py` should be called.
+
+### Tool usage
+
+To specify the output directory of the proofs generated by `to_rocq_proof.py`
+use the `-o` or `--output` flag and specify an output directory path.
+
+**Note**: the `to_rocq_proof.py` script requires an output directory (defaults
 to `rocq/`) to be completely empty before being run.
 
-In order to run the `check_proofs.py` script, installing the python packaged from
-`requirements.txt` may be necessary (e.g. by running
-`python3 -m pip install -r requirements.txt`). The `check_proofs.py` script is
-mainly intended as a timing benchmark.
+To change the batch size used by `to_rocq_proof.py`, use the `-b` or
+`--batch-size` option. From experimentation, it seems that a batch size of 1000
+(the default value) works reasonably well for ROCQ checking later on.
+
+Passing the `-l` option to the `check_proofs.py` script toggles the use of the
+`libsemigroups_pybind11` library.
+
+**Note**: installing the python packages from `requirements.txt` may be
+necessary for the `libsemigroups_pybind11` based checker to work. See also
+[`libsemigroups_pybind11`](https://github.com/libsemigroups/libsemigroups_pybind11)
+for more info.
+
+Help for either tool can be obtained by passing the `-h` or `--help` flag.
