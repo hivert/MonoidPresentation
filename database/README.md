@@ -7,9 +7,9 @@ decidability of the word problem in monoids at large".
 ## Data
 
 The file `database.db` contains the 1-relation monoid word problem proof
-database. The database consists of proofs in the SA certificate. This database
-is used to generate ROCQ proofs certifying the decidability of the word problem
-using the accompanying tools as described below.
+database. The database consists of proofs in the SA certificate format. This
+database is used to generate ROCQ proofs certifying the decidability of the
+word problem using the accompanying tools as described below.
 
 The subdirectory `rocq_proofs/` contains ROCQ proofs certifying the decidability
 of the word problem for a subset of the proofs found in `database.db` that are
