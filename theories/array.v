@@ -13,10 +13,17 @@
 (*                                                                            *)
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
+From Corelib Require Import Setoid.
 From HB Require Import structures.
-From Stdlib Require Import Znat BinIntDef Uint63 PArray.
+From Stdlib Require Import Znat BinIntDef Uint63.
+From Stdlib Require Import -(notations) PArray.
+From mathcomp Require Import all_boot all_order.
 
-From mathcomp Require Import all_ssreflect.
+(* Workaround for MathComp / PArray notation incompatibilities *)
+Notation "t .[ i ]" := (get t i).
+Notation "t .[ i <- a ]" := (set t i a)
+  (at level 1, left associativity, format "t .[ i <- a ]").
+
 
 Require Import int_seq.
 
