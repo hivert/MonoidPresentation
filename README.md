@@ -1,5 +1,27 @@
-Certifying the word problem in monoids
-======================================
+Certifying the decidability of the word problem in monoids at large
+===================================================================
+
+R. Cirpons, F. Hivert, A. Mahboubi, G. Melquiond, J. Mitchell, F. Smith
+
+Work presented at CPP-2026, Sun 11 - Sat 17 January 2026, Rennes, France.
+
+https://doi.org/10.1145/3779031.3779101
+
+
+While the word problem for monoids is undecidable in general, having a
+decision procedure for some finitely presented monoid of interest has numerous
+applications. The repository contains a toolbox for the Rocq proof assistant that
+can be used to verify the decidability of the word problem for a given monoid
+and, in some cases, to produce the corresponding decision procedure. As this
+verification can be computationally intensive, the toolbox heavily relies on
+proofs by reflection guided by an external oracle. This approach has been
+successfully used on several large presentations from the literature, as well
+as on a database of one million $1$-relation monoids. The huge size of this
+database forced some unusual considerations onto the Rocq formalization, so
+that the formal proofs could be checked in a reasonable amount of time.
+
+Contents
+========
 
 This repository contains two components:
 
