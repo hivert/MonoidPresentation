@@ -1,12 +1,20 @@
-From Stdlib Require Import Znat BinIntDef Uint63 PArray.
-From Stdlib Require NArith.
-From mathcomp Require Import all_ssreflect.
+From Corelib Require Import Setoid.
+From HB Require Import structures.
+From Stdlib Require Import Znat BinIntDef Uint63.
+From Stdlib Require Import -(notations) PArray.
+From mathcomp Require Import all_boot all_order.
 
-Require Import factor int_seq present rewcert inttrie.
+(* Workaround for MathComp / PArray notation incompatibilities *)
+Notation "t .[ i ]" := (get t i).
+Notation "t .[ i <- a ]" := (set t i a)
+  (at level 1, left associativity, format "t .[ i <- a ]").
+
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
+
+Require Import factor int_seq array present rewcert inttrie.
 
 Local Open Scope uint63_scope.
 
@@ -106,8 +114,8 @@ Fixpoint prefixes_trie_rec rpre tr : seq (word int) :=
   | Trie x a =>
       if length a == 0 then [::]
       else rpre :: flatten (
-               [seq prefixes_trie_rec (g :: rpre)
-                  a.[g] | g <- [seq of_nat n | n <- iota 0 (to_nat (length a))]])
+              [seq prefixes_trie_rec (g :: rpre)
+                 a.[g] | g <- [seq of_nat n | n <- iota 0 (to_nat (length a))]])
   | Empty => [::]
   end.
 Definition prefixes_trie tr := [seq rev s | s <- prefixes_trie_rec [::] tr].
@@ -334,6 +342,8 @@ Qed.
 Definition nbnodes := nbnodes_generic 0%N succn.
 Definition nbnodes_bin := nbnodes_generic BinNat.N.zero BinNat.N.succ.
 Definition nbnodes_int := nbnodes_generic 0 succ.
+Definition nbnodes_carry := nbnodes_generic
+    (C0 0) (fun i : carry int => if i is C0 i' then succc i' else C1 0).
 
 
 Lemma nbbodes_binE t : BinNat.N.to_nat (nbnodes_bin t) = nbnodes t.
@@ -362,6 +372,7 @@ Fixpoint prefixes_trie_pos_acc acc tr : int * (@trie int) :=
 Definition prefixes_trie_length tr := (prefixes_trie_pos_acc 0 tr).1.
 Definition prefixes_trie_pos tr := (prefixes_trie_pos_acc 0 tr).2.
 
+(*
 Lemma prefixes_trie_lengthE tr :
   is_fltrie trielen tr ->
   prefixes_trie_length tr = nbnodes_int (prefixes_trie_pos tr).
@@ -547,6 +558,8 @@ Let postr := prefpair.2.
 
 Goal size (prefixes_trie tr : seq (seqlexi _)) = 465%N.
 Proof. by vm_compute. Qed.
+Goal nbnodes_carry (pres_trielen P) tr = C0 465.
+Proof. by vm_compute. Qed.
 
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
 Proof. by vm_compute. Qed.
@@ -557,6 +570,33 @@ Proof. by vm_compute. Qed.
 
 End Largest.
 End Example3.
+
+Require Import RennerB51.
+
+Module Example4.
+Section RennerB51.
+
+Let P := Eval vm_compute in RennerB51_rws.
+Let tr := mktrie (pres_trielen P) (prelat P).
+Let preftr := prefixes_trie tr.
+Let prefpair := prefixes_trie_pos_acc (pres_trielen P) 0 tr.
+Let nbpref := prefpair.1.
+Let postr := prefpair.2.
+
+Goal size (prefixes_trie tr : seq (seqlexi _)) = 895%N.
+Proof. by vm_compute. Qed.
+Goal nbnodes_carry (pres_trielen P) tr = C0 895.
+Proof. by vm_compute. Qed.
+
+Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
+Proof. by vm_compute. Qed.
+Goal prefixes_trie_fast (pres_trielen P) tr = prefixes_trie tr.
+Proof. by vm_compute. Qed.
+Goal sorted <%O (prefixes_trie tr : seq (seqlexi _)).
+Proof. by vm_compute. Qed.
+
+End RennerB51.
+End Example4.
 
 (*
 Definition is_reduced R :=
