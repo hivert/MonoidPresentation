@@ -143,12 +143,30 @@ split; first exact: Nat2Z.is_nonneg.
 by rewrite -(Z2Nat.id wB); first exact/inj_lt/ltP.
 Qed.
 
+Lemma ltwBnat i : to_nat i < wBnat.
+Proof. by apply/ltP; have := ltZwB i; rewrite Z2Nat.inj_lt. Qed.
+
+Lemma to_natDE x y : to_nat (x + y) = (to_nat x + to_nat y) %% wBnat.
+Proof.
+rewrite add_spec Z2Nat.inj_mod //; last exact: BinInt.Z.add_nonneg_nonneg.
+by rewrite Z2Nat.inj_add // mod_natE.
+Qed.
+Lemma to_natD x y :
+  to_nat x + to_nat y < wBnat -> to_nat (x + y) = (to_nat x + to_nat y)%N.
+Proof. by move=> lt; rewrite to_natDE modn_small. Qed.
+
 Lemma succ_of_nat n : succ (of_nat n) = of_nat n.+1.
 Proof.
 apply: to_Z_inj; rewrite of_Z_spec succ_spec of_Z_spec.
 by rewrite Zdiv.Zplus_mod_idemp_l -addn1 Nat2Z.inj_add.
 Qed.
-
+Lemma to_nat_succ x :
+  (to_nat x).+1 < wBnat -> to_nat (succ x) = (to_nat x).+1.
+Proof.
+move=> Hx.
+have := succ_of_nat (to_nat x); rewrite to_natK => ->.
+by rewrite of_natK //.
+Qed.
 Lemma succK : cancel succ Uint63.pred.
 Proof.
 move=> n; apply: to_Z_inj.
@@ -163,17 +181,6 @@ rewrite succ_spec pred_spec Zdiv.Zplus_mod_idemp_l.
 by rewrite BinInt.Z.sub_add BinInt.Z.mod_small.
 Qed.
 
-Lemma ltwBnat i : to_nat i < wBnat.
-Proof. by apply/ltP; have := ltZwB i; rewrite Z2Nat.inj_lt. Qed.
-
-Lemma to_natDE x y : to_nat (x + y) = (to_nat x + to_nat y) %% wBnat.
-Proof.
-rewrite add_spec Z2Nat.inj_mod //; last exact: BinInt.Z.add_nonneg_nonneg.
-by rewrite Z2Nat.inj_add // mod_natE.
-Qed.
-Lemma to_natD x y :
-  to_nat x + to_nat y < wBnat -> to_nat (x + y) = (to_nat x + to_nat y)%N.
-Proof. by move=> lt; rewrite to_natDE modn_small. Qed.
 
 Lemma ltleSint x y : (x < y)%O -> (x + 1 <= y)%O.
 Proof.

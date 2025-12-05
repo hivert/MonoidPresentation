@@ -118,11 +118,12 @@ rewrite {1}/for_loop; case: (Acc_intro_generator _ _ _) => ACC /=.
 by rewrite -[m <? n]/(m < n); case (@idP (m < n)).
 Qed.
 
-Lemma for_loop_ind m n x0 (invar : int -> A -> Type) (fin : B -> Type) :
-  (forall i x, n <= i -> invar i x -> fin (finish x)) ->
-  (forall i x r, i < n -> body i x = Return r   -> invar i x -> fin r) ->
+Lemma for_loop_ind_postcond m n x0
+     (invar : int -> A -> Type) (postcond : B -> Type) :
+  (forall i x, n <= i -> invar i x -> postcond (finish x)) ->
+  (forall i x r, i < n -> body i x = Return r   -> invar i x -> postcond r) ->
   (forall i x c, i < n -> body i x = Continue c -> invar i x -> invar (succ i) c) ->
-  invar m x0 -> fin (for_loop m n x0).
+  invar m x0 -> postcond (for_loop m n x0).
 Proof.
 move=> Hfin Hret Hcont.
 move: {1}(n - m) (erefl (n - m)) => d Hd.
@@ -139,6 +140,20 @@ case Hnext : (body m x0) => [a | b].
 Qed.
 
 End ForLoop.
+
+Section ForLoopSimple.
+
+Context {A : Type}.
+Implicit Types (m n i j : int) (x y : A).
+
+Lemma for_loop_ind body m n x0 (invar : int -> A -> Type) :
+  (forall i x, n <= i -> invar i x -> invar n x) ->
+  (forall i x r, i < n -> body i x = Return r   -> invar i x -> invar n r) ->
+  (forall i x c, i < n -> body i x = Continue c -> invar i x -> invar (succ i) c) ->
+  invar m x0 -> invar n (for_loop body id m n x0).
+Proof. exact: for_loop_ind_postcond. Qed.
+
+End ForLoopSimple.
 
 (*
 From Coq Require Extraction ExtrOCamlInt63.
@@ -170,27 +185,26 @@ Definition has_array : bool :=
 Lemma length_make_array d len f :
   len <= max_length -> length (make_array d len f) = len.
 Proof.
-rewrite /make_array => lelen; pose P (ar : array A) := length ar = len.
-apply: (for_loop_ind (invar := fun i ar => P ar) (fin := P)) => //.
-- by rewrite {}/P => i c x _ [] <- <-; rewrite length_set.
-- by rewrite {}/P length_make -[len ≤? max_length]/(len <= max_length)%O lelen.
+rewrite /make_array => lelen.
+apply: (for_loop_ind (invar := fun i ar => length ar = len)) => //.
+- by move=> i c x _ [] <- <-; rewrite length_set.
+- by rewrite length_make -[len ≤? max_length]/(len <= max_length)%O lelen.
 Qed.
 Lemma default_make_array d len f : default (make_array d len f) = d.
 Proof.
-rewrite /make_array; pose P (ar : array A) := default ar = d.
-apply: (for_loop_ind (invar := fun i a => P a) (fin := P)) => //.
-- by rewrite {}/P => i c x _ [] <- <-; rewrite default_set.
-- by rewrite {}/P default_make.
+apply: (for_loop_ind (invar := fun i a => default a = d)) => //.
+- by move=> i c x _ [] <- <-; rewrite default_set.
+- by rewrite default_make.
 Qed.
 Lemma get_make_array len d f i :
   i < len <= max_length -> (make_array d len f).[i] = f i.
 Proof.
-rewrite /make_array => /andP[ltil lelen]; set body := (X in for_loop _ X).
-pose IH n ar := length ar = len /\ forall j, j < n -> ar.[j] = f j.
-apply (for_loop_ind (invar := IH) (fin := fun ar => IH len ar)) => //.
-- rewrite /IH => j ar leli [Hlen Heq]; split => // k ltkl.
+rewrite /make_array => /andP[ltil lelen].
+apply (for_loop_ind
+    (invar := fun n ar => length ar = len /\ forall j, j < n -> ar.[j] = f j)) => //.
+- move=> j ar leli [Hlen Heq]; split => // k ltkl.
   exact: Heq (lt_le_trans ltkl leli).
-- rewrite /body {}/IH => j x c ltjl [] {c}<- [lenx Heq].
+- move=> j x c ltjl [] {c}<- [lenx Heq].
   rewrite length_set; split => // k /ltSleint.
   rewrite le_eqVlt => /orP[/eqP {k}-> | ltki].
     by rewrite get_set_same ?lenx.
@@ -210,7 +224,7 @@ Qed.
 Lemma find_array_ltn n : n < find_array -> ~~ p a.[n].
 Proof.
 rewrite /find_array; pose IH i := forall j, j < i -> ~~ p a.[j].
-apply: (for_loop_ind (invar := fun i _ => IH i) (fin := IH)).
+apply: (for_loop_ind_postcond (invar := fun i _ => IH i) (postcond := IH)).
 - rewrite {}/IH => i _ gti H j ltj.
   exact: H (lt_le_trans ltj gti).
 - rewrite {}/IH => i x r lti.
@@ -222,14 +236,13 @@ apply: (for_loop_ind (invar := fun i _ => IH i) (fin := IH)).
 Qed.
 Lemma find_arrayE : find_array < length a -> p a.[find_array].
 Proof.
-rewrite /find_array; set body := (X in for_loop _ X) => H.
-apply/contraLR: H; rewrite -leNgt.
+rewrite /find_array; apply/contraLR; rewrite -leNgt.
 move: 0 (le0x _ : 0 <= length a) => j.
-apply: (for_loop_ind (invar := fun i _ => _)
-          (fin := fun b => ~~ p a.[b] -> length a <= b)) => //.
-- rewrite /body=> i x r ltil.
+apply: (for_loop_ind_postcond (invar := fun i _ => _)
+          (postcond := fun b => ~~ p a.[b] -> length a <= b)) => //.
+- move=> i x r ltil.
   by case: (boolP (p a.[i])) => // /[swap]-[{r}<- ->].
-- by rewrite /body=> i x c /ltleSint ltil; case: p.
+- by move=> i x c /ltleSint ltil; case: p.
 Qed.
 
 Lemma has_arrayP : reflect (exists2 n : int, n < length a & p a.[n]) has_array.
@@ -238,8 +251,8 @@ suff /equivP : reflect (exists2 n, 0 <= n < length a & p a.[n]) has_array.
   by apply; split => [][x xin pax]; exists x =>[]//; move: xin; rewrite le0x.
 rewrite /= /has_array; set body := (X in for_loop X).
 apply (iffP idP).
-  apply: (for_loop_ind (body := body)
-            (invar := fun _ _ => true) (fin := fun b => b -> _)) => //.
+  apply: (for_loop_ind_postcond (body := body)
+            (invar := fun _ _ => true) (postcond := fun b => b -> _)) => //.
   rewrite {}/body => i _ r lti + _ _.
   case: (boolP (p a.[i])) => Hp // [] _.
   by exists i => //; rewrite le0x lti.
@@ -247,8 +260,8 @@ move=> [i /andP[_ lti] pai].
 have : for_loop body xpred0 i (length a) tt.
   by apply: for_loop_retE => //; rewrite {}/body pai.
 apply: contraLR; move: 0 (le0x i : 0 <= i) => j.
-apply (for_loop_ind (body := body) (m := j)
-          (invar := fun j _ => _) (fin := fun b => ~~ b -> _)) => // {j}.
+apply (for_loop_ind_postcond (body := body) (m := j)
+          (invar := fun j _ => _) (postcond := fun b => ~~ b -> _)) => // {j}.
 - by move=> j _ /le_trans/[apply]/le_lt_trans/(_ lti); rewrite ltxx.
 - by rewrite /body => j x r _; case: p => // [][<-{r}].
 - rewrite /body=> j x c _ /[swap].
@@ -288,7 +301,7 @@ Lemma length_from_seq s d :
 Proof.
 by move=> H; rewrite length_make_array // leEint of_natK ?size_max_wBnat.
 Qed.
-Lemma nth_from_seq s d i :
+Lemma get_from_seq s d i :
   size s <= to_nat max_length -> nth d s (to_nat i) = (from_seq s d).[i].
 Proof.
 move=> H.
@@ -311,7 +324,7 @@ apply: (eq_from_nth (x0 := d) eqsz).
 rewrite eqsz => i lti.
 have /of_natK eqi : (i < wBnat)%N by apply: (ltn_trans lti); apply: size_max_wBnat.
 rewrite -[in LHS]eqi -{1}(default_from_seq s d) nth_to_seq.
-by rewrite -nth_from_seq // eqi.
+by rewrite -get_from_seq // eqi.
 Qed.
 Lemma to_seqK a : from_seq (to_seq a) (default a) = a.
 Proof.
@@ -321,20 +334,49 @@ have eqlen : length (from_seq (to_seq a) (default a)) = length a.
   by rewrite length_from_seq size_to_seq ?to_natK.
 apply: array_ext; rewrite ?eqlen ?default_from_seq // => i lti.
 have {}lti : i < length a by [].
-by rewrite -nth_from_seq ?size_to_seq // nth_to_seq.
+by rewrite -get_from_seq ?size_to_seq // nth_to_seq.
 Qed.
 
 End ToSeq.
 
 
+Section FoldL.
+
+Context {T R : Type} (f : R -> T -> R) (z : R) (a : array T).
+Implicit Types (i j m n len : int).
+
+Definition foldl_array :=
+  for_loop (fun i r => Continue (f r a.[i])) id 0 (length a) z.
+
+Lemma foldl_arrayE : foldl_array = foldl f z (to_seq a).
+Proof.
+rewrite /foldl_array.
+apply: (for_loop_ind_postcond
+          (invar := fun n r => r = foldl f z (take (to_nat n) (to_seq a)))
+          (postcond := fun r => r = _)) => //.
+- by move=> i x leli ->; rewrite !take_oversize // size_mkseq -leEint.
+- move=> i x c; rewrite ltEint => leli [{c}<- {x}->].
+  rewrite to_nat_succ; last exact: (leq_ltn_trans leli (lt_lenght_wB _)).
+  rewrite (take_nth (default a)) ?size_mkseq //.
+  by rewrite foldl_rcons nth_mkseq // to_natK.
+- by rewrite to_nat0 take0.
+Qed.
+
+End FoldL.
+
 
 Section Test.
 
-Let taille := 1000.
+Let taille := 10000.
 Let a := make_array 0 taille (fun i => i).
+
 Goal has_array (fun i => (i > 2000000000)%O) a = false.
 Proof. by vm_cast_no_check (erefl false). Qed.
 Goal has_array (fun i => (i > 2000000000)%O) a = false.
 Proof. by native_cast_no_check (erefl false). Qed.
+
+
+Goal foldl_array add 0 a = 49995000.
+Proof. by vm_cast_no_check (erefl 49995000). Qed.
 
 End Test.
