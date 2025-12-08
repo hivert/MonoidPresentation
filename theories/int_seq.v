@@ -14,8 +14,9 @@
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
 From HB Require Import structures.
-From Stdlib Require Import Znat BinIntDef Uint63.
-From mathcomp Require Import all_boot all_order.
+From Stdlib Require Import Znat BinIntDef Uint63 Ring Ring63.
+From mathcomp Require Import all_boot all_order nmodule ssralg zmodp.
+
 
 Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
 
@@ -51,21 +52,21 @@ Qed.
 End Nat.
 
 
-Section Int.
-
-Implicit Type (x y : int) (m n : nat).
-
 Local Open Scope uint63_scope.
 
-Fact natint_eq_axiom : Equality.axiom PrimInt63.eqb.
-Proof. by move=> i j; apply (iffP idP); rewrite -eqb_spec. Qed.
-HB.instance Definition _ := hasDecEq.Build int natint_eq_axiom.
+Section IntRing.
+
+Implicit Type (x y : int) (m n : nat).
 
 Lemma le0Z x : BinInt.Z.le 0 φ(x).
 Proof. by have [] := to_Z_bounded x. Qed.
 Lemma ltZwB x : BinInt.Z.lt φ(x) wB.
 Proof. by have [] := to_Z_bounded x. Qed.
 Hint Resolve le0Z ltZwB : core.
+
+Fact natint_eq_axiom : Equality.axiom PrimInt63.eqb.
+Proof. by move=> i j; apply (iffP idP); rewrite -eqb_spec. Qed.
+HB.instance Definition _ := hasDecEq.Build int natint_eq_axiom.
 
 Fact to_natK : cancel (fun i => to_nat i) (fun n => of_nat n).
 Proof. by move=> i; rewrite Z2Nat.id ?of_to_Z // -to_Z_0. Qed.
@@ -74,7 +75,51 @@ HB.instance Definition _ := CanIsCountable to_natK.
 Lemma to_nat_inj : injective (fun i => to_nat i).
 Proof. exact: can_inj to_natK. Qed.
 
-(* Check int : countType. *)
+Lemma add0i : left_id (0 : int) add.
+Proof. move=> x; ring. Qed.
+Lemma addNi : left_inverse 0%uint63 opp add.
+Proof. move=> x; ring. Qed.
+HB.instance Definition _ :=
+  GRing.isZmodule.Build int add_assoc add_comm add0i addNi.
+
+Lemma muliA : associative PrimInt63.mul.
+Proof. move=> x y z; ring. Qed.
+Lemma  mul1i : left_id (1 : int) PrimInt63.mul.
+Proof. move=> x; ring. Qed.
+Lemma  muli1 : right_id (1 : int) PrimInt63.mul.
+Proof. move=> x; ring. Qed.
+Lemma  muliDl : left_distributive PrimInt63.mul add.
+Proof. move=> x y z; ring. Qed.
+Lemma  muliDr : right_distributive PrimInt63.mul add.
+Proof. move=> x y z; ring. Qed.
+Lemma  onei_neq0 : (1 : int) != (0 : int).
+Proof. by []. Qed.
+
+HB.instance Definition _ :=
+  GRing.Zmodule_isNzRing.Build int muliA mul1i muli1 muliDl muliDr onei_neq0.
+
+Lemma to_nat0 : to_nat 0 = 0%N.
+Proof. by []. Qed.
+Lemma to_nat1 : to_nat 1 = 1%N.
+Proof. by []. Qed.
+
+Lemma int0E : 0%R = 0.
+Proof. by []. Qed.
+Lemma int1E : 1%R = 1.
+Proof. by []. Qed.
+
+Lemma intDE : add =2 +%R.
+Proof. by []. Qed.
+Lemma mulDE : PrimInt63.mul =2 GRing.mul.
+Proof. by []. Qed.
+
+End IntRing.
+Hint Resolve le0Z ltZwB : core.
+
+
+Section IntOrder.
+
+Implicit Type (x y : int) (m n : nat).
 
 Fact int_disp : Order.disp_t. by []. Qed.
 
@@ -108,6 +153,7 @@ HB.instance Definition _ := Order.POrder_isTotal.Build int_disp int leint_total.
 Fact le0int x : (0 <= x)%O.
 Proof. by rewrite leEint. Qed.
 HB.instance Definition _ := Order.hasBottom.Build int_disp int le0int.
+Hint Resolve le0int : core.
 
 Lemma maxEint x y : to_nat (max x y) = maxn (to_nat x) (to_nat y).
 Proof.
@@ -128,29 +174,83 @@ Qed.
 Lemma wf_ltint : well_founded (<%O : rel int).
 Proof. by apply: (wf_f _ wf_ltnat) => x y; rewrite ltEint; apply. Qed.
 
+End IntOrder.
 
-Notation wBnat := (BinInt.Z.to_nat wB).
+Definition wBnat := locked (BinInt.Z.to_nat wB).
+Lemma wBnatE : wBnat = BinInt.Z.to_nat wB.
+Proof. by rewrite /wBnat; unlock. Qed.
 
-Lemma to_nat0 : to_nat 0 = 0%N.
-Proof. by []. Qed.
-Lemma to_nat1 : to_nat 1 = 1%N.
-Proof. by []. Qed.
+
+Section ZmodP.
+
+Local Notation ZwB := 'Z_wBnat.
+
+Implicit Type (x y : int) (m n : nat) (z : ZwB).
+
+Definition to_ZwB x : ZwB := (to_nat x)%:R%R.
+Definition of_ZwB z : int := of_nat z.
 
 Lemma of_natK n : n < wBnat -> to_nat (of_nat n) = n.
 Proof.
-move=> ltn; rewrite of_Z_spec BinInt.Z.mod_small; first by rewrite Nat2Z.id.
+rewrite wBnatE => ltn.
+rewrite of_Z_spec BinInt.Z.mod_small; first by rewrite Nat2Z.id.
 split; first exact: Nat2Z.is_nonneg.
 by rewrite -(Z2Nat.id wB); first exact/inj_lt/ltP.
 Qed.
 
 Lemma ltwBnat i : to_nat i < wBnat.
-Proof. by apply/ltP; have := ltZwB i; rewrite Z2Nat.inj_lt. Qed.
+Proof. by rewrite wBnatE; apply/ltP; have := ltZwB i; rewrite Z2Nat.inj_lt. Qed.
+
+Local Lemma Zp_trunc_wBnat : (Zp_trunc wBnat).+2 = wBnat.
+Proof. by rewrite wBnatE /= Zp_cast. Qed.
+
+Lemma to_ZwBK : cancel to_ZwB of_ZwB.
+Proof.
+move=> x; rewrite /to_ZwB /of_ZwB Zp_nat /= Zp_trunc_wBnat -mod_natE.
+by rewrite wBnatE -Z2Nat.inj_mod // BinInt.Z.mod_small // to_natK.
+Qed.
+Lemma of_ZwBK : cancel of_ZwB to_ZwB.
+Proof.
+move=> z; rewrite /to_ZwB /of_ZwB /= Zp_nat.
+by rewrite -(valZpK z) of_natK ?valZpK // -{2}Zp_trunc_wBnat.
+Qed.
 
 Lemma to_natDE x y : to_nat (x + y) = (to_nat x + to_nat y) %% wBnat.
 Proof.
 rewrite add_spec Z2Nat.inj_mod //; last exact: BinInt.Z.add_nonneg_nonneg.
-by rewrite Z2Nat.inj_add // mod_natE.
+by rewrite Z2Nat.inj_add // mod_natE wBnatE.
 Qed.
+Lemma to_natME x y : to_nat (x * y) = (to_nat x * to_nat y) %% wBnat.
+Proof.
+rewrite mul_spec Z2Nat.inj_mod //; last exact: BinInt.Z.mul_nonneg_nonneg.
+by rewrite Z2Nat.inj_mul // mod_natE wBnatE.
+Qed.
+
+Lemma to_ZwBK_is_nmod_morphism : GRing.nmod_morphism to_ZwB.
+Proof.
+rewrite /to_ZwB; split; first by rewrite to_nat0.
+move=> /= x y; rewrite -GRing.natrD to_natDE; move: (_ + _)%N => i.
+by rewrite Zp_nat_mod // wBnatE.
+Qed.
+HB.instance Definition _ :=
+  GRing.isNmodMorphism.Build int ZwB to_ZwB to_ZwBK_is_nmod_morphism.
+
+Lemma to_ZwBK_is_monoid_morphism : GRing.monoid_morphism to_ZwB.
+Proof.
+rewrite /to_ZwB; split; first by rewrite to_nat1.
+move=> /= x y; rewrite -GRing.natrM to_natME; move: (_ * _)%N => i.
+by rewrite Zp_nat_mod // wBnatE.
+Qed.
+HB.instance Definition _ :=
+  GRing.isMonoidMorphism.Build int ZwB to_ZwB to_ZwBK_is_monoid_morphism.
+
+End ZmodP.
+
+
+Section Int.
+
+Implicit Type (x y : int) (m n : nat).
+
 Lemma to_natD x y :
   to_nat x + to_nat y < wBnat -> to_nat (x + y) = (to_nat x + to_nat y)%N.
 Proof. by move=> lt; rewrite to_natDE modn_small. Qed.
@@ -205,7 +305,7 @@ Lemma int_neq0 x : x != 0 -> (1 <= x)%O.
 Proof.
 rewrite eq_sym => /negbTE neq0; have := le0int x.
 rewrite Order.POrderTheory.le_eqVlt neq0 /= => /ltleSint.
-by rewrite leEint to_natD.
+by rewrite leEint to_natD // wBnatE.
 Qed.
 
 Lemma to_natB x y : (x <= y)%O -> to_nat (y - x) = (to_nat y - to_nat x)%N.
@@ -223,11 +323,6 @@ rewrite to_nat1 subn1 prednK //.
 by move: lt1x; rewrite leEint to_nat1.
 Qed.
 
-Lemma to_natME x y : to_nat (x * y) = (to_nat x * to_nat y) %% wBnat.
-Proof.
-rewrite mul_spec Z2Nat.inj_mod //; last exact: BinInt.Z.mul_nonneg_nonneg.
-by rewrite Z2Nat.inj_mul // mod_natE.
-Qed.
 Lemma to_natM x y :
   to_nat x * to_nat y < wBnat -> to_nat (x * y) = (to_nat x * to_nat y)%N.
 Proof. by move=> lt; rewrite to_natME modn_small. Qed.

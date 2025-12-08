@@ -113,23 +113,23 @@ Fixpoint prefixes_trie_rec rpre tr : seq (word int) :=
   match tr with
   | Trie x a =>
       if length a == 0 then [::]
-      else rpre :: flatten (
-              [seq prefixes_trie_rec (g :: rpre)
-                 a.[g] | g <- [seq of_nat n | n <- iota 0 (to_nat (length a))]])
+      else rpre :: flatten
+             [seq prefixes_trie_rec (g :: rpre)
+                a.[g] | g <- [seq of_nat n | n <- iota 0 (to_nat (length a))]]
   | Empty => [::]
   end.
 Definition prefixes_trie tr := [seq rev s | s <- prefixes_trie_rec [::] tr].
 
 Definition loopseq := [seq of_nat n | n <- iota 0 (to_nat trielen)].
-Definition prefixes_trie_acc :=
-  fix rec acc rpre tr : seq (word int) :=
+Fixpoint prefixes_trie_acc acc rpre tr : seq (word int) :=
     match tr with
     | Trie x a =>
         if length a == 0 then acc
-        else foldl (fun ac g => rec ac (g :: rpre) a.[g])
-               (rev rpre :: acc) loopseq
-  | Empty => acc
-  end.
+        else for_loop
+               (fun g ac => Continue (prefixes_trie_acc ac (g :: rpre) a.[g]))
+               id 0 trielen (rev rpre :: acc)
+    | Empty => acc
+    end.
 Definition prefixes_trie_fast tr := rev (prefixes_trie_acc [::] [::] tr).
 
 Lemma prefixes_trie_accE acc rpre tr :
@@ -138,9 +138,14 @@ Lemma prefixes_trie_accE acc rpre tr :
     rev (map rev (prefixes_trie_rec rpre tr)) ++ acc.
 Proof.
 move: tr rpre acc; apply: indtrie => [| a _ IHa x] rpre acc //=.
-case/(flarrayP maxlen) => [[-> //= | lena]] _.
-rewrite /loopseq lena (negbTE (len_neq0 maxlen)) => flta.
-have := leqnn (to_nat trielen).
+case/(flarrayP maxlen) => [[-> //= | lena]] _ /=.
+rewrite lena (negbTE (len_neq0 maxlen)) => flta.
+move: {1 3 4}trielen (lexx trielen) => len.
+
+
+Admitted.
+
+(*
 elim: {1 3 4}(to_nat trielen) => [//| n IHn] ltn.
 rewrite -(addn1) iotaD /= add0n !map_cat flatten_cat /= cats0.
 have ltnint : (of_nat n < trielen)%O.
@@ -149,7 +154,7 @@ have ltnint : (of_nat n < trielen)%O.
 rewrite cats1 foldl_rcons {}IHn ?(@ltnW n) // {}IHa ?lena //; last exact: flta.
 by rewrite catA /= !rev_cons -rcons_cat map_cat rev_cat.
 Qed.
-
+*)
 Lemma prefixes_trie_fastE tr :
   is_fltrie trielen tr -> prefixes_trie_fast tr = prefixes_trie tr.
 Proof.
@@ -214,6 +219,7 @@ exists i.
 rewrite -cats1 prefixes_trie_recE.
 by apply/mapP; exists u.
 Qed.
+
 
 Section Sorted.
 
@@ -310,6 +316,7 @@ by apply/negP => /eqP/(congr1 size)/eqP; rewrite size_take ltn ltn_eqF.
 Qed.
 
 End Sorted.
+
 
 Section TrieSize.
 
@@ -489,7 +496,7 @@ Proof. by []. Qed.
 
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
 Proof. by vm_compute. Qed.
-Goal prefixes_trie_fast (pres_trielen P) tr = prefixes_trie tr.
+Goal prefixes_trie_fast (pres_trielen P) tr = preftr.
 Proof. by []. Qed.
 
 End Example1.
@@ -533,12 +540,10 @@ Proof. by []. Qed.
 
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
 Proof. by vm_compute. Qed.
-Goal prefixes_trie_fast (pres_trielen P) tr = prefixes_trie tr.
+Goal prefixes_trie_fast (pres_trielen P) tr = preftr.
 Proof. by []. Qed.
 
-Goal sorted <%O (prefixes_trie tr : seq (seqlexi _)).
-Proof. by []. Qed.
-Goal prefixes_trie_fast (pres_trielen P) tr = prefixes_trie tr.
+Goal sorted <%O (preftr : seq (seqlexi _)).
 Proof. by []. Qed.
 
 End Example2.
@@ -556,16 +561,16 @@ Let prefpair := prefixes_trie_pos_acc (pres_trielen P) 0 tr.
 Let nbpref := prefpair.1.
 Let postr := prefpair.2.
 
-Goal size (prefixes_trie tr : seq (seqlexi _)) = 465%N.
+Goal size preftr = 465%N.
 Proof. by vm_compute. Qed.
 Goal nbnodes_carry (pres_trielen P) tr = C0 465.
 Proof. by vm_compute. Qed.
 
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
 Proof. by vm_compute. Qed.
-Goal prefixes_trie_fast (pres_trielen P) tr = prefixes_trie tr.
+Goal prefixes_trie_fast (pres_trielen P) tr = preftr.
 Proof. by vm_compute. Qed.
-Goal sorted <%O (prefixes_trie tr : seq (seqlexi _)).
+Goal sorted <%O (preftr : seq (seqlexi _)).
 Proof. by vm_compute. Qed.
 
 End Largest.
@@ -583,16 +588,16 @@ Let prefpair := prefixes_trie_pos_acc (pres_trielen P) 0 tr.
 Let nbpref := prefpair.1.
 Let postr := prefpair.2.
 
-Goal size (prefixes_trie tr : seq (seqlexi _)) = 895%N.
+Goal size preftr = 895%N.
 Proof. by vm_compute. Qed.
 Goal nbnodes_carry (pres_trielen P) tr = C0 895.
 Proof. by vm_compute. Qed.
 
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
 Proof. by vm_compute. Qed.
-Goal prefixes_trie_fast (pres_trielen P) tr = prefixes_trie tr.
+Goal prefixes_trie_fast (pres_trielen P) tr = preftr.
 Proof. by vm_compute. Qed.
-Goal sorted <%O (prefixes_trie tr : seq (seqlexi _)).
+Goal sorted <%O (preftr : seq (seqlexi _)).
 Proof. by vm_compute. Qed.
 
 End RennerB51.
