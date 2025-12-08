@@ -15,9 +15,9 @@
 (******************************************************************************)
 From Corelib Require Import Setoid.
 From HB Require Import structures.
-From Stdlib Require Import Znat BinIntDef Uint63.
+From Stdlib Require Import Znat BinIntDef Uint63 Ring Ring63.
 From Stdlib Require Import -(notations) PArray.
-From mathcomp Require Import all_boot all_order.
+From mathcomp Require Import all_boot all_order ssralg.
 
 (* Workaround for MathComp / PArray notation incompatibilities *)
 Notation "t .[ i ]" := (get t i).
@@ -36,11 +36,8 @@ Import Order.Theory Order.POrderTheory.
 Local Open Scope uint63_scope.
 
 
-Local Notation wBnat := (BinInt.Z.to_nat wB).
-
-
 Lemma lt_max_lenght_wB : to_nat (max_length) < wBnat.
-Proof. exact/ssrnat.ltP/Z2Nat.inj_lt. Qed.
+Proof. by rewrite wBnatE; apply/ssrnat.ltP/Z2Nat.inj_lt. Qed.
 
 Lemma lt_lenght_wB (T : Type) (a : array T) : to_nat (length a) < wBnat.
 Proof.
@@ -203,7 +200,7 @@ Fixpoint for_loop_simple_rec m n x0
 Definition for_loop_simple m n x0 :=
   for_loop_simple_rec x0 (Acc_intro_generator 40 wf_ltint (n - m)).
 
-Lemma for_loop_simpleE m n x0 :
+Lemma for_loop_simple_recE m n x0 :
   forall (acc1 acc2 : Acc (fun m n => m <? n) (n - m)),
   for_loop_simple_rec x0 acc1 =
     for_loop_rec (fun i a => Continue (body i a)) id x0 acc2.
@@ -214,22 +211,25 @@ case => /= acc1; case => /= acc2.
 case: (boolP (m < n)) => [ltmn | gemn] /=; first last.
   by case: decP => // H; exfalso; move: H gemn; rewrite -[m <? n]/(m < n) => ->.
 case: decP => // H; apply: (IHd (Uint63.pred d)).
-  rewrite ltEint -ltnS succ_subint1E // Hd.
+  rewrite ltEint -ltnS succ_subint1E // {}Hd.
   apply/negP => /eqP/(congr1 (fun i => to_nat i))/eqP.
   rewrite to_nat0 to_natB; last exact: ltW.
   by rewrite -/(_ <= _)%N leqNgt -ltEint ltmn.
-rewrite {d IHd}Hd; apply: (can_inj succK); rewrite predK.
+by rewrite {d IHd}Hd /succ /Uint63.pred; ring.
+Qed.
+Lemma for_loop_simpleE m n x0 :
+  for_loop_simple m n x0 = for_loop (fun i a => Continue (body i a)) id m n x0.
+Proof. exact: for_loop_simple_recE. Qed.
 
+Lemma for_loop_simple_ind m n x0 (invar : int -> A -> Type) :
+  (forall i x, i < n -> invar i x -> invar (succ i) (body i x)) ->
+  invar m x0 -> m <= n -> invar n (for_loop_simple m n x0).
+Proof.
+move=> Hrec Hx0 lemn; rewrite for_loop_simpleE.
+by apply: for_loop_ind_le => // i x c ltin [{c}<-] /(Hrec _ _ ltin).
+Qed.
 
-rewrite -leNgt. => /Hfin; apply.
-case Hnext : (body m x0) => [a | b].
-- have /(for_loop_contE ltmn) := Hnext => /[dup] Heq ->.
-  apply: (IHd _ _ _ (erefl _)).
-  + by rewrite Hd for_loop_rec_subproof.
-  + exact: (Hcont _ _ _ ltmn Hnext).
-- have /(for_loop_retE ltmn) := Hnext => /[dup] Heq ->.
-  exact: (Hret _ _ _ ltmn Hnext).
-
+End ForLoopSimple.
 
 (*
 From Coq Require Extraction ExtrOCamlInt63.
@@ -250,7 +250,7 @@ Context {A : Type} (p : A -> bool) (a : array A).
 Implicit Types (i j m n len : int).
 
 Definition make_array (d : A) (len : int) (f : int -> A) :=
-  for_loop (fun i a => Continue a.[i <- f i]) id 0 len (make len d).
+  for_loop_simple (fun i a => a.[i <- f i]) 0 len (make len d).
 Definition find_array : int :=
   for_loop (fun i _ => if p a.[i] then Return i else Continue tt)
            (fun=> length a) 0 (length a) tt.
@@ -261,24 +261,26 @@ Definition has_array : bool :=
 Lemma length_make_array d len f :
   len <= max_length -> length (make_array d len f) = len.
 Proof.
-move=> le.
-apply: (for_loop_ind (invar := fun i ar => length ar = len)) => //.
-- by move=> i c x _ [] <- <-; rewrite length_set.
+rewrite /make_array => le.
+apply: (for_loop_simple_ind (invar := fun i ar => length ar = len)) => //.
+- by move=> i c _ <-; rewrite length_set.
 - by rewrite length_make -[len ≤? max_length]/(len <= max_length)%O le.
+- exact: le0x.
 Qed.
 Lemma default_make_array d len f : default (make_array d len f) = d.
 Proof.
-apply: (for_loop_ind (invar := fun i ar => default ar = d)) => //.
-- by move=> i c x _ [] <- <-; rewrite default_set.
+apply: (for_loop_simple_ind (invar := fun i ar => default ar = d)) => //.
+- by move=> i x _ <-; rewrite default_set.
 - by rewrite default_make.
+- exact: le0x.
 Qed.
 Lemma get_make_array len d f i :
   i < len <= max_length -> (make_array d len f).[i] = f i.
 Proof.
 rewrite /make_array => /andP[ltil lelen].
-apply (for_loop_ind_le
+apply (for_loop_simple_ind
     (invar := fun n ar => length ar = len /\ forall j, j < n -> ar.[j] = f j)) => //.
-- move=> j x c ltjl [] {c}<- [lenx Heq].
+- move=> j x ltjl [lenx Heq].
   rewrite length_set; split => // k /ltSleint.
   rewrite le_eqVlt => /orP[/eqP {k}-> | ltki].
     by rewrite get_set_same ?lenx.
@@ -356,9 +358,9 @@ Definition to_seq a := mkseq (fun i => a.[of_nat i]) (to_nat (length a)).
   make_array d (of_nat (size s)) (fun i => nth d s (to_nat i)). *)
 Definition from_seq s d :=
   let len := of_nat (size s) in
-  for_loop (fun i tls_ar =>
-              Continue (behead tls_ar.1, tls_ar.2.[i <- head d tls_ar.1]))
-           (fun tls_ar => tls_ar.2) 0 len (s, make len d).
+  (for_loop_simple (fun i tls_ar =>
+                     (behead tls_ar.1, tls_ar.2.[i <- head d tls_ar.1]))
+    0 len (s, make len d)).2.
 
 Lemma size_to_seq a : size (to_seq a) = to_nat (length a).
 Proof. by rewrite /to_seq size_mkseq. Qed.
@@ -375,10 +377,8 @@ Proof. move/leq_ltn_trans; apply; exact: lt_max_lenght_wB. Qed.
 
 Lemma default_from_seq s d : default (from_seq s d) = d.
 Proof.
-apply: (for_loop_ind_le_postcond
-          (invar := fun i la => default la.2 = d)
-          (postcond := fun a => default a = d)) => //=.
-- by move=> i [l a] r lti //= [{r}<-] /= <-; rewrite default_set.
+apply: (for_loop_simple_ind (invar := fun i la => default la.2 = d)) => //=.
+- by move=> i [l a] r <- /=; rewrite default_set.
 - exact: default_make.
 - exact: le0x.
 Qed.
@@ -387,10 +387,9 @@ Lemma length_from_seq s d :
   size s <= to_nat max_length -> length (from_seq s d) = of_nat (size s).
 Proof.
 move=> Hsz.
-apply: (for_loop_ind_le_postcond
-          (invar := fun i la => length la.2 = of_nat (size s))
-          (postcond := fun a => length a = of_nat (size s))) => //=.
-- by move=> i [l a] r lti //= [{r}<-] /= <-; rewrite length_set.
+apply: (for_loop_simple_ind
+          (invar := fun i la => length la.2 = of_nat (size s))) => //=.
+- by move=> i [l a] r <- /=; rewrite length_set.
 - rewrite length_make -[_ ≤? max_length]/(_ <= max_length)%O leEint.
   by rewrite of_natK ?size_max_wBnat // -leEnat Hsz.
 - exact: le0x.
@@ -405,17 +404,13 @@ have ltsz : of_nat (size s) <= max_length.
 have ltiE j : j < of_nat (size s) = (to_nat j < size s)%N.
   by rewrite -{2}(@of_natK (size s)) -?ltEint; last by rewrite size_max_wBnat ?gei.
 case: (boolP (i < of_nat (size s))) => [| gei].
-  move: i.
-  apply: (for_loop_ind_le_postcond
-          (invar := fun i la =>
-               [/\ length la.2 = of_nat (size s),
-                 la.1 = drop (to_nat i) s &
-                 forall j, j < i -> nth d s (to_nat j) = la.2.[j]])
-          (postcond := fun a =>
-               forall j, j < of_nat (size s) -> nth d s (to_nat j) = a.[j])
-         ) => //=.
-  - by move=> x [].
-  - move=> i [l a] r lti //= [<-] /= [/[dup] Hlena <- {l}->] Hnth.
+  pose IH i la := [/\ length la.2 = of_nat (size s),
+      la.1 = drop (to_nat i) s &
+        forall j, j < i -> nth d s (to_nat j) = la.2.[j]].
+  rewrite /from_seq; set loop := (X in X.2); move: i.
+  suff : IH (of_nat (size s)) loop by rewrite /IH /= => [[]].
+  apply (for_loop_simple_ind (invar := IH)) => {loop}.
+  - rewrite {}/IH => i [l a] lti //= [/[dup] Hlena <- {l}->] Hnth.
     split; first by rewrite length_set.
       rewrite to_nat_succ; first last.
         by apply: (leq_ltn_trans _ (size_max_wBnat H)); rewrite -ltiE.
@@ -464,20 +459,18 @@ Context {T R : Type} (f : R -> T -> R) (z : R) (a : array T).
 Implicit Types (i j m n len : int).
 
 Definition foldl_array :=
-  for_loop (fun i r => Continue (f r a.[i])) id 0 (length a) z.
+  for_loop_simple (fun i r => f r a.[i]) 0 (length a) z.
 
 Lemma foldl_arrayE : foldl_array = foldl f z (to_seq a).
 Proof.
-rewrite /foldl_array.
-apply: (for_loop_ind_le_postcond
-          (invar := fun n r => r = foldl f z (take (to_nat n) (to_seq a)))
-          (postcond := fun r => r = _)) => //.
-- by move=> x {x}->; rewrite -size_to_seq take_size.
-- move=> i x c; rewrite ltEint => leli [{c}<- {x}->].
-  rewrite to_nat_succ; last exact: (leq_ltn_trans leli (lt_lenght_wB _)).
+pose A n := foldl f z (take (to_nat n) (to_seq a)).
+transitivity (A (length a)); last by rewrite /A -size_to_seq take_size.
+apply: (for_loop_simple_ind (invar := fun n r => r = A n)).
+- move=> i x; rewrite ltEint => leli {x}->.
+  rewrite {}/A to_nat_succ; last exact: (leq_ltn_trans leli (lt_lenght_wB _)).
   rewrite (take_nth (default a)) ?size_mkseq //.
   by rewrite foldl_rcons nth_mkseq // to_natK.
-- by rewrite to_nat0 take0.
+- by rewrite {}/A to_nat0 take0.
 - exact: le0x.
 Qed.
 

@@ -25,7 +25,7 @@ Notation "t .[ i ]" := (get t i).
 Notation "t .[ i <- a ]" := (set t i a)
   (at level 1, left associativity, format "t .[ i <- a ]").
 
-Require Import factor int_seq present fastcert enumnf.
+Require Import factor int_seq present fastcert enumnf array.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -35,16 +35,7 @@ Unset Printing Implicit Defensive.
 Local Open Scope uint63_scope.
 
 
-Local Notation wBnat := (BinInt.Z.to_nat wB).
-
-
-Lemma lt_lenght_wB (T : Type) (a : array T) : to_nat (length a) < wBnat.
-Proof.
-have /leq_ltn_trans : to_nat (length a) <= to_nat max_length.
-  by rewrite -leEint; exact: leb_length.
-by apply; apply/ltP/Z2Nat.inj_lt.
-Qed.
-
+(*
 
 (* iteri n g x0 == g n.-1 (g ... (g 0 x0)) *)
 Section IterTailRecursive.
@@ -103,22 +94,6 @@ Definition array_foldr {S T : Type} (f : S -> T -> T) (x0 : T) (a : array S) : T
   fst (nat_rect (fun _ => (T * int)%type) (x0, Uint63.pred size)%int63
        (fun _ '(y, i) => (f a.[i] y, Uint63.pred i)) (to_nat size)).
 
-Context {S : Type}.
-Implicit Type a : array S.
-
-(* Definition to_seq a := array_foldr cons [::] a. *)
-Definition to_seq a := mkseq (fun i => a.[of_nat i]) (to_nat (length a)).
-
-Lemma size_to_seq a : size (to_seq a) = to_nat (length a).
-Proof. by rewrite /to_seq size_mkseq. Qed.
-Lemma nth_to_seq a i : nth (default a) (to_seq a) (to_nat i) = a.[i].
-Proof.
-case: (boolP (i < length a)%O) => [Hlt | /negbTE Hlt].
-  rewrite /to_seq nth_mkseq ?to_natK // -ltEint //.
-rewrite nth_default ?get_out_of_bounds //.
-by rewrite size_to_seq -leEint Order.TotalTheory.leNgt Hlt.
-Qed.
-
 End Arrays.
 
 Section Test.
@@ -128,6 +103,7 @@ Let a := (make 5 0).[0 <- 1].[1 <- 2].[2 <- 8].[4 <- 1222].
 Time Eval compute in array_map (fun i => i * i) a.
 
 End Test.
+*)
 
 
 (** Data structure for tries *)
@@ -187,10 +163,7 @@ elim/rectrie: t => [//| a IHdef IHa] x; rewrite /= eqxx {x} /=.
 rewrite /eq_trarray !eqxx {}IHdef /=.
 apply/allP => /= n; rewrite mem_iota /= add0n => ltn.
 apply: IHa; rewrite ltEint of_natK //.
-move/leq_trans: ltn; apply.
-have /leq_trans: to_nat (length a) <= to_nat max_length.
-  by rewrite -leEint; exact: leb_length.
-by apply; apply/leP; rewrite -Z2Nat.inj_le.
+exact/(leq_trans ltn (ltnW _))/lt_lenght_wB.
 Qed.
 HB.instance Definition _ := hasDecEq.Build trie eqtrie_subproof.
 
@@ -232,9 +205,8 @@ apply (iffP and3P) => [[ /orP eqlen def0 /allP] | [eqlen def0]] /= trienth.
     by case: (default a) def0.
   apply/allP => n; rewrite mem_iota /= add0n => ltnsz.
   have /of_natK eqn : n < wBnat.
-    apply: (ltn_trans ltnsz); apply/ltP; rewrite -Z2Nat.inj_lt; last by [].
-    * by case/andP: le_trielen => _ /lebP/(BinInt.Z.le_lt_trans _); apply.
-    * by rewrite -to_Z_0; apply/lebP; apply: le0int.
+    apply: (ltn_trans ltnsz (leq_ltn_trans _ lt_max_lenght_wB)).
+    by rewrite -leEint; case/andP: le_trielen.
   by move: ltnsz; rewrite -{1}eqn -ltEint => /trienth.
 Qed.
 
@@ -731,7 +703,7 @@ apply/andP; split; first last.
 rewrite /pres_trielen ltEint to_nat0 to_natD; first by rewrite addnS ltnS.
 rewrite addn1.
 move: foldlmaxlt; rewrite ltEint => /leq_ltn_trans; apply.
-by apply/ltP; rewrite -Z2Nat.inj_lt.
+exact: lt_max_lenght_wB.
 Qed.
 
 Lemma pgen_trielen :
@@ -747,7 +719,7 @@ elim: g alllt {IHg} i lti g0 ltg0 => [| g1 g IHg] /=.
     by rewrite ltnS leq_maxr.
   apply: (leq_trans (n := (to_nat max_length).+1)).
     by rewrite ltnS gtn_max -!ltEint lti ltg.
-  by apply/ltP; rewrite -Z2Nat.inj_lt.
+  exact: lt_max_lenght_wB.
 case/andP => [ltg1 alllt] i lti g0 ltg0.
 have -> : max (max i g0) g1 = max (max i g1) g0.
   apply: to_nat_inj.

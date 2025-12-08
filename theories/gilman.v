@@ -178,8 +178,7 @@ apply: indtrie => [|a Hdef IHtr x] rpre //=.
 case: eqP => // _; rewrite !map_cons revK /=; congr cons.
 rewrite -!map_comp map_flatten; congr flatten.
 rewrite -map_comp; apply eq_in_map => /= n; rewrite mem_iota add0n /= => ltn.
-have /of_natK Hn : n < BinInt.Z.to_nat wB.
-  exact: (ltn_trans ltn (lt_lenght_wB _)).
+have /of_natK Hn : n < wBnat by apply: (ltn_trans ltn (lt_lenght_wB _)).
 move: ltn; rewrite -{1}Hn -ltEint; move: (of_nat n) {Hn} => {}n ltn.
 rewrite IHtr // (IHtr _ _ [:: n]) //.
 rewrite -!map_comp; apply eq_map => u /=.
@@ -206,8 +205,7 @@ rewrite inE cons_nnil /=.
 rewrite -(revK (i :: u)) rev_cons (mem_map (can_inj revK)).
 apply/flatten_mapP/idP => [[ /= j /mapP[/= n]] | uin].
   rewrite mem_iota /= add0n => ltnl eqi.
-  have /of_natK : n < BinInt.Z.to_nat wB.
-    exact: (ltn_trans ltnl (lt_lenght_wB _)).
+  have /of_natK : n < wBnat by apply (ltn_trans ltnl (lt_lenght_wB _)).
   rewrite -eqi => Hn; subst n => {eqi}.
   rewrite -cats1 prefixes_trie_recE => /mapP[/= v /[swap]].
   by move/(congr1 rev); rewrite !rev_cat /= !revK => [[-> ->]].

@@ -103,15 +103,23 @@ Proof. by []. Qed.
 Lemma to_nat1 : to_nat 1 = 1%N.
 Proof. by []. Qed.
 
-Lemma int0E : 0%R = 0.
+Lemma int0E : 0 = 0%R.
 Proof. by []. Qed.
-Lemma int1E : 1%R = 1.
+Lemma int1E : 1 = 1%R.
 Proof. by []. Qed.
-
 Lemma intDE : add =2 +%R.
 Proof. by []. Qed.
-Lemma mulDE : PrimInt63.mul =2 GRing.mul.
+Lemma intME : PrimInt63.mul =2 GRing.mul.
 Proof. by []. Qed.
+Lemma intNE x : - x  = (- x)%R.
+Proof. by rewrite -[RHS]of_to_Z -[LHS]of_to_Z sub_spec. Qed.
+Lemma intBE x y : x - y = (x - y)%R.
+Proof.
+rewrite -intDE -[RHS]of_to_Z -[LHS]of_to_Z sub_spec add_spec opp_spec.
+by rewrite -BinInt.Z.add_opp_r Zdiv.Zplus_mod_idemp_r.
+Qed.
+
+Definition int_to_ring := (int0E, int1E, intDE, intME, intNE, intBE).
 
 End IntRing.
 Hint Resolve le0Z ltZwB : core.
@@ -179,7 +187,6 @@ End IntOrder.
 Definition wBnat := locked (BinInt.Z.to_nat wB).
 Lemma wBnatE : wBnat = BinInt.Z.to_nat wB.
 Proof. by rewrite /wBnat; unlock. Qed.
-
 
 Section ZmodP.
 
@@ -268,19 +275,9 @@ have := succ_of_nat (to_nat x); rewrite to_natK => ->.
 by rewrite of_natK //.
 Qed.
 Lemma succK : cancel succ Uint63.pred.
-Proof.
-move=> n; apply: to_Z_inj.
-rewrite pred_spec succ_spec Zdiv.Zplus_mod_idemp_l.
-rewrite -BinInt.Z.add_assoc BinInt.Z.add_opp_diag_r BinInt.Z.add_0_r.
-by rewrite BinInt.Z.mod_small.
-Qed.
+Proof. move=> x; rewrite /succ /Uint63.pred; ring. Qed.
 Lemma predK : cancel Uint63.pred succ.
-Proof.
-move=> n; apply: to_Z_inj.
-rewrite succ_spec pred_spec Zdiv.Zplus_mod_idemp_l.
-by rewrite BinInt.Z.sub_add BinInt.Z.mod_small.
-Qed.
-
+Proof. move=> x; rewrite /succ /Uint63.pred; ring. Qed.
 
 Lemma ltleSint x y : (x < y)%O -> (x + 1 <= y)%O.
 Proof.
@@ -292,7 +289,7 @@ Qed.
 Lemma ltSleint x y : (x < y + 1)%O -> (x <= y)%O.
 Proof.
 move=> /[dup] H; rewrite ltEint -addn1 -to_nat1 to_natD.
-  by rewrite to_nat1 !addn1 ltnS -leEint.
+  by rewrite leq_add2r -leEint.
 rewrite to_nat1 addn1 ltnNge; apply/negP => Habs.
 suff {H} Heq : y + 1 = 0 by move: H; rewrite Heq ltEint to_nat0.
 apply: to_nat_inj; rewrite to_nat0 to_natDE to_nat1.
