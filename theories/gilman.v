@@ -120,17 +120,37 @@ Fixpoint prefixes_trie_rec rpre tr : seq (word int) :=
   end.
 Definition prefixes_trie tr := [seq rev s | s <- prefixes_trie_rec [::] tr].
 
-Definition loopseq := [seq of_nat n | n <- iota 0 (to_nat trielen)].
 Fixpoint prefixes_trie_acc acc rpre tr : seq (word int) :=
     match tr with
     | Trie x a =>
         if length a == 0 then acc
-        else for_loop
-               (fun g ac => Continue (prefixes_trie_acc ac (g :: rpre) a.[g]))
-               id 0 trielen (rev rpre :: acc)
+        else for_loop_simple
+               (fun g ac => prefixes_trie_acc ac (g :: rpre) a.[g])
+               0 trielen (rev rpre :: acc)
     | Empty => acc
     end.
 Definition prefixes_trie_fast tr := rev (prefixes_trie_acc [::] [::] tr).
+
+Lemma prefixes_trie_acc_cat acc rpre tr :
+  is_fltrie trielen tr ->
+  prefixes_trie_acc acc rpre tr = prefixes_trie_acc [::] rpre tr ++ acc.
+Proof.
+move: tr rpre acc; apply: indtrie => [| a _ IHa _] rpre acc //=.
+case/(flarrayP maxlen) => [[-> //= | lena]] _ /=.
+rewrite lena (negbTE (len_neq0 maxlen)) => flta.
+set body := (X in for_loop_simple X).
+suff step s : for_loop_simple body 0 trielen s =
+                for_loop_simple body 0 trielen [::] ++ s.
+  by rewrite step [in RHS]step -catA /=.
+rewrite !for_loop_simpleE {acc}.
+
+apply (for_loop_rel_le_postcond
+         (invar := fun i a b => a = b ++ s)
+         (postcond := fun a b => a = b ++ s)) => //; last exact: le0x.
+move=> i {}x y c d lti [{c}<-] [{d}<-] {x}->.
+move/(_ _ lti) : flta => flta.
+by rewrite /body IHa ?lena // [in RHS]IHa ?lena // catA.
+Qed.
 
 Lemma prefixes_trie_accE acc rpre tr :
   is_fltrie trielen tr ->
@@ -140,21 +160,20 @@ Proof.
 move: tr rpre acc; apply: indtrie => [| a _ IHa x] rpre acc //=.
 case/(flarrayP maxlen) => [[-> //= | lena]] _ /=.
 rewrite lena (negbTE (len_neq0 maxlen)) => flta.
-move: {1 3 4}trielen (lexx trielen) => len.
-
-
-Admitted.
-
-(*
-elim: {1 3 4}(to_nat trielen) => [//| n IHn] ltn.
-rewrite -(addn1) iotaD /= add0n !map_cat flatten_cat /= cats0.
-have ltnint : (of_nat n < trielen)%O.
-  rewrite ltEint of_natK //.
-  by apply: (ltn_trans ltn); rewrite -lena; apply: lt_lenght_wB.
-rewrite cats1 foldl_rcons {}IHn ?(@ltnW n) // {}IHa ?lena //; last exact: flta.
-by rewrite catA /= !rev_cons -rcons_cat map_cat rev_cat.
+apply for_loop_simple_ind; first last.
+- by move: maxlen => /andP[/ltW].
+- by rewrite to_nat0.
+move=> i x0 lti {x0}->.
+rewrite to_nat_succ; first last.
+  move: lti; rewrite ltEint => /leq_ltn_trans; apply.
+  exact: ltwBnat.
+rewrite -addn1 iotaD add0n /=.
+rewrite  !map_cat flatten_cat /= cats0 map_cat to_natK !rev_cons rev_cat.
+move/(_ _ lti) : flta => flta; rewrite -IHa // ?lena //.
+rewrite -!cats1 [LHS]prefixes_trie_acc_cat //.
+by rewrite [in RHS]prefixes_trie_acc_cat // !catA.
 Qed.
-*)
+
 Lemma prefixes_trie_fastE tr :
   is_fltrie trielen tr -> prefixes_trie_fast tr = prefixes_trie tr.
 Proof.
@@ -325,7 +344,7 @@ Definition nbnodes_generic (N : Type) (ZN : N) (SN : N -> N) t :=
   let fix aux acc t := match t with
     | Trie x a =>
         if length a == 0 then acc
-        else foldl (fun acc g => aux acc a.[g]) (SN acc) loopseq
+        else foldl_array aux (SN acc) a
     | Empty => acc
     end in aux ZN t.
 
@@ -337,11 +356,12 @@ Proof.
 rewrite /nbnodes_generic => <- Hf t.
 set aux1 := (X in f (X _ _) ); set aux2 := (X in _ = (X _ _)).
 move: t ZN1; apply: indtrie => [|a Hdef IHtr x] //= acc.
-case: eqP => // _.
-rewrite /loopseq; elim: (to_nat _) acc => [//= |n IHn] acc.
-rewrite -(addn1 n) iotaD add0n /= map_cat /= !cats1 !foldl_rcons /= -{}IHn.
-case: (boolP (of_nat n <? length a)) => [{}/IHtr -> // |].
-by move/negbTE/get_out_of_bounds => ->.
+case: eqP => // _; rewrite !foldl_arrayE.
+have {}IHtr t : t \in (to_seq a) -> forall ZN1, f (aux1 ZN1 t) = aux2 (f ZN1) t.
+  by move/mem_to_seqP => [i lti {t}<-] ZN1; apply: IHtr.
+elim/last_ind: (to_seq a) IHtr acc => [//= | l t IHl] Ht acc /=.
+rewrite !foldl_rcons Ht; last by rewrite mem_rcons inE eqxx.
+by rewrite IHl // => t0 t0in; apply: Ht; rewrite mem_rcons inE t0in orbT.
 Qed.
 
 Definition nbnodes := nbnodes_generic 0%N succn.
@@ -362,6 +382,7 @@ Qed.
 End TrieSize.
 
 
+Definition loopseq := [seq of_nat n | n <- iota 0 (to_nat trielen)].
 Fixpoint prefixes_trie_pos_acc acc tr : int * (@trie int) :=
   match tr with
   | Trie x a =>
@@ -376,6 +397,7 @@ Fixpoint prefixes_trie_pos_acc acc tr : int * (@trie int) :=
   end.
 Definition prefixes_trie_length tr := (prefixes_trie_pos_acc 0 tr).1.
 Definition prefixes_trie_pos tr := (prefixes_trie_pos_acc 0 tr).2.
+
 
 (*
 Lemma prefixes_trie_lengthE tr :
@@ -561,7 +583,7 @@ Let postr := prefpair.2.
 
 Goal size preftr = 465%N.
 Proof. by vm_compute. Qed.
-Goal nbnodes_carry (pres_trielen P) tr = C0 465.
+Goal nbnodes_carry tr = C0 465.
 Proof. by vm_compute. Qed.
 
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
@@ -588,7 +610,7 @@ Let postr := prefpair.2.
 
 Goal size preftr = 895%N.
 Proof. by vm_compute. Qed.
-Goal nbnodes_carry (pres_trielen P) tr = C0 895.
+Goal nbnodes_carry tr = C0 895.
 Proof. by vm_compute. Qed.
 
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].

@@ -55,6 +55,8 @@ Implicit Types (m n i j : int) (x y : A).
 
 Inductive loopresult := | Continue of A | Return of B.
 
+Definition continue r := if r is Continue _ then true else false.
+
 Variables (body : (int -> A -> loopresult)) (finish : A -> B).
 
 Lemma for_loop_rec_subproof m n : m < n -> n - succ m < n - m.
@@ -127,11 +129,10 @@ elim/(well_founded_induction_type wf_ltint): d m Hd x0 => d IHd m Hd x0 Px0.
 case: (boolP (m < n)) => [ltmn | /[dup] /for_loop_finishE ->]; first last.
   by rewrite -leNgt => /Hfin; apply.
 case Hnext : (body m x0) => [a | b].
-- have /(for_loop_contE ltmn) := Hnext => /[dup] Heq ->.
-  apply: (IHd _ _ _ (erefl _)).
+- rewrite (for_loop_contE ltmn Hnext); apply: (IHd _ _ _ (erefl _)).
   + by rewrite Hd for_loop_rec_subproof.
   + exact: (Hcont _ _ _ ltmn Hnext).
-- have /(for_loop_retE ltmn) := Hnext => /[dup] Heq ->.
+- rewrite (for_loop_retE ltmn Hnext).
   exact: (Hret _ _ _ ltmn Hnext).
 Qed.
 
@@ -183,6 +184,101 @@ Lemma for_loop_ind_le body m n x0 (invar : int -> A -> Type) :
 Proof. exact: for_loop_ind_le_postcond. Qed.
 
 End ForLoopLE.
+
+
+Section ForLoop2.
+
+Context {A1 B1 A2 B2 : Type}.
+Implicit Types (m n i j : int).
+Variables (body1 : (int -> A1 -> @loopresult A1 B1)) (finish1 : A1 -> B1)
+          (body2 : (int -> A2 -> @loopresult A2 B2)) (finish2 : A2 -> B2)
+          (invar : int -> A1 -> A2 -> Type) (postcond : B1 -> B2 -> Type).
+
+
+Section Shift.
+
+Variables (m1 n1 shift : int).
+Hypotheses
+  (Hsync : forall i x y, invar i x y ->
+                         continue (body1 i x) = continue (body2 (i + shift) y))
+  (Hpost : forall x y, invar n1 x y -> postcond (finish1 x) (finish2 y))
+  (Hret : forall i x y r s, i < n1 ->
+                            body1 i x = Return r ->
+                            body2 (i + shift) y = Return s ->
+                            invar i x y -> postcond r s)
+  (Hcont : forall i x y c d, i < n1 ->
+                             body1 i x = Continue c ->
+                             body2 (i + shift) y = Continue d
+                             -> invar i x y -> invar (succ i) c d).
+
+Lemma for_loop_rel_le_shift_postcond x0 y0 :
+  (to_nat n1 + to_nat shift < wBnat)%N ->
+  invar m1 x0 y0 -> m1 <= n1 ->
+  postcond (for_loop body1 finish1 m1 n1 x0)
+    (for_loop body2 finish2 (m1 + shift) (n1 + shift) y0).
+Proof.
+move=> Hn1.
+have ltmshift m : m < n1 -> m + shift < n1 + shift.
+  move=> ltm; rewrite ltEint to_natD; first last.
+    by apply: (ltn_trans _ Hn1); rewrite ltn_add2r -ltEint.
+  by rewrite (to_natD Hn1) ltn_add2r -ltEint.
+move: {1}(n1 - m1) (erefl (n1 - m1)) => d Hd.
+elim/(well_founded_induction_type wf_ltint): d m1 Hd x0 y0 => d IHd m Hd x0 y0 Px0.
+case (ltP m n1) => [ltm _ | gem lem]; first last.
+  have {lem gem} eqm : m = n1 by apply: le_anti; rewrite lem gem.
+  rewrite eqm /= !for_loop_finishE ?ltxx //.
+  by apply: Hpost; rewrite -eqm.
+case Hnext1 : (body1 m x0) => [a | a].
+- rewrite (for_loop_contE _ ltm Hnext1).
+  have := Hsync Px0; rewrite Hnext1 /=.
+  case Hnext2 : (body2 _ y0) => [b | //] _.
+  rewrite (for_loop_contE _ (ltmshift m ltm) Hnext2).
+  have -> : succ (m + shift) = succ m + shift by rewrite /succ; ring.
+  apply: (IHd _ _ _ (erefl _)).
+  + by rewrite Hd for_loop_rec_subproof.
+  + exact: (Hcont ltm Hnext1 Hnext2).
+  + exact: ltleSint.
+- rewrite (for_loop_retE _ ltm Hnext1).
+  have := Hsync Px0; rewrite Hnext1 /=.
+  case Hnext2 : (body2 _ y0) => [//| b] _.
+  rewrite (for_loop_retE _ (ltmshift m ltm) Hnext2).
+  exact: (Hret ltm Hnext1 Hnext2).
+Qed.
+
+End Shift.
+
+Section NoShift.
+
+Variables (m n : int).
+Hypotheses
+  (Hsync : forall i x y, invar i x y ->
+                         continue (body1 i x) = continue (body2 i y))
+  (Hpost : forall x y, invar n x y -> postcond (finish1 x) (finish2 y))
+  (Hret : forall i x y r s, i < n ->
+                            body1 i x = Return r ->
+                            body2 i y = Return s ->
+                            invar i x y -> postcond r s)
+  (Hcont : forall i x y c d, i < n ->
+                             body1 i x = Continue c ->
+                             body2 i y = Continue d
+                             -> invar i x y -> invar (succ i) c d).
+
+Lemma for_loop_rel_le_postcond x0 y0 :
+  invar m x0 y0 -> m <= n ->
+  postcond (for_loop body1 finish1 m n x0) (for_loop body2 finish2 m n y0).
+Proof.
+have addi0 (i : int) : i + 0 = i by ring.
+rewrite -{4}(addi0 m) -{3}(addi0 n).
+apply: for_loop_rel_le_shift_postcond => //.
+- by move=> i x y; rewrite addi0 => /Hsync.
+- by move=> i x y r s; rewrite addi0; apply: Hret.
+- by move=> i x y c d; rewrite addi0; apply: Hcont.
+- by rewrite to_nat0 addn0 ltwBnat.
+Qed.
+
+End NoShift.
+
+End ForLoop2.
 
 
 Section ForLoopSimple.
@@ -452,6 +548,24 @@ Qed.
 
 End ToSeq.
 
+Section ArrayEqType.
+
+Context {S : eqType}.
+Implicit Type (a : array S) (s : seq S).
+
+Lemma mem_to_seqP a x :
+  reflect (exists2 i : int, i < length a & a.[i] = x) (x \in to_seq a).
+Proof.
+apply (iffP idP) => [/(nthP (default a))[n] | [i lti {x}<-]]; first last.
+  by rewrite -nth_to_seq mem_nth // size_to_seq -ltEint.
+rewrite size_to_seq => ltn {x}<-.
+have /of_natK eqn : (n < wBnat)%N by apply: (ltn_trans ltn (ltwBnat _)).
+exists (of_nat n); first by rewrite ltEint eqn.
+by rewrite -nth_to_seq eqn.
+Qed.
+
+End ArrayEqType.
+
 
 Section FoldL.
 
@@ -459,27 +573,82 @@ Context {T R : Type} (f : R -> T -> R) (z : R) (a : array T).
 Implicit Types (i j m n len : int).
 
 Definition foldl_array :=
-  for_loop_simple (fun i r => f r a.[i]) 0 (length a) z.
+  for_loop_simple (fun i acc => f acc a.[i]) 0 (length a) z.
+Definition foldscanl_array :=
+  for_loop_simple (fun i acc_a =>
+                     let: (acc, ar) := acc_a in
+                     let newacc := f acc a.[i] in
+                     (newacc, ar.[i <- newacc]))
+    0 (length a) (z, make (length a) z).
+Definition scanl_array := foldscanl_array.2.
 
-Lemma foldl_arrayE : foldl_array = foldl f z (to_seq a).
+Lemma foldl_foldscanl_arrayE : foldl_array = foldscanl_array.1.
 Proof.
-pose A n := foldl f z (take (to_nat n) (to_seq a)).
-transitivity (A (length a)); last by rewrite /A -size_to_seq take_size.
-apply: (for_loop_simple_ind (invar := fun n r => r = A n)).
-- move=> i x; rewrite ltEint => leli {x}->.
-  rewrite {}/A to_nat_succ; last exact: (leq_ltn_trans leli (lt_lenght_wB _)).
-  rewrite (take_nth (default a)) ?size_mkseq //.
-  by rewrite foldl_rcons nth_mkseq // to_natK.
-- by rewrite {}/A to_nat0 take0.
+rewrite /foldl_array /foldscanl_array.
+rewrite !for_loop_simpleE.
+apply (for_loop_rel_le_postcond (invar := fun i ar1 ar2 => ar1 = ar2.1)) => //.
+- by move=> i x [r ra] y [s sb] lti [{y}<-] [{s}<-] /= _ {x}->.
 - exact: le0x.
 Qed.
+
+Local Lemma foldscanl_arrayE :
+  foldl_array = foldl f z (to_seq a) /\
+  to_seq scanl_array = scanl f z (to_seq a).
+Proof.
+rewrite foldl_foldscanl_arrayE /scanl_array /foldscanl_array.
+set scanpair := for_loop_simple _ _ _ _.
+pose FL n := foldl f z (take (to_nat n) (to_seq a)).
+pose SC n := scanl f z (take (to_nat n) (to_seq a)).
+pose invar i (p : R * array R) :=
+  let (fl, sc) := p in
+  [/\ length sc = length a, default sc = z,
+    fl = FL i
+    & take (to_nat i) (to_seq sc) = SC i].
+suff : invar (length a) scanpair.
+  case: scanpair => [v b] /= [eqlen _ {v}->].
+  by rewrite -{1}eqlen {invar}/SC{}/FL -!size_to_seq !take_size.
+apply: for_loop_simple_ind => {scanpair} .
+- move=> i [fl sc]; rewrite ltEint => leli.
+  rewrite {}/invar{}/FL{}/SC=> -[eqlen eqdef eqfl eqtake].
+  rewrite to_nat_succ; last exact: (leq_ltn_trans leli (lt_lenght_wB _)).
+  rewrite (take_nth (default a)) ?size_mkseq //.
+  split.
+  - by rewrite length_set.
+  - by rewrite default_set.
+  - by rewrite foldl_rcons nth_mkseq // to_natK eqfl.
+  rewrite scanl_rcons foldl_rcons nth_mkseq // to_natK eqfl.
+  rewrite -eqtake (take_nth z); first last.
+    by rewrite size_mkseq length_set eqlen.
+  congr rcons.
+    apply (eq_from_nth (x0 := z)) => [| n].
+      by rewrite !size_take !size_to_seq !length_set eqlen.
+    rewrite !size_take !size_to_seq !length_set eqlen leli => leni.
+    have /of_natK eqn : (n < wBnat)%N.
+      exact: (leq_trans leni (ltnW (ltwBnat i))).
+    rewrite !nth_take // -{1 3}eqdef -eqfl -eqn nth_to_seq.
+    have -> : default sc = default sc.[i<-f fl a.[i]] by rewrite default_set.
+    rewrite nth_to_seq get_set_other //.
+    by apply/eqP; rewrite gt_eqF // ltEint eqn.
+  rewrite -{1}eqdef -eqfl.
+  have -> : default sc = default sc.[i<-f fl a.[i]] by rewrite default_set.
+  rewrite nth_to_seq get_set_same // eqlen.
+  by move: leli; rewrite -ltEint.
+- rewrite /invar/FL/SC to_nat0 take0 /=.
+  by rewrite length_make leb_length default_make take0.
+- exact: le0x.
+Qed.
+
+Lemma foldl_arrayE : foldl_array = foldl f z (to_seq a).
+Proof. by have [] := foldscanl_arrayE. Qed.
+Lemma to_seq_scanlarrayE : to_seq scanl_array = scanl f z (to_seq a).
+Proof. by have [] := foldscanl_arrayE. Qed.
 
 End FoldL.
 
 
 Section Test.
 
-Let taille := 10000.
+Let taille := 1000000.
 Let a := make_array 0 taille (fun i => i).
 
 Goal has_array (fun i => (i > 2000000000)%O) a = false.
@@ -488,7 +657,7 @@ Goal has_array (fun i => (i > 2000000000)%O) a = false.
 Proof. by native_cast_no_check (erefl false). Qed.
 
 
-Goal foldl_array add 0 a = 49995000.
-Proof. by vm_cast_no_check (erefl 49995000). Qed.
+Goal foldl_array add 0 a = 499999500000.
+Proof. by native_cast_no_check (erefl 499999500000). Qed.
 
 End Test.
