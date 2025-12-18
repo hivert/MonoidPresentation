@@ -22,8 +22,8 @@ title: Certifying the decidability of the word problem in monoids at large
 #email: your-email@example.com
 description: by F. Hivert, A. Mahboubi and G. Melquiond
 baseurl: "" # the subpath of your site, e.g. /blog
-url: "https://reiniscirpons.github.io/MonoidPresentation" # the base hostname & protocol for your site, e.g. http://example.com
-github_username: reiniscirpons
+url: "https://hivert.github.io/MonoidPresentation" # the base hostname & protocol for your site, e.g. http://example.com
+github_username: hivert
 # The specifier below should be in the form "user/project", where user is your
 # github username and project is you ptoject name. If these fields are missing,
 # then the CI may fail.
