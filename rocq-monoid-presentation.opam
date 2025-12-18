@@ -1,0 +1,26 @@
+opam-version: "2.0"
+maintainer: "Florent Hivert <florent.hivert@lisn.fr>"
+version: "dev"
+
+homepage: "https://github.com/hivert/MonoidPresentation"
+dev-repo: "git+https://github.com/hivert/MonoidPresentation.git"
+bug-reports: "https://github.com/hivert/MonoidPresentation/issues"
+license: "CeCILL-B"
+
+synopsis: "Rocq formalization and infrastructure library for finitely presented monoids."
+description: """
+This project implements a toolbox that can be used to verify the decidability
+of the word problem for a given finitely presented monoid. In some cases the
+corresponding decision procedure can also be derived."""
+
+build: [make "-j%{jobs}%"]
+install: [make "install"]
+depends: [
+  "rocq-core"
+]
+
+authors: [
+  "Florent Hivert"
+  "Assia Mahboubi"
+  "Guillaume Melquiond"
+]
