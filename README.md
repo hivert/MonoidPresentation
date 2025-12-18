@@ -33,7 +33,10 @@ This repository contains two components:
 
 - Coq version `9.0.0` with `coq-native` enabled (this can be done on `opam` by
   installing the pseudo package `coq-native`)
-- Mathematical Component version `2.5.0`
+- Mathematical components library version `2.5.0`
+  (`opam` packages `rocq-mathcomp-boot` and `rocq-mathcomp-algebra`)
+- Hierarchy builder library version `1.10.1`
+  (`opam` package `rocq-hierarchy-builder`)
 - Python at least version `3.9`
 
 # Building:

@@ -7,7 +7,12 @@ all clean install: Makefile.coq
 	$(MAKE) -f $< $@
 
 Makefile.coq: _CoqProject
-	$(COQBIN)coq_makefile -f $< -o $@
+	if ! command -v "$(COQBIN)rocq" >/dev/null 2>&1; \
+	then \
+		$(COQBIN)coq_makefile -f $< -o $@; \
+	else \
+		$(COQBIN)rocq makefile -f $< -o $@; \
+	fi
 
 database/rocq:
 	echo Building the Rocq database... This may take a long time

@@ -7,7 +7,7 @@ dev-repo: "git+https://github.com/hivert/MonoidPresentation.git"
 bug-reports: "https://github.com/hivert/MonoidPresentation/issues"
 license: "CeCILL-B"
 
-synopsis: "Rocq formalization and infrastructure library for finitely presented monoids."
+synopsis: "Rocq formalization and infrastructure library for finitely presented monoids"
 description: """
 This project implements a toolbox that can be used to verify the decidability
 of the word problem for a given finitely presented monoid. In some cases the
@@ -16,7 +16,10 @@ corresponding decision procedure can also be derived."""
 build: [make "-j%{jobs}%"]
 install: [make "install"]
 depends: [
-  "rocq-core"
+  "rocq-core" {= "9.1.0"}
+  "rocq-hierarchy-builder" {= "1.10.1"}
+  "rocq-mathcomp-boot" {= "2.5.0"}
+  "rocq-mathcomp-algebra" {= "2.5.0"}
 ]
 
 authors: [
