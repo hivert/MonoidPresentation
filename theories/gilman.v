@@ -1,6 +1,6 @@
 From Corelib Require Import Setoid.
 From HB Require Import structures.
-From Stdlib Require Import Znat BinIntDef Uint63.
+From Stdlib Require Import Znat BinIntDef Uint63 Ring Ring63.
 From Stdlib Require Import -(notations) PArray.
 From mathcomp Require Import all_boot all_order.
 
@@ -37,6 +37,78 @@ by rewrite IHs rev_cons -cats1 -catA.
 Qed.
 
 End RevMap.
+
+
+Section TrieSize.
+
+Context {T : eqType}.
+Implicit Type t : @trie T.
+
+Definition nbnodes t :=
+  let fix aux t := match t with
+    | Trie x a =>
+        if length a == 0 then 0%N
+        else (foldl_array (fun res t0 => res + aux t0)%N 0%N a).+1
+    | Empty => 0%N
+    end in aux t.
+
+Definition nbnodes_int t :=
+  let fix aux t := match t with
+    | Trie x a =>
+        if length a == 0 then 0
+        else succ (foldl_array (fun res t0 => res + (aux t0)) 0 a)
+    | Empty => 0
+    end in aux t.
+
+Definition nbnodes_overflow t :=
+  let fix aux t := match t with
+    | Trie x a =>
+        if length a == 0 then C0 0
+        else succov
+          (foldl_array (fun res t0 => addov res (aux t0)) (C0 0) a)
+    | Empty => C0 0
+    end in aux t.
+
+Lemma nbnodes_intE t :
+  ~~ overflow (nbnodes_overflow t) -> nbnodes_int t = nbnodes_overflow t.
+Proof.
+rewrite /nbnodes_overflow /nbnodes_int.
+set aux_ov := (X in X t); set aux := (X in (X t) = _ ).
+move: t; apply: indtrie => [|a _ IHtr x] //=; rewrite !foldl_arrayE.
+move/(forall_mem_to_seq
+        (fun t : trie T => ~~ _ (_ t) -> aux t = aux_ov t)) in IHtr.
+case: eqP => // _.
+move=> /succov_impl.
+elim/last_ind: (to_seq a) IHtr => [//= | l t IHl] Ht /=.
+rewrite !foldl_rcons => /[dup]/addov_impl[].
+have /Ht : t \in rcons l t by rewrite mem_rcons inE eqxx.
+have {Ht}/IHl : forall x, x \in l -> ~~ overflow (aux_ov x) -> aux x = aux_ov x.
+  by move=> y yinl {}/Ht; apply; rewrite mem_rcons inE yinl orbT.
+case: (foldl _) => // res /(_ is_true_true) Hfold + _ => /[apply] eqaux.
+rewrite -succDl {}Hfold; case: (aux_ov t) eqaux => // i /= {i}<- _.
+rewrite -[succc res]/(succov (C0 res)).
+rewrite -[res +c aux t]/(addov (C0 res) (C0 (aux t))).
+by rewrite !succovE addovE succDl.
+Qed.
+
+Lemma nbnodes_overflowE t :
+  ~~ overflow (nbnodes_overflow t) -> to_nat (nbnodes_overflow t) = nbnodes t.
+Proof.
+rewrite /nbnodes_overflow /nbnodes.
+set aux := (X in X t); set aux_ov := (X in _ = X t).
+move: t; apply: indtrie => [|a Hdef IHtr x] //=; rewrite !foldl_arrayE.
+move/(forall_mem_to_seq
+        (fun t : trie T => ~~ _ (_ t) -> to_nat (aux t) = _ t)) in IHtr.
+case: eqP => // _.
+move=> /[dup]/to_nat_succovE -> /succov_impl H; congr _.+1.
+elim/last_ind: (to_seq a) IHtr H => [//= | l t IHl] Ht /=.
+rewrite !foldl_rcons => /[dup]/addov_impl[nov1 nov2].
+move=> /to_nat_addovE->; rewrite Ht //{nov2}; last by rewrite mem_rcons inE eqxx.
+rewrite {}IHl // => t1 t1in.
+by apply: Ht; rewrite mem_rcons inE t1in orbT.
+Qed.
+
+End TrieSize.
 
 
 Section LHSPrefixes.
@@ -109,31 +181,85 @@ case: eqP => [lena | /eqP/negbTE].
 by rewrite length_set => ->.
 Qed.
 
-Fixpoint prefixes_trie_rec rpre tr : seq (word int) :=
+Fixpoint trie_prefixes_rec rpre tr : seq (word int) :=
   match tr with
   | Trie x a =>
       if length a == 0 then [::]
       else rpre :: flatten
-             [seq prefixes_trie_rec (g :: rpre)
+             [seq trie_prefixes_rec (g :: rpre)
                 a.[g] | g <- [seq of_nat n | n <- iota 0 (to_nat (length a))]]
   | Empty => [::]
   end.
-Definition prefixes_trie tr := [seq rev s | s <- prefixes_trie_rec [::] tr].
+Definition trie_prefixes tr := [seq rev s | s <- trie_prefixes_rec [::] tr].
 
-Fixpoint prefixes_trie_acc acc rpre tr : seq (word int) :=
+Fixpoint trie_prefixes_acc acc rpre tr : seq (word int) :=
     match tr with
     | Trie x a =>
         if length a == 0 then acc
         else for_loop_simple
-               (fun g ac => prefixes_trie_acc ac (g :: rpre) a.[g])
+               (fun g ac => trie_prefixes_acc ac (g :: rpre) a.[g])
                0 trielen (rev rpre :: acc)
     | Empty => acc
     end.
-Definition prefixes_trie_fast tr := rev (prefixes_trie_acc [::] [::] tr).
+Definition trie_prefixes_fast tr := rev (trie_prefixes_acc [::] [::] tr).
 
-Lemma prefixes_trie_acc_cat acc rpre tr :
+Fixpoint trie_prefixes_array_rec resa_i rpre tr : array (seq int) * int :=
+    match tr with
+    | Trie x a =>
+        if length a == 0 then resa_i
+        else for_loop_simple
+               (fun g ac => trie_prefixes_array_rec ac (g :: rpre) a.[g])
+               0 (length a) (resa_i.1.[resa_i.2 <- rev rpre], succ resa_i.2)
+    | Empty => resa_i
+    end.
+Definition trie_prefixes_array tr :=
+  (trie_prefixes_array_rec (make (nbnodes_overflow tr) [::], 0) [::] tr).1.
+
+Lemma trie_prefixes_array_rec2E ar_acc rpre tr :
+  (trie_prefixes_array_rec ar_acc rpre tr).2 = ar_acc.2 + nbnodes_int tr.
+Proof.
+move: tr rpre ar_acc.
+apply: indtrie => [| a _ IHa _] rpre [ar acc] //=; first by ring.
+case: eqP => /= _; first by ring.
+rewrite /foldl_array !for_loop_simpleE succDr -succDl.
+move: (succ acc) (ar.[_ <- _]) => {}acc {}ar.
+apply (for_loop_rel_le_postcond (invar := fun k a b => a.2 = acc + b))
+      => //=; first last.
+- exact: le0x.
+- by ring.
+move=> i [{}ar x y] [ar' x' y'] /= lti [eq1][{y'}<-] eqx; rewrite {}eqx in eq1.
+have:= IHa _ lti (i :: rpre) (ar, acc + y).
+rewrite eq1 /= => ->; by ring.
+Qed.
+
+(*
+Lemma trie_prefixes_array_recE ar i rpre tr :
   is_fltrie trielen tr ->
-  prefixes_trie_acc acc rpre tr = prefixes_trie_acc [::] rpre tr ++ acc.
+  let: (res, resi) := trie_prefixes_array_rec (ar, i) rpre tr in
+  (resi < length ar)%O ->
+  trie_prefixes_acc (rev (take (to_nat i) (to_seq ar))) rpre tr =
+    rev (take (to_nat resi) (to_seq res)).
+Proof.
+move: tr rpre ar i; apply: indtrie => [| a _ IHa _] rpre ar i //=.
+case/(flarrayP maxlen) => [[-> //= | lena]] _ /=.
+rewrite lena (negbTE (len_neq0 maxlen)) => flta.
+rewrite !for_loop_simpleE.
+apply (for_loop_rel_le_postcond
+         (invar := fun i sr ar =>
+                     let: (res, resi) := ar in
+                     (resi < length res)%O ->
+                     sr = rev (take (to_nat resi) (to_seq res)))
+      ) => //; first last.
+- exact: le0x.
+- move=> lti.
+  apply: (eq_from_nth (x0 := [::])).
+  + rewrite /= !size_rev !size_take size_to_seq /=.
+- admit.
+*)
+
+Lemma trie_prefixes_acc_cat acc rpre tr :
+  is_fltrie trielen tr ->
+  trie_prefixes_acc acc rpre tr = trie_prefixes_acc [::] rpre tr ++ acc.
 Proof.
 move: tr rpre acc; apply: indtrie => [| a _ IHa _] rpre acc //=.
 case/(flarrayP maxlen) => [[-> //= | lena]] _ /=.
@@ -143,7 +269,6 @@ suff step s : for_loop_simple body 0 trielen s =
                 for_loop_simple body 0 trielen [::] ++ s.
   by rewrite step [in RHS]step -catA /=.
 rewrite !for_loop_simpleE {acc}.
-
 apply (for_loop_rel_le_postcond
          (invar := fun i a b => a = b ++ s)
          (postcond := fun a b => a = b ++ s)) => //; last exact: le0x.
@@ -152,10 +277,10 @@ move/(_ _ lti) : flta => flta.
 by rewrite /body IHa ?lena // [in RHS]IHa ?lena // catA.
 Qed.
 
-Lemma prefixes_trie_accE acc rpre tr :
+Lemma trie_prefixes_accE acc rpre tr :
   is_fltrie trielen tr ->
-  prefixes_trie_acc acc rpre tr =
-    rev (map rev (prefixes_trie_rec rpre tr)) ++ acc.
+  trie_prefixes_acc acc rpre tr =
+    rev (map rev (trie_prefixes_rec rpre tr)) ++ acc.
 Proof.
 move: tr rpre acc; apply: indtrie => [| a _ IHa x] rpre acc //=.
 case/(flarrayP maxlen) => [[-> //= | lena]] _ /=.
@@ -170,29 +295,29 @@ rewrite to_nat_succ; first last.
 rewrite -addn1 iotaD add0n /=.
 rewrite  !map_cat flatten_cat /= cats0 map_cat to_natK !rev_cons rev_cat.
 move/(_ _ lti) : flta => flta; rewrite -IHa // ?lena //.
-rewrite -!cats1 [LHS]prefixes_trie_acc_cat //.
-by rewrite [in RHS]prefixes_trie_acc_cat // !catA.
+rewrite -!cats1 [LHS]trie_prefixes_acc_cat //.
+by rewrite [in RHS]trie_prefixes_acc_cat // !catA.
 Qed.
 
-Lemma prefixes_trie_fastE tr :
-  is_fltrie trielen tr -> prefixes_trie_fast tr = prefixes_trie tr.
+Lemma trie_prefixes_fastE tr :
+  is_fltrie trielen tr -> trie_prefixes_fast tr = trie_prefixes tr.
 Proof.
-rewrite /prefixes_trie_fast => /prefixes_trie_accE ->.
+rewrite /trie_prefixes_fast => /trie_prefixes_accE ->.
 by rewrite cats0 revK.
 Qed.
 
-Lemma nil_in_prefixes_trie x a :
-  (length a != 0) = ([::] \in prefixes_trie (Trie x a)).
+Lemma nil_in_trie_prefixes x a :
+  (length a != 0) = ([::] \in trie_prefixes (Trie x a)).
 Proof.
-rewrite /prefixes_trie /=; apply/idP/idP => [/negbTE -> /= |].
+rewrite /trie_prefixes /=; apply/idP/idP => [/negbTE -> /= |].
   by rewrite inE eqxx.
 by case: eqP.
 Qed.
 
-Lemma prefixes_trie_recE rpre tr :
-  prefixes_trie_rec rpre tr = [seq rev u ++ rpre| u <- prefixes_trie tr].
+Lemma trie_prefixes_recE rpre tr :
+  trie_prefixes_rec rpre tr = [seq rev u ++ rpre| u <- trie_prefixes tr].
 Proof.
-rewrite /prefixes_trie; move: tr rpre.
+rewrite /trie_prefixes; move: tr rpre.
 apply: indtrie => [|a Hdef IHtr x] rpre //=.
 case: eqP => // _; rewrite !map_cons revK /=; congr cons.
 rewrite -!map_comp map_flatten; congr flatten.
@@ -204,36 +329,35 @@ rewrite -!map_comp; apply eq_map => u /=.
 by rewrite !revK -catA cat1s.
 Qed.
 
-Lemma suffix_prefixes_trie_rec rpre tr u :
-  u \in prefixes_trie_rec rpre tr -> suffix rpre u.
+Lemma suffix_trie_prefixes_rec rpre tr u :
+  u \in trie_prefixes_rec rpre tr -> suffix rpre u.
 Proof.
-by rewrite prefixes_trie_recE => /mapP[/= v _ ->]; apply: suffix_suffix.
+by rewrite trie_prefixes_recE => /mapP[/= v _ ->]; apply: suffix_suffix.
 Qed.
 
-
-Lemma mem_prefixes_trieE x a (i : int) u :
+Lemma mem_trie_prefixesE x a (i : int) u :
   default a = Empty ->
-  (i :: u \in prefixes_trie (Trie x a)) = (u \in prefixes_trie a.[i]).
+  (i :: u \in trie_prefixes (Trie x a)) = (u \in trie_prefixes a.[i]).
 Proof.
 move=> defa.
-rewrite {1}/prefixes_trie /=; case: (boolP (length a == 0)) => [/eqP|] lena /=.
+rewrite {1}/trie_prefixes /=; case: (boolP (length a == 0)) => [/eqP|] lena /=.
   rewrite get_out_of_bounds; first last.
     by rewrite lena; apply: (ltx0 i).
-  by rewrite /prefixes_trie defa.
+  by rewrite /trie_prefixes defa.
 rewrite inE cons_nnil /=.
 rewrite -(revK (i :: u)) rev_cons (mem_map (can_inj revK)).
 apply/flatten_mapP/idP => [[ /= j /mapP[/= n]] | uin].
   rewrite mem_iota /= add0n => ltnl eqi.
   have /of_natK : n < wBnat by apply (ltn_trans ltnl (lt_lenght_wB _)).
   rewrite -eqi => Hn; subst n => {eqi}.
-  rewrite -cats1 prefixes_trie_recE => /mapP[/= v /[swap]].
+  rewrite -cats1 trie_prefixes_recE => /mapP[/= v /[swap]].
   by move/(congr1 rev); rewrite !rev_cat /= !revK => [[-> ->]].
 exists i.
   apply/mapP; exists (to_nat i); last by rewrite to_natK.
   rewrite mem_iota /= add0n -ltEint.
   apply: get_not_default_lt; apply/eqP; rewrite defa.
   by case: eqP uin => // ->.
-rewrite -cats1 prefixes_trie_recE.
+rewrite -cats1 trie_prefixes_recE.
 by apply/mapP; exists u.
 Qed.
 
@@ -251,8 +375,8 @@ Qed.
 Lemma ltxirev_trans : transitive (fun u v => rev u < rev v)%O.
 Proof. by move=> y x z; apply: lt_trans. Qed.
 
-Lemma prefixes_trie_rec_sorted rpre tr :
-  sorted (fun u v => rev u < rev v)%O (prefixes_trie_rec rpre tr).
+Lemma trie_prefixes_rec_sorted rpre tr :
+  sorted (fun u v => rev u < rev v)%O (trie_prefixes_rec rpre tr).
 Proof.
 move: tr rpre; apply: indtrie => //= a _ IH _ rpre.
 case eqP => //= _.
@@ -263,7 +387,7 @@ rewrite {}IHn ?(ltnW ltn) //=.
 rewrite (path_sortedE ltxirev_trans) {}IH; first last.
   rewrite ltEint of_natK //.
   exact/(ltn_trans ltn)/lt_lenght_wB.
-rewrite andbT; apply/allP => /= u /suffix_prefixes_trie_rec.
+rewrite andbT; apply/allP => /= u /suffix_trie_prefixes_rec.
 rewrite -prefix_rev rev_cons -cats1 => /prefixP[/= suf ->].
 case/lastP Hflat : (flatten _) => [|f fn] /=.
   by rewrite -{1}(cats0 (rev rpre)) -catA catl_ltxiE ltxi0s.
@@ -274,30 +398,30 @@ have {}ltmn : (of_nat m < of_nat n)%O.
   rewrite ltEint !of_natK //.
   exact/(ltn_trans ltn)/lt_lenght_wB.
   exact/(ltn_trans ltmn)/(ltn_trans ltn)/lt_lenght_wB.
-move/suffix_prefixes_trie_rec.
+move/suffix_trie_prefixes_rec.
 rewrite -prefix_rev rev_cons -cats1 => /prefixP[/= s2] ->.
 rewrite -!catA catl_ltxiE neqhead_ltxiE //.
 by move: ltmn; rewrite lt_neqAle => /andP[].
 Qed.
-Lemma prefixes_trie_sorted tr : sorted <%O (prefixes_trie tr).
-Proof. by rewrite /prefixes_trie sorted_map (prefixes_trie_rec_sorted _ _). Qed.
+Lemma trie_prefixes_sorted tr : sorted <%O (trie_prefixes tr).
+Proof. by rewrite /trie_prefixes sorted_map (trie_prefixes_rec_sorted _ _). Qed.
 
-Lemma prefixes_trie_uniq tr : uniq (prefixes_trie tr).
+Lemma trie_prefixes_uniq tr : uniq (trie_prefixes tr).
 Proof.
-exact: (sorted_uniq lt_trans lt_irreflexive (prefixes_trie_sorted _)).
+exact: (sorted_uniq lt_trans lt_irreflexive (trie_prefixes_sorted _)).
 Qed.
 
 Lemma in_prefixes_mktrieE u :
-  (islhsprefix (mktrie trielen R) u) = (u \in prefixes_trie (mktrie trielen R)).
+  (islhsprefix (mktrie trielen R) u) = (u \in trie_prefixes (mktrie trielen R)).
 Proof.
 rewrite /islhsprefix.
 move: (mktrie trielen R) (is_flmktrie maxlen R) u.
 apply: indtrie => [|a _ IHtr x] /= fla [|u0 u] //=.
-  exact: nil_in_prefixes_trie.
+  exact: nil_in_trie_prefixes.
 case/(flarrayP maxlen): fla => /= lena defa flta.
-rewrite mem_prefixes_trieE //.
+rewrite mem_trie_prefixesE //.
 case: (boolP (u0 < length a)%O) => [ltu0 | /negbTE]; first last.
-  move/get_out_of_bounds ->; rewrite defa /= /prefixes_trie /=.
+  move/get_out_of_bounds ->; rewrite defa /= /trie_prefixes /=.
   by case u.
 apply: (IHtr u0 ltu0); apply: flta.
 apply: (Order.POrderTheory.lt_le_trans ltu0).
@@ -307,18 +431,18 @@ Qed.
 
 Lemma prefixes_mktrieP u :
   reflect (exists r, [&& r \in R, prefix u r.1 & u != r.1])
-    (u \in prefixes_trie (mktrie trielen R)).
+    (u \in trie_prefixes (mktrie trielen R)).
 Proof. by rewrite -in_prefixes_mktrieE; exact/islhsprefixP. Qed.
 
-Lemma prefixes_trieE :
-  prefixes_trie (mktrie trielen R) =
+Lemma trie_prefixesE :
+  trie_prefixes (mktrie trielen R) =
     sort <=%O (undup (flatten
                        [seq [seq take n r.1 | n <- iota 0 (size r.1)] | r <- R])).
 Proof.
-apply (irr_sorted_eq lt_trans lt_irreflexive (prefixes_trie_sorted _)).
+apply (irr_sorted_eq lt_trans lt_irreflexive (trie_prefixes_sorted _)).
   by rewrite sort_lt_sorted; apply: undup_uniq.
 move=> u; rewrite mem_sort; apply: perm_mem.
-apply: (uniq_perm (prefixes_trie_uniq _) (undup_uniq _)) => /= {}u.
+apply: (uniq_perm (trie_prefixes_uniq _) (undup_uniq _)) => /= {}u.
 rewrite mem_undup.
 apply/prefixes_mktrieP/flatten_mapP => /= -[] [r1 r2].
   case/and3P => rinR /= prefu nequr1; exists (r1, r2) => //.
@@ -334,77 +458,46 @@ Qed.
 
 End Sorted.
 
-
-Section TrieSize.
-
-Context {T : eqType}.
-Implicit Type t : @trie T.
-
-Definition nbnodes_generic (N : Type) (ZN : N) (SN : N -> N) t :=
-  let fix aux acc t := match t with
-    | Trie x a =>
-        if length a == 0 then acc
-        else foldl_array aux (SN acc) a
-    | Empty => acc
-    end in aux ZN t.
-
-Lemma nbnodes_genericE (N1 N2 : Type)
-  (ZN1 : N1) (SN1 : N1 -> N1) (ZN2 : N2) (SN2 : N2 -> N2) (f : N1 -> N2) :
-  f ZN1 = ZN2 -> (forall n1 : N1, SN2 (f n1) = f (SN1 n1)) ->
-  forall t, f (nbnodes_generic ZN1 SN1 t) = nbnodes_generic ZN2 SN2 t.
-Proof.
-rewrite /nbnodes_generic => <- Hf t.
-set aux1 := (X in f (X _ _) ); set aux2 := (X in _ = (X _ _)).
-move: t ZN1; apply: indtrie => [|a Hdef IHtr x] //= acc.
-case: eqP => // _; rewrite !foldl_arrayE.
-have {}IHtr t : t \in (to_seq a) -> forall ZN1, f (aux1 ZN1 t) = aux2 (f ZN1) t.
-  by move/mem_to_seqP => [i lti {t}<-] ZN1; apply: IHtr.
-elim/last_ind: (to_seq a) IHtr acc => [//= | l t IHl] Ht acc /=.
-rewrite !foldl_rcons Ht; last by rewrite mem_rcons inE eqxx.
-by rewrite IHl // => t0 t0in; apply: Ht; rewrite mem_rcons inE t0in orbT.
-Qed.
-
-Definition nbnodes := nbnodes_generic 0%N succn.
-Definition nbnodes_bin := nbnodes_generic BinNat.N.zero BinNat.N.succ.
-Definition nbnodes_int := nbnodes_generic 0 succ.
-Definition nbnodes_carry := nbnodes_generic
-    (C0 0) (fun i : carry int => if i is C0 i' then succc i' else C1 0).
+Fixpoint trie_prefixes_pos_acc acc tr : int * (@trie int) :=
+  match tr with
+  | Trie x a =>
+      if length a == 0 then (acc, Empty)
+      else let: (newacc, resa) :=
+             for_loop_simple (fun i acc_ar =>
+                      let: (recacc, reca) := trie_prefixes_pos_acc acc_ar.1 a.[i] in
+                      (recacc, acc_ar.2.[i <- reca]))
+               0 (length a) (acc + 1, make trielen (@Empty int)) in
+           (newacc, Trie (Some acc) resa)
+  | Empty => (acc, Empty)
+  end.
+Definition trie_prefixes_length tr := (trie_prefixes_pos_acc 0 tr).1.
+Definition trie_prefixes_pos tr := (trie_prefixes_pos_acc 0 tr).2.
 
 
-Lemma nbbodes_binE t : BinNat.N.to_nat (nbnodes_bin t) = nbnodes t.
-Proof. by apply: nbnodes_genericE => // n; rewrite -Nnat.N2Nat.inj_succ. Qed.
-Lemma nbbodes_intE t : of_nat (nbnodes t) = nbnodes_int t.
-Proof.
-apply: (nbnodes_genericE (f := fun n => of_nat n)) => // n.
-exact: succ_of_nat.
-Qed.
-
-End TrieSize.
-
-
+(*
 Definition loopseq := [seq of_nat n | n <- iota 0 (to_nat trielen)].
-Fixpoint prefixes_trie_pos_acc acc tr : int * (@trie int) :=
+Fixpoint trie_prefixes_pos_acc acc tr : int * (@trie int) :=
   match tr with
   | Trie x a =>
       if length a == 0 then (acc, Empty)
       else let: (newacc, resa) :=
              foldl (fun acc_ar g =>
-                      let: (recacc, reca) := prefixes_trie_pos_acc acc_ar.1 a.[g] in
+                      let: (recacc, reca) := trie_prefixes_pos_acc acc_ar.1 a.[g] in
                       (recacc, acc_ar.2.[g <- reca]))
                (acc + 1, make trielen (@Empty int)) loopseq in
            (newacc, Trie (Some acc) resa)
   | Empty => (acc, Empty)
   end.
-Definition prefixes_trie_length tr := (prefixes_trie_pos_acc 0 tr).1.
-Definition prefixes_trie_pos tr := (prefixes_trie_pos_acc 0 tr).2.
-
+Definition trie_prefixes_length tr := (trie_prefixes_pos_acc 0 tr).1.
+Definition trie_prefixes_pos tr := (trie_prefixes_pos_acc 0 tr).2.
+*)
 
 (*
-Lemma prefixes_trie_lengthE tr :
+Lemma trie_prefixes_lengthE tr :
   is_fltrie trielen tr ->
-  prefixes_trie_length tr = nbnodes_int (prefixes_trie_pos tr).
+  trie_prefixes_length tr = nbnodes_int (trie_prefixes_pos tr).
 Proof.
-rewrite /prefixes_trie_length /prefixes_trie_pos /=.
+rewrite /trie_prefixes_length /trie_prefixes_pos /=.
 rewrite /nbnodes_int /nbnodes_generic; set nbnodes_aux := (X in _ = X _ _).
 move: 0 => acc; move: tr acc.
 apply: indtrie => [// | a _ IHa x] i /=.
@@ -421,7 +514,7 @@ move: IHn; set rec := (foldl _ _ _) => /= /(_ (ltnW ltn)).
 have: length rec.2 = trielen.
   rewrite /rec; have := @length_make_trielen int trielen maxlen.
   elim: (map _ _) (i + 1) (make _ _) => [//| m0 m IHm]/= j ma lenma.
-  case: (prefixes_trie_pos_acc j a.[m0]) => szm0 am0 /=.
+  case: (trie_prefixes_pos_acc j a.[m0]) => szm0 am0 /=.
   by apply: IHm; rewrite length_set.
 have ltnn : (of_nat n < length a)%O.
   rewrite lena ltEint of_natK //.
@@ -431,7 +524,7 @@ move/(_ _ ltnn): IHa => /[apply] Heq.
 case: rec => acc arec /= lenarec.
 rewrite lenarec (negbTE (len_neq0 maxlen)) => ->.
 set recn := (foldl _ _ _).
-case: prefixes_trie_pos_acc (Heq recn) => recn1 arec1 /= {Heq recn1}->.
+case: trie_prefixes_pos_acc (Heq recn) => recn1 arec1 /= {Heq recn1}->.
 rewrite length_set lenarec (negbTE (len_neq0 maxlen)) {}/recn.
 move: (succ i) => {acc}i.
 rewrite /loopseq.
@@ -456,7 +549,7 @@ have ltnn : (of_nat n < length arec)%O.
 have := 
 
 
-case: prefixes_trie_pos_acc => szn an /=.
+case: trie_prefixes_pos_acc => szn an /=.
 rewrite length_set lenarec (negbTE (len_neq0 maxlen)).
 
 rewrite IHa /=. rewrite IHn.
@@ -470,12 +563,12 @@ Qed.
 *)
 
 (*
-Lemma prefixes_trie_lengthE tr :
+Lemma trie_prefixes_lengthE tr :
   is_fltrie trielen tr ->
-  size (prefixes_trie tr) = to_nat (prefixes_trie_length tr).
+  size (trie_prefixes tr) = to_nat (trie_prefixes_length tr).
 Proof.
-move=> /[dup] /prefixes_trie_fastE <-.
-rewrite /prefixes_trie_fast size_rev /prefixes_trie_length /=.
+move=> /[dup] /trie_prefixes_fastE <-.
+rewrite /trie_prefixes_fast size_rev /trie_prefixes_length /=.
 rewrite -(to_natK 0) to_nat0 -/(size ([::] : seq (word int))).
 move: [::] [::] => rpre acc; move: tr rpre acc.
 apply: indtrie => [// | a _ IHa x] rpre acc /=.
@@ -496,6 +589,7 @@ have ltnint : (of_nat n < trielen)%O.
 
 End LHSPrefixes.
 
+Definition loopseq trielen := [seq of_nat n | n <- iota 0 (to_nat trielen)].
 
 Module Example1.
 Section Example1.
@@ -508,15 +602,19 @@ Definition P := make_pres [::0; 1]
   ].
 
 Let tr := mktrie (pres_trielen P) (prelat P).
-Let preftr := prefixes_trie tr.
-Let postr := prefixes_trie_pos (pres_trielen P) tr.
-Let nbpref := prefixes_trie_length (pres_trielen P) tr.
+Let preftr := trie_prefixes tr.
+Let prefarray := trie_prefixes_array tr.
+Let postr := trie_prefixes_pos (pres_trielen P) tr.
+Let nbpref := trie_prefixes_length (pres_trielen P) tr.
 Goal preftr = [:: [::]; [:: 0]; [:: 0; 0]; [:: 1]].
+Proof. by []. Qed.
+
+Goal to_seq prefarray = preftr.
 Proof. by []. Qed.
 
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
 Proof. by vm_compute. Qed.
-Goal prefixes_trie_fast (pres_trielen P) tr = preftr.
+Goal trie_prefixes_fast (pres_trielen P) tr = preftr.
 Proof. by []. Qed.
 
 End Example1.
@@ -547,8 +645,9 @@ Goal (prelat P) =
 Proof. by []. Qed.
 
 Let tr := mktrie (pres_trielen P) (prelat P).
-Let preftr := prefixes_trie tr.
-Let prefpair := prefixes_trie_pos_acc (pres_trielen P) 0 tr.
+Let preftr := trie_prefixes tr.
+Let prefarray := trie_prefixes_array tr.
+Let prefpair := trie_prefixes_pos_acc (pres_trielen P) 0 tr.
 Let nbpref := prefpair.1.
 Let postr := prefpair.2.
 Goal preftr =
@@ -558,9 +657,18 @@ Goal preftr =
         [:: 0; 1; 0; 0; 1]].
 Proof. by []. Qed.
 
+Goal to_seq prefarray = preftr.
+Proof. by []. Qed.
+
+Goal size preftr = nbnodes tr.
+Proof. by vm_compute. Qed.
+Goal nbnodes_overflow tr = C0 10.
+Proof. by vm_compute. Qed.
+
+
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
 Proof. by vm_compute. Qed.
-Goal prefixes_trie_fast (pres_trielen P) tr = preftr.
+Goal trie_prefixes_fast (pres_trielen P) tr = preftr.
 Proof. by []. Qed.
 
 Goal sorted <%O (preftr : seq (seqlexi _)).
@@ -576,19 +684,20 @@ Load "largest.v".
 
 Let P := Eval vm_compute in present_final.
 Let tr := mktrie (pres_trielen P) (prelat P).
-Let preftr := prefixes_trie tr.
-Let prefpair := prefixes_trie_pos_acc (pres_trielen P) 0 tr.
+Let preftr := trie_prefixes tr.
+Let prefarray := trie_prefixes_array tr.
+Let prefpair := trie_prefixes_pos_acc (pres_trielen P) 0 tr.
 Let nbpref := prefpair.1.
 Let postr := prefpair.2.
 
-Goal size preftr = 465%N.
+Goal size preftr = nbnodes tr.
 Proof. by vm_compute. Qed.
-Goal nbnodes_carry tr = C0 465.
+Goal nbnodes_overflow tr = C0 465.
 Proof. by vm_compute. Qed.
 
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
 Proof. by vm_compute. Qed.
-Goal prefixes_trie_fast (pres_trielen P) tr = preftr.
+Goal trie_prefixes_fast (pres_trielen P) tr = preftr.
 Proof. by vm_compute. Qed.
 Goal sorted <%O (preftr : seq (seqlexi _)).
 Proof. by vm_compute. Qed.
@@ -603,19 +712,23 @@ Section RennerB51.
 
 Let P := Eval vm_compute in RennerB51_rws.
 Let tr := mktrie (pres_trielen P) (prelat P).
-Let preftr := prefixes_trie tr.
-Let prefpair := prefixes_trie_pos_acc (pres_trielen P) 0 tr.
+Let preftr := trie_prefixes tr.
+Let prefarray := trie_prefixes_array tr.
+Let prefpair := trie_prefixes_pos_acc (pres_trielen P) 0 tr.
 Let nbpref := prefpair.1.
 Let postr := prefpair.2.
 
-Goal size preftr = 895%N.
+Goal size preftr = nbnodes tr.
 Proof. by vm_compute. Qed.
-Goal nbnodes_carry tr = C0 895.
+Goal nbnodes_overflow tr = C0 895.
+Proof. by vm_compute. Qed.
+
+Goal to_seq prefarray = preftr.
 Proof. by vm_compute. Qed.
 
 Goal [seq gettrie postr p | p <- preftr] = [seq Some i | i <- loopseq nbpref].
 Proof. by vm_compute. Qed.
-Goal prefixes_trie_fast (pres_trielen P) tr = preftr.
+Goal trie_prefixes_fast (pres_trielen P) tr = preftr.
 Proof. by vm_compute. Qed.
 Goal sorted <%O (preftr : seq (seqlexi _)).
 Proof. by vm_compute. Qed.

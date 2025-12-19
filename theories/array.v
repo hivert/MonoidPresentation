@@ -551,7 +551,7 @@ End ToSeq.
 Section ArrayEqType.
 
 Context {S : eqType}.
-Implicit Type (a : array S) (s : seq S).
+Implicit Type (i : int) (a : array S) (s : seq S).
 
 Lemma mem_to_seqP a x :
   reflect (exists2 i : int, i < length a & a.[i] = x) (x \in to_seq a).
@@ -562,6 +562,13 @@ rewrite size_to_seq => ltn {x}<-.
 have /of_natK eqn : (n < wBnat)%N by apply: (ltn_trans ltn (ltwBnat _)).
 exists (of_nat n); first by rewrite ltEint eqn.
 by rewrite -nth_to_seq eqn.
+Qed.
+
+Lemma forall_mem_to_seq (P : S -> Prop) a :
+  (forall i, i < length a -> P a.[i]) <-> (forall x : S, x \in to_seq a -> P x).
+Proof.
+split => [H x -/mem_to_seqP [i {}/H H {x}<-] // | H i lti].
+by apply/H/mem_to_seqP; exists i.
 Qed.
 
 End ArrayEqType.

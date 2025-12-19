@@ -124,6 +124,49 @@ Definition int_to_ring := (int0E, int1E, intDE, intME, intNE, intBE).
 End IntRing.
 Hint Resolve le0Z ltZwB : core.
 
+Lemma succDl u v : succ u + v = succ (u + v).
+Proof. by rewrite /succ; ring. Qed.
+Lemma succDr u v : u + succ v = succ (u + v).
+Proof. by rewrite /succ; ring. Qed.
+
+
+Definition wBnat := locked (BinInt.Z.to_nat wB).
+Lemma wBnatE : wBnat = BinInt.Z.to_nat wB.
+Proof. by rewrite /wBnat; unlock. Qed.
+
+Lemma of_nat_modK n : to_nat (of_nat n) = n %% wBnat.
+Proof.
+rewrite of_Z_spec Z2Nat.inj_mod //; last exact: Nat2Z.is_nonneg.
+by rewrite mod_natE -wBnatE Nat2Z.id.
+Qed.
+Lemma of_wBnat : of_nat wBnat = 0.
+Proof. by apply: to_nat_inj; rewrite to_nat0 of_nat_modK modnn. Qed.
+
+Lemma of_natK n : n < wBnat -> to_nat (of_nat n) = n.
+Proof. by rewrite of_nat_modK => /modn_small. Qed.
+
+Lemma ltwBnat i : to_nat i < wBnat.
+Proof. by rewrite wBnatE; apply/ltP; have := ltZwB i; rewrite Z2Nat.inj_lt. Qed.
+
+
+Lemma to_natDE x y : to_nat (x + y) = (to_nat x + to_nat y) %% wBnat.
+Proof.
+rewrite add_spec Z2Nat.inj_mod //; last exact: BinInt.Z.add_nonneg_nonneg.
+by rewrite Z2Nat.inj_add // mod_natE wBnatE.
+Qed.
+Lemma to_natME x y : to_nat (x * y) = (to_nat x * to_nat y) %% wBnat.
+Proof.
+rewrite mul_spec Z2Nat.inj_mod //; last exact: BinInt.Z.mul_nonneg_nonneg.
+by rewrite Z2Nat.inj_mul // mod_natE wBnatE.
+Qed.
+
+Lemma natrEint n : n%:R%R = of_nat n.
+Proof.
+elim: n => // n IHn.
+rewrite -addn1 GRing.natrD -intDE {}IHn -[X in _ + X = _]/(of_nat 1).
+by apply: to_nat_inj; rewrite to_natDE !of_nat_modK modnDmr modnDml.
+Qed.
+
 
 Section IntOrder.
 
@@ -184,9 +227,6 @@ Proof. by apply: (wf_f _ wf_ltnat) => x y; rewrite ltEint; apply. Qed.
 
 End IntOrder.
 
-Definition wBnat := locked (BinInt.Z.to_nat wB).
-Lemma wBnatE : wBnat = BinInt.Z.to_nat wB.
-Proof. by rewrite /wBnat; unlock. Qed.
 
 Section ZmodP.
 
@@ -196,17 +236,6 @@ Implicit Type (x y : int) (m n : nat) (z : ZwB).
 
 Definition to_ZwB x : ZwB := (to_nat x)%:R%R.
 Definition of_ZwB z : int := of_nat z.
-
-Lemma of_natK n : n < wBnat -> to_nat (of_nat n) = n.
-Proof.
-rewrite wBnatE => ltn.
-rewrite of_Z_spec BinInt.Z.mod_small; first by rewrite Nat2Z.id.
-split; first exact: Nat2Z.is_nonneg.
-by rewrite -(Z2Nat.id wB); first exact/inj_lt/ltP.
-Qed.
-
-Lemma ltwBnat i : to_nat i < wBnat.
-Proof. by rewrite wBnatE; apply/ltP; have := ltZwB i; rewrite Z2Nat.inj_lt. Qed.
 
 Local Lemma Zp_trunc_wBnat : (Zp_trunc wBnat).+2 = wBnat.
 Proof. by rewrite wBnatE /= Zp_cast. Qed.
@@ -220,17 +249,6 @@ Lemma of_ZwBK : cancel of_ZwB to_ZwB.
 Proof.
 move=> z; rewrite /to_ZwB /of_ZwB /= Zp_nat.
 by rewrite -(valZpK z) of_natK ?valZpK // -{2}Zp_trunc_wBnat.
-Qed.
-
-Lemma to_natDE x y : to_nat (x + y) = (to_nat x + to_nat y) %% wBnat.
-Proof.
-rewrite add_spec Z2Nat.inj_mod //; last exact: BinInt.Z.add_nonneg_nonneg.
-by rewrite Z2Nat.inj_add // mod_natE wBnatE.
-Qed.
-Lemma to_natME x y : to_nat (x * y) = (to_nat x * to_nat y) %% wBnat.
-Proof.
-rewrite mul_spec Z2Nat.inj_mod //; last exact: BinInt.Z.mul_nonneg_nonneg.
-by rewrite Z2Nat.inj_mul // mod_natE wBnatE.
 Qed.
 
 Lemma to_ZwBK_is_nmod_morphism : GRing.nmod_morphism to_ZwB.
@@ -330,6 +348,73 @@ Lemma to_nat_div x y : to_nat (x / y) = (to_nat x %/ to_nat y)%N.
 Proof. by rewrite div_spec Z2Nat.inj_div // div_natE. Qed.
 
 End Int.
+
+
+Section Overflow.
+
+Implicit Type c : carry int.
+
+Coercion overflow_to_int c := match c with | C0 i | C1 i => i end.
+Definition overflow c := match c with | C0 _ => false | C1 _ => true end.
+Definition succov c :=
+  match c with | C0 i => succc i | C1 i => C1 (succ i) end.
+Definition addov c1 c2 := match c1, c2 with
+                          | C0 i, C0 j => i +c j
+                          | C0 i, C1 j | C1 i, C0 j | C1 i, C1 j => C1 (i + j)
+                          end.
+
+Lemma succov_impl c :
+  ~~ overflow (succov c) -> ~~ overflow c.
+Proof. by case: c => [i |]. Qed.
+Lemma succovE c : succov c = succ c :> int.
+Proof.
+case: c => [] i //=.
+have:= succc_spec i; rewrite /interp_carry.
+case: (succc i) => [i1 /= | i1] /(congr1 BinInt.Z.to_nat).
+- rewrite Z2Nat.inj_add // add_natE addn1 => H.
+  by apply: to_nat_inj; rewrite to_nat_succ // -H ltwBnat.
+- rewrite !BinInt.Z.mul_1_l !Z2Nat.inj_add -?wBnatE // !add_natE.
+  move/(congr1 (fun n : nat => n%:R%R : int)).
+  rewrite !GRing.natrD GRing.natr1 -addn1 !GRing.natrD.
+  rewrite /succ -!intDE !natrEint -to_nat1 !to_natK => <-.
+  rewrite of_wBnat /=; ring.
+Qed.
+
+Lemma to_nat_succovE c :
+  ~~ overflow (succov c) -> to_nat (succov c) = (to_nat c).+1.
+Proof.
+case: c => [i | //] /=.
+have /= := succc_spec i; rewrite /interp_carry /overflow /overflow_to_int.
+case: (succc i) => [i1|//] /(congr1 BinInt.Z.to_nat) -> _.
+by rewrite Z2Nat.inj_add // to_nat1 add_natE addn1.
+Qed.
+Lemma addov_impl c1 c2 :
+  ~~ overflow (addov c1 c2) -> ~~ overflow c1 /\ ~~ overflow c2.
+Proof. by case: c1 c2 => []i1 []i2. Qed.
+
+Lemma addovE c1 c2 : addov c1 c2 = c1 + c2 :> int.
+Proof.
+case: c1 c2 => [] i [] j //=.
+have /= := addc_spec i j; rewrite /interp_carry /overflow /overflow_to_int.
+case: (i +c j) => [r|r] /(congr1 BinInt.Z.to_nat).
+  rewrite Z2Nat.inj_add // add_natE => H.
+  by apply: to_nat_inj; rewrite to_natD // -H ltwBnat.
+rewrite !BinInt.Z.mul_1_l !Z2Nat.inj_add -?wBnatE // !add_natE.
+move=> /(congr1 (fun n => of_nat n)).
+rewrite -!natrEint !GRing.natrD -!intDE.
+by rewrite !natrEint of_wBnat !to_natK => <-; ring.
+Qed.
+Lemma to_nat_addovE c1 c2 :
+  ~~ overflow (addov c1 c2) ->
+  to_nat (addov c1 c2) = (to_nat c1 + to_nat c2)%N.
+Proof.
+case: c1 c2 => [] i [] j //=.
+have /= := addc_spec i j; rewrite /interp_carry /overflow /overflow_to_int.
+case: (i +c j) => [r|//] /(congr1 BinInt.Z.to_nat) -> _.
+by rewrite Z2Nat.inj_add.
+Qed.
+
+End Overflow.
 
 
 Section Seq.
