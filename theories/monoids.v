@@ -245,6 +245,34 @@ HB.export PartialTransformation.Exports.
 Notation "{ 'ptransf' T }" := (PartialTransformation.type T).
 
 
+(** A partial transformation monoid over T is a submonoid of *)
+(** the monoid of tranformation over option T                *)
+Section PTranfToTransf.
+
+Variable (T : finType).
+Implicit Types (f g h : {ptransf T}) (p q : {transf option T}).
+
+Definition to_transfopt f : {transf option T} := finfun (oapp f None).
+Definition of_transfopt p : {ptransf T } := finfun (fun x => p (Some x)).
+Lemma to_transfoptN f : to_transfopt f None = None.
+Proof. by rewrite ffunE. Qed.
+Lemma to_transfoptE f x : to_transfopt f (Some x) = f x.
+Proof. by rewrite ffunE. Qed.
+Lemma to_transfopt_is_monoid_morphism : monoid_morphism to_transfopt.
+Proof.
+split=> [| /= f g]; apply/ffunP => -[x|]; rewrite !ffunE //= ffunE //=.
+- by rewrite !to_transfoptE; case: (g x) => [{}x|] /=; rewrite !ffunE /=.
+- by rewrite to_transfoptN.
+Qed.
+HB.instance Definition _ :=
+  isUMagmaMorphism.Build {ptransf T} {transf option T}
+    to_transfopt to_transfopt_is_monoid_morphism.
+Lemma to_transfoptK : cancel to_transfopt of_transfopt.
+Proof. by move=> f; apply/ffunP => x /=; rewrite !ffunE /=. Qed.
+
+End PTranfToTransf.
+
+
 (* Monoid structure on the type of binary relations on a finType *)
 Module Relation.
 Section Relation.
