@@ -196,7 +196,7 @@ Fixpoint trie_prefixes_acc acc rpre tr : seq (word int) :=
     match tr with
     | Trie x a =>
         if length a == 0 then acc
-        else for_loop_simple
+        else foldint
                (fun g ac => trie_prefixes_acc ac (g :: rpre) a.[g])
                0 trielen (rev rpre :: acc)
     | Empty => acc
@@ -207,7 +207,7 @@ Fixpoint trie_prefixes_array_rec resa_i rpre tr : array (seq int) * int :=
     match tr with
     | Trie x a =>
         if length a == 0 then resa_i
-        else for_loop_simple
+        else foldint
                (fun g ac => trie_prefixes_array_rec ac (g :: rpre) a.[g])
                0 (length a) (resa_i.1.[resa_i.2 <- rev rpre], succ resa_i.2)
     | Empty => resa_i
@@ -221,12 +221,10 @@ Proof.
 move: tr rpre ar_acc.
 apply: indtrie => [| a _ IHa _] rpre [ar acc] //=; first by ring.
 case: eqP => /= _; first by ring.
-rewrite /foldl_array !for_loop_simpleE succDr -succDl.
+rewrite /foldl_array !foldintE succDr -succDl.
 move: (succ acc) (ar.[_ <- _]) => {}acc {}ar.
 apply (for_loop_rel_le_postcond (invar := fun k a b => a.2 = acc + b))
-      => //=; first last.
-- exact: le0x.
-- by ring.
+      => //=; last by ring.
 move=> i [{}ar x y] [ar' x' y'] /= lti [eq1][{y'}<-] eqx; rewrite {}eqx in eq1.
 have:= IHa _ lti (i :: rpre) (ar, acc + y).
 rewrite eq1 /= => ->; by ring.
@@ -243,7 +241,7 @@ Proof.
 move: tr rpre ar i; apply: indtrie => [| a _ IHa _] rpre ar i //=.
 case/(flarrayP maxlen) => [[-> //= | lena]] _ /=.
 rewrite lena (negbTE (len_neq0 maxlen)) => flta.
-rewrite !for_loop_simpleE.
+rewrite !foldintE.
 apply (for_loop_rel_le_postcond
          (invar := fun i sr ar =>
                      let: (res, resi) := ar in
@@ -264,14 +262,14 @@ Proof.
 move: tr rpre acc; apply: indtrie => [| a _ IHa _] rpre acc //=.
 case/(flarrayP maxlen) => [[-> //= | lena]] _ /=.
 rewrite lena (negbTE (len_neq0 maxlen)) => flta.
-set body := (X in for_loop_simple X).
-suff step s : for_loop_simple body 0 trielen s =
-                for_loop_simple body 0 trielen [::] ++ s.
+set body := (X in foldint X).
+suff step s : foldint body 0 trielen s =
+                foldint body 0 trielen [::] ++ s.
   by rewrite step [in RHS]step -catA /=.
-rewrite !for_loop_simpleE {acc}.
+rewrite !foldintE {acc}.
 apply (for_loop_rel_le_postcond
          (invar := fun i a b => a = b ++ s)
-         (postcond := fun a b => a = b ++ s)) => //; last exact: le0x.
+         (postcond := fun a b => a = b ++ s)) => //.
 move=> i {}x y c d lti [{c}<-] [{d}<-] {x}->.
 move/(_ _ lti) : flta => flta.
 by rewrite /body IHa ?lena // [in RHS]IHa ?lena // catA.
@@ -285,7 +283,7 @@ Proof.
 move: tr rpre acc; apply: indtrie => [| a _ IHa x] rpre acc //=.
 case/(flarrayP maxlen) => [[-> //= | lena]] _ /=.
 rewrite lena (negbTE (len_neq0 maxlen)) => flta.
-apply for_loop_simple_ind; first last.
+apply foldint_ind; first last.
 - by move: maxlen => /andP[/ltW].
 - by rewrite to_nat0.
 move=> i x0 lti {x0}->.
@@ -425,8 +423,7 @@ case: (boolP (u0 < length a)%O) => [ltu0 | /negbTE]; first last.
   by case u.
 apply: (IHtr u0 ltu0); apply: flta.
 apply: (Order.POrderTheory.lt_le_trans ltu0).
-move: lena => []-> //; apply: Order.POrderTheory.ltW.
-by case/andP : maxlen.
+by move: lena => []->.
 Qed.
 
 Lemma prefixes_mktrieP u :
@@ -463,7 +460,7 @@ Fixpoint trie_prefixes_pos_acc acc tr : int * (@trie int) :=
   | Trie x a =>
       if length a == 0 then (acc, Empty)
       else let: (newacc, resa) :=
-             for_loop_simple (fun i acc_ar =>
+             foldint (fun i acc_ar =>
                       let: (recacc, reca) := trie_prefixes_pos_acc acc_ar.1 a.[i] in
                       (recacc, acc_ar.2.[i <- reca]))
                0 (length a) (acc + 1, make trielen (@Empty int)) in
