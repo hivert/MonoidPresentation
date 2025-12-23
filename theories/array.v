@@ -470,10 +470,7 @@ Section ToSeq.
 Context {S : Type}.
 Implicit Type (a : array S) (s : seq S).
 
-(* Definition to_seq a := array_foldr cons [::] a. *)
 Definition to_seq a := mkseq (fun i => a.[of_nat i]) (to_nat (length a)).
-(*Definition from_seq s d := (* FIXME : O((size s)^2) should be O(size s) *)
-  make_array d (of_nat (size s)) (fun i => nth d s (to_nat i)). *)
 Definition from_seq s d :=
   let len := of_nat (size s) in
   (foldint (fun i tls_ar =>
@@ -621,17 +618,14 @@ Implicit Types (i j m n len : int).
 
 Definition foldl_array := foldint (fun i acc => f acc a.[i]) 0 (length a) z.
 Definition foldscanl_array :=
-  foldint (fun i acc_a =>
-                     let: (acc, ar) := acc_a in
-                     let newacc := f acc a.[i] in
-                     (newacc, ar.[i <- newacc]))
+  foldint (fun i '(acc, ar) =>
+             let newacc := f acc a.[i] in (newacc, ar.[i <- newacc]))
     0 (length a) (z, make (length a) z).
 Definition scanl_array := foldscanl_array.2.
 
 Lemma foldl_foldscanl_arrayE : foldl_array = foldscanl_array.1.
 Proof.
-rewrite /foldl_array /foldscanl_array.
-rewrite !foldintE.
+rewrite /foldl_array /foldscanl_array !foldintE.
 apply (for_loop_rel_le_postcond (invar := fun i ar1 ar2 => ar1 = ar2.1)) => //.
 - by move=> i x [r ra] y [s sb] lti [{y}<-] [{s}<-] /= _ {x}->.
 Qed.
@@ -644,11 +638,10 @@ rewrite foldl_foldscanl_arrayE /scanl_array /foldscanl_array.
 set scanpair := foldint _ _ _ _.
 pose FL n := foldl f z (take (to_nat n) (to_seq a)).
 pose SC n := scanl f z (take (to_nat n) (to_seq a)).
-pose invar i (p : R * array R) :=
-  let (fl, sc) := p in
-  [/\ length sc = length a, default sc = z,
-    fl = FL i
-    & take (to_nat i) (to_seq sc) = SC i].
+pose invar i := fun '(fl, sc) =>
+                  [/\ length sc = length a, default sc = z,
+                    fl = FL i
+                    & take (to_nat i) (to_seq sc) = SC i].
 suff : invar (length a) scanpair.
   case: scanpair => [v b] /= [eqlen _ {v}->].
   by rewrite -{1}eqlen {invar}/SC{}/FL -!size_to_seq !take_size.
@@ -694,7 +687,7 @@ End FoldL.
 Section FoldR.
 
 Context {T R : Type} (f : T -> R -> R) (z : R) (a : array T).
-Implicit Types (i j m n len : int).
+Implicit Types (i j : int).
 
 Definition foldr_array :=
   foldint (fun i acc => f a.[length a - (succ i)] acc) 0 (length a) z.
@@ -706,9 +699,8 @@ have lesz : (size (rev (to_seq a)) <= to_nat max_length)%N.
   by rewrite size_rev size_to_seq -leEint; apply: leb_length.
 rewrite -[rev _](from_seqK (default a)) //.
 rewrite -foldl_arrayE /foldr_array /foldl_array.
-rewrite length_from_seq // size_rev size_to_seq to_natK.
-rewrite !foldintE.
-apply: (for_loop_rel_le_postcond (invar := fun i x y => x = y)) => //.
+rewrite length_from_seq // size_rev size_to_seq to_natK !foldintE.
+apply: (for_loop_rel_le_postcond (invar := fun=> eq)) => //.
 move=> i x y c d lti [{c}<-][{d}<-] {y}<-; rewrite {}/fs; congr f.
 rewrite -get_from_seq // nth_rev size_to_seq -?ltEint //.
 rewrite -[X in a.[X]]to_natK -nth_to_seq to_natK; congr nth.
@@ -719,6 +711,31 @@ exact: lt_lenght_wB.
 Qed.
 
 End FoldR.
+
+
+Section AlternativeDef.
+
+Context {T : Type}.
+Implicit Types (a : array T) (s : seq T) (i j : int).
+
+Lemma to_seq_foldr a : to_seq a = foldr_array cons [::] a.
+Proof. by rewrite foldr_arrayE; elim: (to_seq a) => {a}[| x l /= <-]. Qed.
+
+Lemma from_seq_make s d :
+  (size s <= to_nat max_length)%N ->
+  from_seq s d = make_array d (of_nat (size s)) (fun i => nth d s (to_nat i)).
+Proof.
+move=> H.
+have Hnat : of_nat (size s) <= max_length.
+  by rewrite leEint of_natK // (leq_ltn_trans H lt_max_lenght_wB).
+apply: array_ext.
+- by rewrite length_from_seq // length_make_array //.
+- rewrite length_from_seq // => i /[!ltbE] lti.
+  by rewrite get_make_array ?lti ?H // get_from_seq.
+- by rewrite default_from_seq default_make_array.
+Qed.
+
+End AlternativeDef.
 
 
 Section Test.
