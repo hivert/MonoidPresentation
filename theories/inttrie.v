@@ -13,6 +13,7 @@
 (*                                                                            *)
 (*                  http://www.gnu.org/licenses/                              *)
 (******************************************************************************)
+From Corelib Require Import Setoid.
 From HB Require Import structures.
 From Stdlib Require Import Znat BinIntDef Uint63.
 From Stdlib Require Import -(notations) PArray.
@@ -31,79 +32,10 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Import Order.Theory Order.POrderTheory.
 
 Local Open Scope uint63_scope.
 
-
-(*
-
-(* iteri n g x0 == g n.-1 (g ... (g 0 x0)) *)
-Section IterTailRecursive.
-
-Context {S : Type}.
-Implicit Types (n : nat) (f : nat -> S -> S) (x : S).
-
-Definition iteritl n f x0 : S :=
-  let fix aux res m i :=
-    if m is m'.+1 then aux (f i res) m' i.+1
-    else res
-  in aux x0 n 0%N.
-
-Lemma iteritlS n f x0 : iteritl n.+1 f x0 = f n (iteritl n f x0).
-Proof.
-have shift m g y : iteritl m.+1 g y = iteritl m (g \o succn) (g 0%N y).
-  by rewrite /iteritl /=; elim: m g y 0%N.
-by rewrite shift; elim: n f x0 => //= n IHn f x0; rewrite !shift.
-Qed.
-Lemma iteritlE n f x0 : iteritl n f x0 = iteri n f x0.
-Proof. by elim: n => //= n <-; rewrite iteritlS. Qed.
-
-End IterTailRecursive.
-
-
-Section IterInt.
-
-Context {S : Type}.
-Implicit Types (n : int) (f : int -> S -> S) (x : S).
-
-Definition iterint n f x0 : S :=
-  let fix aux res m i :=
-    if m is m'.+1 then aux (f i res) m' (Uint63.succ i)
-    else res
-  in aux x0 (to_nat n) 0.
-
-Lemma interintE n f x0 :
-  iterint n f x0 = iteri (to_nat n) (fun i => f (of_nat i)) x0.
-Proof.
-rewrite -iteritlE /iterint /iteritl -(to_natK 0) to_nat0.
-elim: (to_nat n) 0%N x0 => // i IHi n0 x0.
-by rewrite -IHi succ_of_nat.
-Qed.
-
-End IterInt.
-
-
-Section Arrays.
-
-Definition array_foldl {S T : Type} (f : T -> S -> T) (x0 : T) (a : array S) : T :=
-  iterint (length a) (fun i x => f x a.[i]) x0.
-Definition array_map {S T : Type} (f : S -> T) (a : array S) : array T :=
-  iterint (length a) (fun i b => b.[i <- f a.[i]]) (make (length a) (f (default a))).
-Definition array_foldr {S T : Type} (f : S -> T -> T) (x0 : T) (a : array S) : T :=
-  let size := length a in
-  fst (nat_rect (fun _ => (T * int)%type) (x0, Uint63.pred size)%int63
-       (fun _ '(y, i) => (f a.[i] y, Uint63.pred i)) (to_nat size)).
-
-End Arrays.
-
-Section Test.
-
-Let a := (make 5 0).[0 <- 1].[1 <- 2].[2 <- 8].[4 <- 1222].
-
-Time Eval compute in array_map (fun i => i * i) a.
-
-End Test.
-*)
 
 
 (** Data structure for tries *)
@@ -142,8 +74,8 @@ Definition indtrie (P : trie -> Prop) := @rectrie P.
 Definition eq_trarray (eqtrie : trie -> trie -> bool) (a b : array trie) :=
   [&& length a == length b,
     eqtrie (default a) (default b) &
-      all (fun i => eqtrie a.[(of_nat i)] b.[(of_nat i)])
-        (iota 0 (to_nat (length a)))].
+      (* locked to avoid stack overflow *)
+      locked (allint (fun i => eqtrie a.[i] b.[i]) 0 (length a))].
 Fixpoint eq_trie s t : bool :=
   match s, t with
   | Trie u a, Trie v b => (u == v) && eq_trarray eq_trie a b
@@ -155,15 +87,13 @@ Lemma eqtrie_subproof : Equality.axiom eq_trie.
 Proof.
 move=> s t; apply (iffP idP) => [|{s}->].
   elim/rectrie: s t => [[] //|a IHdef IHa] x [//| y] b /= /andP[/eqP {y}<-].
-  rewrite /eq_trarray => /and3P[/eqP eqlen {}/IHdef eqdef /allP /= eq].
+  rewrite /eq_trarray => /and3P[/eqP eqlen {}/IHdef eqdef].
+  unlock => /allintP /= eq.
   congr Trie; apply: array_ext => // i /[dup] {}/IHa Hrec ltil.
-  apply: Hrec; rewrite -(to_natK i); apply: eq.
-  by rewrite mem_iota /= add0n -ltEint; exact: ltil.
+  by apply: Hrec; apply: eq; rewrite le0x /=.
 elim/rectrie: t => [//| a IHdef IHa] x; rewrite /= eqxx {x} /=.
 rewrite /eq_trarray !eqxx {}IHdef /=.
-apply/allP => /= n; rewrite mem_iota /= add0n => ltn.
-apply: IHa; rewrite ltEint of_natK //.
-exact/(leq_trans ltn (ltnW _))/lt_lenght_wB.
+by unlock; apply/allintP => i /andP[_ lti]; apply: IHa.
 Qed.
 HB.instance Definition _ := hasDecEq.Build trie eqtrie_subproof.
 

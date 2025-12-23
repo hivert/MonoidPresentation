@@ -15,7 +15,8 @@
 (******************************************************************************)
 From HB Require Import structures.
 From Stdlib Require Import Znat BinIntDef Uint63 Ring Ring63.
-From mathcomp Require Import all_boot all_order nmodule ssralg zmodp.
+From mathcomp Require Import all_boot all_order.
+From mathcomp Require Import nmodule ssralg zmodp countalg finalg.
 
 
 Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
@@ -192,6 +193,10 @@ Proof. by move=> y x z; rewrite !leEintb => /leq_trans/[apply]. Qed.
 HB.instance Definition _ := Order.isPOrder.Build int_disp int
                               ltint_def leint_refl leint_anti leint_trans.
 
+Lemma lebE x y : (x <=? y) = (x <= y)%O.
+Proof. by []. Qed.
+Lemma ltbE x y : (x <? y) = (x < y)%O.
+Proof. by []. Qed.
 Lemma leEint x y : (x <= y)%O = (to_nat x <= to_nat y).
 Proof. exact: leEintb. Qed.
 Lemma ltEint x y : (x < y)%O = (to_nat x < to_nat y).
@@ -205,6 +210,15 @@ Fact le0int x : (0 <= x)%O.
 Proof. by rewrite leEint. Qed.
 HB.instance Definition _ := Order.hasBottom.Build int_disp int le0int.
 Hint Resolve le0int : core.
+
+Lemma max_intSE : (to_nat max_int).+1 = wBnat.
+Proof.
+by rewrite -addn1 -add_natE -[1%N]/(BinInt.Z.to_nat 1) -Z2Nat.inj_add // wBnatE.
+Qed.
+Fact le_maxint x : (x <= max_int)%O.
+Proof. by rewrite leEint -ltnS max_intSE ltwBnat. Qed.
+HB.instance Definition _ := Order.hasTop.Build int_disp int le_maxint.
+Hint Resolve le_maxint : core.
 
 Lemma maxEint x y : to_nat (max x y) = maxn (to_nat x) (to_nat y).
 Proof.
@@ -226,6 +240,8 @@ Lemma wf_ltint : well_founded (<%O : rel int).
 Proof. by apply: (wf_f _ wf_ltnat) => x y; rewrite ltEint; apply. Qed.
 
 End IntOrder.
+Hint Resolve le0int : core.
+Hint Resolve le_maxint : core.
 
 
 Section ZmodP.
@@ -250,6 +266,7 @@ Proof.
 move=> z; rewrite /to_ZwB /of_ZwB /= Zp_nat.
 by rewrite -(valZpK z) of_natK ?valZpK // -{2}Zp_trunc_wBnat.
 Qed.
+HB.instance Definition _ := isFinite.Build int (pcan_enumP (can_pcan to_ZwBK)).
 
 Lemma to_ZwBK_is_nmod_morphism : GRing.nmod_morphism to_ZwB.
 Proof.
