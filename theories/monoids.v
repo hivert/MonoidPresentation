@@ -16,6 +16,7 @@
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
 From mathcomp Require Import choice bigop fintype finfun finset ssralg monoid.
+From mathcomp Require Import fingroup perm.
 
 Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
 
@@ -156,7 +157,7 @@ by rewrite univmorE.
 Qed.
 
 
-(* Monoid structure on the type of finite endofunctions *)
+(* Monoid structure on finite endofunctions *)
 Module Transformation.
 Section Transformation.
 
@@ -166,8 +167,8 @@ Implicit Types (f g h : type).
 #[export]
 HB.instance Definition _ := Finite.on type.
 
-Let multr f g : type := finfun (f \o g).
-Lemma multrE f g x : (multr f g) x = f (g x).
+Let multr f g : type := finfun (g \o f).
+Lemma multrE f g x : (multr f g) x = g (f x).
 Proof. by rewrite ffunE. Qed.
 Lemma multrA : associative multr.
 Proof. by move=> f g h; apply/ffunP => x; rewrite !multrE. Qed.
@@ -185,9 +186,9 @@ HB.reexport Transformation.
 Section Theory.
 Variable (T : finType).
 Implicit Types (f g h : type T).
-Lemma multrP f g : f * g = finfun (f \o g).
+Lemma multrP f g : f * g = finfun (g \o f).
 Proof. by []. Qed.
-Lemma multrE f g x : (f * g) x = f (g x).
+Lemma multrE f g x : (f * g) x = g (f x).
 Proof. exact: multrE. Qed.
 Lemma onetrP : (1 : type T) = finfun id.
 Proof. by []. Qed.
@@ -198,7 +199,7 @@ HB.export Transformation.Exports.
 Notation "{ 'transf' T }" := (Transformation.type T).
 
 
-(* Monoid structure on the type of partial finite endofunctions *)
+(* Monoid structure on partial finite endofunctions *)
 Module PartialTransformation.
 Section PartialTransformation.
 
@@ -208,21 +209,23 @@ Implicit Types (f g h : type).
 #[export]
 HB.instance Definition _ := Finite.on type.
 
-Let multr f g : type := finfun (obind f \o g).
-Lemma multrE f g x : (multr f g) x = obind f (g x).
+Let multr f g : type := finfun (obind g \o f).
+Lemma multrE f g x : (multr f g) x = obind g (f x).
 Proof. by rewrite ffunE. Qed.
 Lemma multrA : associative multr.
 Proof.
 move=> f g h; apply/ffunP => x; rewrite !multrE /=.
-by case: (h x) => [{}x|] //=; rewrite multrE.
+by case: (f x) => [{}x|] //=; rewrite multrE.
 Qed.
 Lemma mul1tr : left_id (finfun Some) multr.
 Proof.
-move=> f; apply/ffunP => x; rewrite multrE /=.
-by case: (f x) => [{}x|] //=; rewrite ffunE.
+by move=> f; apply/ffunP => x; rewrite multrE /= ffunE.
 Qed.
 Lemma multr1 : right_id (finfun Some) multr.
-Proof. by move=> f; apply/ffunP => x; rewrite multrE ffunE /=. Qed.
+Proof.
+move=> f; apply/ffunP => x; rewrite multrE /= /obind /oapp.
+by case: (f x) => // {}x; rewrite ffunE.
+Qed.
 #[export]
 HB.instance Definition _ := isMonoid.Build type multrA mul1tr multr1.
 
@@ -233,9 +236,9 @@ HB.reexport PartialTransformation.
 Section Theory.
 Variable (T : finType).
 Implicit Types (f g h : type T).
-Lemma multrP f g : f * g = finfun (obind f \o g).
+Lemma multrP f g : f * g = finfun (obind g \o f).
 Proof. by []. Qed.
-Lemma multrE f g x : (f * g) x = obind f (g x).
+Lemma multrE f g x : (f * g) x = obind g (f x).
 Proof. exact: multrE. Qed.
 Lemma onetrP : (1 : type T) = finfun Some.
 Proof. by []. Qed.
@@ -246,11 +249,39 @@ HB.export PartialTransformation.Exports.
 Notation "{ 'ptransf' T }" := (PartialTransformation.type T).
 
 
-(** A partial transformation monoid over T is a submonoid of *)
-(** the monoid of tranformation over option T                *)
-Section PTranfToTransf.
+(** The transformation monoid over T is a submonoid *)
+(** of the partial tranformation monoid over T      *)
+Section TranfToPTransf.
 
-Variable (T : finType).
+Context {T : finType}.
+Implicit Types (f g h : {transf T}) (p q : {ptransf T}).
+
+Definition to_ptransf f : {ptransf T} := finfun (olift f).
+Definition of_ptransf p : {transf T} :=
+  finfun [fun x => if p x is Some y then y else x].
+Lemma to_ptransfE f x : to_ptransf f x = Some (f x).
+Proof. by rewrite ffunE. Qed.
+Lemma to_ptransf_is_monoid_morphism : monoid_morphism to_ptransf.
+Proof.
+split=> [| /= f g].
+- by apply/ffunP=> x; rewrite !ffunE /olift ffunE.
+- apply/ffunP=> x; rewrite !ffunE /= /olift.
+  by rewrite /obind /oapp /= !to_ptransfE ffunE /=.
+Qed.
+HB.instance Definition _ :=
+  isUMagmaMorphism.Build {transf T} {ptransf T}
+    to_ptransf to_ptransf_is_monoid_morphism.
+Lemma to_ptransfK : cancel to_ptransf of_ptransf.
+Proof. by move=> f; apply/ffunP => x; rewrite !ffunE /= to_ptransfE. Qed.
+
+End TranfToPTransf.
+
+
+(** The partial transformation monoid over T is a submonoid *)
+(** of the monoid of tranformation over option T            *)
+Section PTranfToTransfOpt.
+
+Context {T : finType}.
 Implicit Types (f g h : {ptransf T}) (p q : {transf option T}).
 
 Definition to_transfopt f : {transf option T} := finfun (oapp f None).
@@ -262,7 +293,7 @@ Proof. by rewrite ffunE. Qed.
 Lemma to_transfopt_is_monoid_morphism : monoid_morphism to_transfopt.
 Proof.
 split=> [| /= f g]; apply/ffunP => -[x|]; rewrite !ffunE //= ffunE //=.
-- by rewrite !to_transfoptE; case: (g x) => [{}x|] /=; rewrite !ffunE /=.
+- by rewrite !to_transfoptE; case: (f x) => [{}x|] /=; rewrite !ffunE /=.
 - by rewrite to_transfoptN.
 Qed.
 HB.instance Definition _ :=
@@ -271,7 +302,41 @@ HB.instance Definition _ :=
 Lemma to_transfoptK : cancel to_transfopt of_transfopt.
 Proof. by move=> f; apply/ffunP => x /=; rewrite !ffunE /=. Qed.
 
-End PTranfToTransf.
+End PTranfToTransfOpt.
+
+
+(** The symmetric group is a submonoid of the tranformation monoid *)
+Section PermToTransf.
+
+Local Open Scope group_scope.
+
+Context {T : finType}.
+Implicit Types (f g h : {transf T}) (p q : {perm T}).
+
+Definition perm_to_transf p : {transf T} := \val p.
+Definition perm_of_transf f : {perm T} :=
+  if boolP (injectiveb f) is AltTrue pf then Perm pf else 1.
+Lemma perm_to_transfE p : perm_to_transf p =1 p :> (T -> T).
+Proof. by move=> x; rewrite /perm_to_transf /= pvalE. Qed.
+
+Lemma perm_to_transf_is_monoid_morphism : monoid_morphism perm_to_transf.
+Proof.
+split=> [| /= f g].
+- by apply/ffunP=> x; rewrite !(perm_to_transfE, permE, ffunE).
+- by apply/ffunP=> x; rewrite !(perm_to_transfE, permE, ffunE) /= !perm_to_transfE.
+Qed.
+HB.instance Definition _ :=
+  isUMagmaMorphism.Build {perm T} {transf T}
+    perm_to_transf perm_to_transf_is_monoid_morphism.
+Lemma perm_to_transfK : cancel perm_to_transf perm_of_transf.
+Proof.
+case=> [/= f pff]; apply/permP=> x /=.
+rewrite unlock /= pvalE /perm_of_transf /perm_to_transf /=.
+move: pff; case (boolP (injectiveb f)) => // pff _.
+by rewrite unlock /=.
+Qed.
+
+End PermToTransf.
 
 
 (* Monoid structure on the type of binary relations on a finType *)
@@ -356,6 +421,55 @@ by rewrite !dualrelE => [zx_in_g yz_in_f]; exists z.
 Qed.
 End RelatTheory.
 
+
+(** The partial transformation monoid over T is a submonoid *)
+(** of the relation monoid over T                           *)
+Section PtransfToRelat.
+
+Context {T : finType}.
+Implicit Types (x y : T) (f g h : {ptransf T}) (r s : {relat T}).
+
+Definition ptransf_to_relat f : {relat T} :=
+  [set (x, odflt x (f x)) | x in T & isSome (f x)].
+Definition ptransf_of_relat r : {ptransf T} :=
+  [ffun x => unset1 [set y : T | (x, y) \in r]].
+
+Lemma ptransf_to_relatE p x y :
+  ((x, y) \in ptransf_to_relat p) = (p x == Some y).
+Proof.
+rewrite /ptransf_to_relat; apply/imsetP/eqP => [[x0 ] | eqpx].
+  by rewrite inE /= /odflt /oapp; case Hx0 : (p x0) => [y0 |//] _ [{x}-> {y}->].
+exists x; first by rewrite inE eqpx.
+by rewrite /odflt /oapp eqpx.
+Qed.
+
+Lemma ptransf_to_relat_is_monoid_morphism : monoid_morphism ptransf_to_relat.
+Proof.
+split=> [| /= f g].
+- by apply/setP => -[x y]; rewrite ptransf_to_relatE !inE /= ffunE.
+- apply/setP => -[x y]; rewrite !(ptransf_to_relatE, inE) /=.
+  rewrite ffunE /obind /= /oapp; case eqfx : (f x) => [z|]; first last.
+    apply/eqP/existsP => // -[z].
+    by rewrite !ptransf_to_relatE eqfx => /andP[/eqP].
+  apply/eqP/existsP => [eqgz | [y0]].
+    by exists z; rewrite !ptransf_to_relatE eqfx eqgz !eqxx.
+  by rewrite !ptransf_to_relatE eqfx => /andP[/eqP[<-] /eqP].
+Qed.
+HB.instance Definition _ :=
+  isUMagmaMorphism.Build {ptransf T} {relat T}
+    ptransf_to_relat ptransf_to_relat_is_monoid_morphism.
+Lemma ptransf_to_relatK : cancel ptransf_to_relat ptransf_of_relat.
+Proof.
+rewrite /ptransf_of_relat=> f; apply/ffunP=> x.
+rewrite ffunE; case eqfx: (f x) => [y|].
+  rewrite [X in unset1 X](_ : _ = set1 y) ?set1K //.
+  apply/setP=> z; rewrite !inE ptransf_to_relatE.
+  by rewrite eqfx (inj_eq Some_inj) eq_sym.
+rewrite [X in unset1 X](_ : _ = set0) ?unset10 //.
+by apply/setP=> y; rewrite !inE  ptransf_to_relatE eqfx.
+Qed.
+
+End PtransfToRelat.
 
 
 (* Converse monoid *)
