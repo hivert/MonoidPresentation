@@ -22,20 +22,15 @@ Variables (T1 T2 : eqType) (f : T1 -> T2) (s : seq T1).
 Lemma uniq_map_indexE :
   uniq (map f s) -> forall x, x \in s -> index (f x) (map f s) = index x s.
 Proof.
-move=> f_uniq x xins; apply/eqP.
-have fxinfs:= map_f f xins.
+move=> f_uniq x /[dup] xins /(map_f f) fxinfs; apply/eqP.
 rewrite -(nth_uniq (f x) _ _ f_uniq) ?index_mem ?size_map ?index_mem //.
 by rewrite nth_index // (nth_map x) ?index_mem // nth_index.
 Qed.
 
 Lemma uniq_map_in_inj : uniq (map f s) -> {in s &, injective f}.
 Proof.
-move=> Huniq x y xin yin /eqP eqfxy; apply/eqP.
-rewrite -(nth_index x xin) -(nth_index x yin).
-rewrite (nth_uniq _ _ _ (map_uniq Huniq)) ?index_mem //.
-rewrite -!(uniq_map_indexE Huniq) //.
-rewrite -(nth_uniq (f x) _ _ Huniq) ?index_mem ?map_f //.
-by rewrite !nth_index // map_f.
+move=> Huniq x y xin yin eqfxy; apply: (index_inj x xin yin).
+by rewrite -!(uniq_map_indexE Huniq) ?eqfxy.
 Qed.
 
 End UniqMap.
