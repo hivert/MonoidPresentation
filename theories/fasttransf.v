@@ -26,7 +26,6 @@ move=> f_uniq x /[dup] xins /(map_f f) fxinfs; apply/eqP.
 rewrite -(nth_uniq (f x) _ _ f_uniq) ?index_mem ?size_map ?index_mem //.
 by rewrite nth_index // (nth_map x) ?index_mem // nth_index.
 Qed.
-
 Lemma uniq_map_in_inj : uniq (map f s) -> {in s &, injective f}.
 Proof.
 move=> Huniq x y xin yin eqfxy; apply: (index_inj x xin yin).
@@ -369,15 +368,12 @@ Lemma in_enum_univmor_inj :
 Proof. exact: (uniq_map_in_inj all_perm_from_nf_uniq). Qed.
 
 Lemma mem_all_perm_from_nf p : p \in all_perm_from_nf.
-Proof.
-have /perm_mem -> := all_perm_from_nfE.
-by rewrite mem_enum inE.
-Qed.
+Proof. by have /perm_mem -> := all_perm_from_nfE; rewrite mem_enum inE. Qed.
 
 Theorem S4_rwsP : S4_rws \present 'S_4.
 Proof.
 apply: (Presentation (mgen := elemtr)) => [p /=| u v uin vin].
-- have /mapP [w win eqw] := mem_all_perm_from_nf p.
+  have /mapP [w win eqw] := mem_all_perm_from_nf p.
   exists w; last by rewrite eqw.
   have:= is_enum_normal_S4_rws; rewrite /is_enum_normal => -[_ /(_ w)].
   by rewrite {}win /normalword_of => /andP[+ _].
