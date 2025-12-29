@@ -141,50 +141,55 @@ End FinType.
 Module Test.
 Section Test.
 
-Definition N := 20.
+Definition N := 40.
 Let Nnat := to_nat N.
+
+Lemma NnatSE : Nnat = (to_nat (N - 1)).+1.
+Proof. by []. Qed.
 
 Local Lemma crdE : to_nat N = #|'I_Nnat|.
 Proof. by rewrite card_ord. Qed.
 Local Lemma crd_le : N <= max_length.
 Proof. by []. Qed.
 
+Let N0 : 'I_Nnat := ord0. (* Large speedup *)
+Local Notation eq_atransfP := (eq_atransfP N0 crdE crd_le).
+Local Notation atransf1 := (atransf1 N0 crdE crd_le).
+Local Notation atransfM := (atransfM N0 crdE crd_le).
+Local Notation atransf_inj := (atransf_inj crdE crd_le (x0 := N0)).
+
+
 Goal (1 * 1 = 1 :> {transf 'I_Nnat})%g.
 Proof.
-apply/(eq_atransfP ord0 crdE crd_le).
-rewrite !(atransf1 ord0 crdE crd_le, atransfM ord0 crdE crd_le).
-by vm_compute.
-Qed.
+apply/eq_atransfP; rewrite !(atransf1, atransfM).
+by vm_cast_no_check (erefl true).
+Time Qed.
 
 Definition revN : {transf 'I_Nnat} := [ffun x => rev_ord x].
-Definition revNar := atransf ord0 N revN.
+Definition revNar := atransf N0 N revN.
 
 Lemma revNarE : revNar = make_array 0 N (fun i => N - 1 - i).
 Proof.
 rewrite /revNar; apply: array_ext; first 2 last.
-- by rewrite default_atransf.
-- by rewrite [LHS](length_atransf _ crd_le) [RHS]length_make_array.
+- (* Localisation help Rocq applying rewrite *)
+  by rewrite [LHS]default_atransf [RHS]default_make_array.
+- by rewrite [LHS](length_atransf N0 crd_le) [RHS]length_make_array.
   (* Faster than   by rewrite length_atransf.
      or            rewrite (length_atransf ord0 crd_le revN).
    *)
-rewrite length_atransf // => i lti.
-rewrite get_atransfE // get_make_array; first last.
+move=> i; rewrite [X in (i <? X) = true -> _](length_atransf _ crd_le) => lti.
+rewrite [LHS](get_atransfE N0 crd_le _ lti) [RHS]get_make_array; first last.
   by move: lti; rewrite -[i <? N]/(i < N) => -> /=.
-rewrite ffunE /= /int_of_finT /= enum_rank_ord /= subSS; apply: to_nat_inj.
-rewrite of_natK; first last.
-  apply: (leq_trans (n := Nnat)); first by rewrite ltnS (leq_subr).
-  by rewrite wBnatE.
-rewrite /finT_of_int /= nth_enum_ord; first last.
-  by rewrite /Nnat -ltEint -/N.
-by rewrite to_natB //; apply: ltSleint.
+rewrite ffunE /= /int_of_finT enum_rank_ord /=.
+rewrite {1}NnatSE subSS nth_enum_ord; last by rewrite -ltEint.
+by rewrite -to_natB ?to_natK //; last exact: ltSleint.
 Qed.
 
 Goal (revN * revN = 1 :> {transf 'I_Nnat})%g.
 Proof.
-apply/(eq_atransfP ord0 crdE crd_le).
-rewrite !(atransf1, atransfM) ?crdE // -/revNar revNarE.
-by vm_compute.
-Qed.
+apply/eq_atransfP; rewrite atransf1 !atransfM -/revNar revNarE.
+by vm_cast_no_check (erefl true).
+Time Qed.
 
 End Test.
 End Test.
@@ -372,7 +377,7 @@ Proof. by have /perm_mem -> := all_perm_from_nfE; rewrite mem_enum inE. Qed.
 
 Theorem S4_rwsP : S4_rws \present 'S_4.
 Proof.
-apply: (Presentation (mgen := elemtr)) => [p /=| u v uin vin].
+apply: (Presentation (mgen := elemtr)) => [p /= | u v uin vin].
   have /mapP [w win eqw] := mem_all_perm_from_nf p.
   exists w; last by rewrite eqw.
   have:= is_enum_normal_S4_rws; rewrite /is_enum_normal => -[_ /(_ w)].
