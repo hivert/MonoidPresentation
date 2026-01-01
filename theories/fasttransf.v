@@ -287,29 +287,29 @@ apply: perm_to_array_inj; rewrite !(perm_to_arrayM, perm_to_array1) /=.
 by rewrite !elemtraE.
 Qed.
 
-Definition aeval (r : seq int) : array int :=
+Definition ar_eval (r : seq int) : array int :=
   foldl (fun a i => mul_atransf N (elemtra i) a) (one_atransf N) r.
 Definition is_rel (rr : seq int * seq int) :=
-  eq_intarray N (aeval rr.1) (aeval rr.2).
+  eq_intarray N (ar_eval rr.1) (ar_eval rr.2).
 
-Lemma default_aeval r : default (aeval r) = 0.
+Lemma default_ar_eval r : default (ar_eval r) = 0.
 Proof.
-rewrite /aeval; case/lastP: r => //= r rn.
+rewrite /ar_eval; case/lastP: r => //= r rn.
 by rewrite foldl_rcons default_make_array.
 Qed.
-Lemma length_aeval r : length (aeval r) = N.
+Lemma length_ar_eval r : length (ar_eval r) = N.
 Proof.
-rewrite /aeval; case/lastP: r => //= r rn.
+rewrite /ar_eval; case/lastP: r => //= r rn.
 by rewrite foldl_rcons length_make_array.
 Qed.
 
 Lemma univmor_elemtr (r : seq int) :
-  all (<%O^~ (N - 1)) r -> perm_to_array (univmor elemtr r) = aeval r.
+  all (<%O^~ (N - 1)) r -> perm_to_array (univmor elemtr r) = ar_eval r.
 Proof.
 elim/last_ind: r => [|r rn IHr] /=.
   by rewrite univmor_nil perm_to_array1.
 rewrite univmor_rcons perm_to_arrayM all_rcons => /andP[/elemtraE -> {}/IHr ->].
-by rewrite /aeval foldl_rcons.
+by rewrite /ar_eval foldl_rcons.
 Qed.
 
 Lemma satisfy_eltr (rels : relat int) :
@@ -320,7 +320,7 @@ apply/satisfyP/allP => /= Hrel [r1 r2] /[dup]/Hr /= /andP[Hr1 Hr2] {}/Hrel /=.
   move/(congr1 perm_to_array) => /=.
   rewrite !univmor_elemtr //= => ->.
   by apply/allintP => i _; rewrite eqb_refl.
-rewrite -eq_intarrayP ?default_aeval ?length_aeval // => /eqP Heq.
+rewrite -eq_intarrayP ?default_ar_eval ?length_ar_eval // => /eqP Heq.
 by apply: perm_to_array_inj; rewrite !univmor_elemtr.
 Qed.
 
@@ -334,7 +334,7 @@ Let bound := 10%N.
 Let all_perm_from_nf : seq {perm 'I_Nnat} :=
       [seq univmor elemtr w | w <- (enum_normal_trie S4_rws bound).1].
 Let all_permarray_from_nf : seq (array int : eqType) :=
-      [seq aeval w | w <- (enum_normal_trie S4_rws bound).1].
+      [seq ar_eval w | w <- (enum_normal_trie S4_rws bound).1].
 
 Lemma is_enum_normal_S4_rws :
   is_enum_normal S4_rws (enum_normal_trie S4_rws bound).1.
@@ -350,7 +350,7 @@ Proof.
 rewrite -(map_inj_uniq perm_to_array_inj).
 rewrite /all_perm_from_nf -map_comp.
 set f := (X in map X _); set l := (X in map _ X).
-suff /eq_in_map -> : {in l, f =1 aeval} by apply: all_permarray_from_nf_uniq.
+suff /eq_in_map -> : {in l, f =1 ar_eval} by apply: all_permarray_from_nf_uniq.
 rewrite {}/l {}/f => w win /=; apply: univmor_elemtr.
 have:= is_enum_normal_S4_rws; rewrite /is_enum_normal => -[_ /(_ w)].
 rewrite {}win /normalword_of => /andP[+ _]; apply: sub_all => x /=.
