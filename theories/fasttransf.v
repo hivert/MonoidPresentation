@@ -34,6 +34,24 @@ Qed.
 
 End UniqMap.
 
+Locate dinjectiveb.
+
+Section Enum.
+
+Variable (T : finType).
+
+Lemma perm_enumTP (s : seq T) :
+  reflect (uniq s /\ forall x : T, x \in s) (perm_eq s (enum T)).
+Proof.
+apply: (iffP idP) => [Hperm | [suniq mems]].
+ split=> [|x]; first by rewrite (perm_uniq Hperm) (enum_uniq _).
+ by rewrite (perm_mem Hperm) mem_enum.
+apply: uniq_perm => //; first exact: enum_uniq.
+by move=> x; rewrite mems mem_enum.
+Qed.
+
+End Enum.
+
 
 Section FinType.
 

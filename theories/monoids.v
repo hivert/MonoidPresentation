@@ -236,17 +236,105 @@ HB.reexport PartialTransformation.
 Section Theory.
 Variable (T : finType).
 Implicit Types (f g h : type T).
-Lemma multrP f g : f * g = finfun (obind g \o f).
+Lemma mulptrP f g : f * g = finfun (obind g \o f).
 Proof. by []. Qed.
-Lemma multrE f g x : (f * g) x = obind g (f x).
+Lemma mulptrE f g x : (f * g) x = obind g (f x).
 Proof. exact: multrE. Qed.
-Lemma onetrP : (1 : type T) = finfun Some.
+Lemma oneptrE : (1 : type T) = finfun Some.
 Proof. by []. Qed.
 End Theory.
 End Exports.
 End PartialTransformation.
 HB.export PartialTransformation.Exports.
 Notation "{ 'ptransf' T }" := (PartialTransformation.type T).
+
+Lemma ptrP T (s t : {ptransf T}) : s =1 t <-> s = t.
+Proof. by split=> [| -> //] eq_st; apply/ffunP. Qed.
+
+Lemma pfun_dinjectiveP (T1 : finType) (T2 : eqType) (f : T1 -> option T2) :
+  reflect {on isSome &, injective f} (dinjectiveb f (isSome \o f)).
+Proof. by apply (iffP (dinjectiveP f _)) => inj /= x y; apply: inj. Qed.
+
+
+(* Monoid structure on partial permutations               *)
+(* i.e. injective partically defined finite endofunctions *)
+Section PartialPermutationDef.
+
+Variable (T : finType).
+
+Record pperm_type : predArgType :=
+  PPerm {ppval :> {ptransf T}; _ : dinjectiveb ppval (isSome \o ppval)}.
+
+HB.instance Definition _ := [isSub for ppval].
+HB.instance Definition _ := [Finite of pperm_type by <:].
+
+Lemma pinjective_closed :
+  monoid_closed (fun p : {ptransf T} => dinjectiveb p (isSome \o p)).
+Proof.
+split => [|s t]; rewrite !unfold_in.
+  (* exact/pfun_dinjectiveP/(on2W (inj_comp Some_inj (@inj_id T))). *)
+  by apply/pfun_dinjectiveP=> x y _ _; rewrite !oneptrE !ffunE => /Some_inj.
+move=> /pfun_dinjectiveP sinj /pfun_dinjectiveP tinj.
+apply/pfun_dinjectiveP => x y; rewrite !mulptrE /=.
+case eq_sx : (s x) => [sx |] //= {}/tinj tsx.
+case eq_sy : (s y) => [sy |] //= /tsx/[apply] eqsxy.
+by apply: sinj; rewrite ?{x}eq_sx ?{y}eq_sy ?eqsxy.
+Qed.
+HB.instance Definition _ :=
+  SubChoice_isSubMonoid.Build {ptransf T}
+    (fun p : {ptransf T} => dinjectiveb p (isSome \o p))
+    pperm_type pinjective_closed.
+
+Lemma pperm_proof (f : T -> option T) :
+  {on isSome &, injective f} -> dinjectiveb (finfun f) (isSome \o (finfun f)).
+Proof.
+move=> /pfun_dinjectiveP inj.
+suff /(eq_dinjectiveb (ffunE f)) -> : isSome \o (finfun f) =i isSome \o f by [].
+by move=> x /=; rewrite !unfold_in ffunE.
+Qed.
+
+End PartialPermutationDef.
+Arguments pperm_type T%_type.
+
+Notation "{ 'pperm' T }" :=
+  (pperm_type T) (format "{ 'pperm'  T }", at level 0) : type_scope.
+Arguments ppval _ _%_g.
+
+Bind Scope group_scope with pperm_type.
+
+
+HB.lock Definition pperm T f injf := PPerm (@pperm_proof T f injf).
+Canonical perm_unlock := Unlockable pperm.unlock.
+
+HB.lock Definition fun_of_pperm T (u : {pperm T}) : T -> option T := val u.
+Canonical fun_of_pperm_unlock := Unlockable fun_of_pperm.unlock.
+Coercion fun_of_pperm : pperm_type >-> Funclass.
+
+Section PPermTheory.
+
+Variable T : finType.
+Implicit Types (x y : T) (s t : {pperm T}).
+
+Lemma ppermP s t : s =1 t <-> s = t.
+Proof. by split=> [| -> //]; rewrite unlock => eq_sv; apply/val_inj/ffunP. Qed.
+
+Lemma ppvalE s : ppval s = s :> (T -> option T).
+Proof. by rewrite [@fun_of_pperm]unlock. Qed.
+
+Lemma ppermE f f_inj : @pperm T f f_inj =1 f.
+Proof. by move=> x; rewrite -ppvalE [@pperm]unlock ffunE. Qed.
+
+Lemma pperm1E x : (1 : {pperm T}) x = Some x.
+Proof. by rewrite -ppvalE /= ffunE. Qed.
+
+Lemma ppermME s t x : (s * t) x = obind t (s x).
+Proof. by rewrite -ppvalE /= ffunE /= !ppvalE. Qed.
+
+Lemma pperm_inj {s} : {on isSome &, injective s}.
+Proof. by rewrite -!ppvalE; apply/pfun_dinjectiveP/(valP s). Qed.
+Hint Resolve pperm_inj : core.
+
+End PPermTheory.
 
 
 (** The transformation monoid over T is a submonoid *)
@@ -305,7 +393,7 @@ Proof. by move=> f; apply/ffunP => x /=; rewrite !ffunE /=. Qed.
 End PTranfToTransfOpt.
 
 
-(** The symmetric group is a submonoid of the tranformation monoid *)
+(** The symmetric group is a submonoid of the transformation monoid *)
 Section PermToTransf.
 
 Local Open Scope group_scope.
@@ -338,6 +426,44 @@ Qed.
 
 End PermToTransf.
 
+
+(*
+(** The symmetric group is a submonoid of the partial permutation monoid *)
+Section PermToPPerm.
+
+Local Open Scope group_scope.
+
+Context {T : finType}.
+Implicit Types (f g h : {pperm T}) (p q : {perm T}).
+
+Lemma perm_to_pperm_subproof p : {on isSome &, injective (olift p)}.
+Proof. by rewrite /olift => x y _ _ [] /perm_inj. Qed.
+Definition perm_to_pperm p : {pperm T} := pperm (@perm_to_pperm_subproof p).
+Definition perm_of_pperm f : {perm T} := perm_of_transf (of_ptransf (ppval f)).
+Lemma perm_to_ppermE p x : perm_to_pperm p x = Some (p x).
+Proof. by rewrite ppermE. Qed.
+
+Lemma perm_to_pperm_is_monoid_morphism : monoid_morphism perm_to_pperm.
+Proof.
+split=> [| /= f g].
+- by apply/ppermP=> x; rewrite perm_to_ppermE permE -ppvalE /= ffunE.
+- apply/ppermP=> x; rewrite perm_to_ppermE permE -ppvalE /=.
+  by rewrite multrE !ppvalE perm_to_ppermE /= perm_to_ppermE.
+Qed.
+HB.instance Definition _ :=
+  isUMagmaMorphism.Build {perm T} {pperm T}
+    perm_to_pperm perm_to_pperm_is_monoid_morphism.
+Lemma perm_to_ppermK : cancel perm_to_pperm perm_of_pperm.
+Proof.
+move=> p; apply/permP => /= x.
+rewrite /perm_of_pperm /perm_to_pperm.
+rewrite -{3}(perm_to_transfK p); congr (perm_of_transf _ _).
+apply/ffunP => {}x.
+by rewrite !ffunE perm_to_transfE ppvalE /= ppermE.
+Qed.
+
+End PermToPPerm.
+*)
 
 (* Monoid structure on the type of binary relations on a finType *)
 Module Relation.
