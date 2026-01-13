@@ -263,7 +263,7 @@ Section PartialPermutationDef.
 Variable (T : finType).
 
 Record pperm_type : predArgType :=
-  PPerm {ppval :> {ptransf T}; _ : dinjectiveb ppval (isSome \o ppval)}.
+  PPerm {ppval : {ptransf T}; _ : dinjectiveb ppval (isSome \o ppval)}.
 
 HB.instance Definition _ := [isSub for ppval].
 HB.instance Definition _ := [Finite of pperm_type by <:].
@@ -416,18 +416,23 @@ Qed.
 HB.instance Definition _ :=
   isUMagmaMorphism.Build {perm T} {transf T}
     perm_to_transf perm_to_transf_is_monoid_morphism.
+
+Lemma perm_of_transfE f : injective f -> perm_of_transf f =1 f.
+Proof.
+move=> /injectiveP f_inj x.
+rewrite unlock /= pvalE /perm_of_transf /perm_to_transf /=.
+move: f_inj; case (boolP (injectiveb f)) => // pff _.
+by rewrite unlock /=.
+Qed.
 Lemma perm_to_transfK : cancel perm_to_transf perm_of_transf.
 Proof.
 case=> [/= f pff]; apply/permP=> x /=.
-rewrite unlock /= pvalE /perm_of_transf /perm_to_transf /=.
-move: pff; case (boolP (injectiveb f)) => // pff _.
-by rewrite unlock /=.
+by rewrite perm_of_transfE ?perm_to_transfE; last exact/injectiveP.
 Qed.
 
 End PermToTransf.
 
 
-(*
 (** The symmetric group is a submonoid of the partial permutation monoid *)
 Section PermToPPerm.
 
@@ -446,9 +451,9 @@ Proof. by rewrite ppermE. Qed.
 Lemma perm_to_pperm_is_monoid_morphism : monoid_morphism perm_to_pperm.
 Proof.
 split=> [| /= f g].
-- by apply/ppermP=> x; rewrite perm_to_ppermE permE -ppvalE /= ffunE.
-- apply/ppermP=> x; rewrite perm_to_ppermE permE -ppvalE /=.
-  by rewrite multrE !ppvalE perm_to_ppermE /= perm_to_ppermE.
+- by apply/ppermP=> x; rewrite perm_to_ppermE permE pperm1E.
+- apply/ppermP=> x; rewrite perm_to_ppermE.
+  by rewrite permE /= ppermME /= !perm_to_ppermE /= perm_to_ppermE.
 Qed.
 HB.instance Definition _ :=
   isUMagmaMorphism.Build {perm T} {pperm T}
@@ -462,8 +467,25 @@ apply/ffunP => {}x.
 by rewrite !ffunE perm_to_transfE ppvalE /= ppermE.
 Qed.
 
+Definition pperm_is_perm f := [forall x : T, isSome (f x)].
+Lemma pperm_is_permP f :
+  reflect (forall x : T, isSome (f x)) (pperm_is_perm f).
+Proof. exact: forallP. Qed.
+Lemma perm_to_pperm_is_perm p : pperm_is_perm (perm_to_pperm p).
+Proof. by apply/pperm_is_permP=> x; rewrite perm_to_ppermE. Qed.
+Lemma perm_of_ppermK : {in pperm_is_perm, cancel perm_of_pperm perm_to_pperm}.
+Proof.
+move=> f /pperm_is_permP allSome; apply/ppermP => x.
+rewrite perm_to_ppermE /perm_of_pperm perm_of_transfE; first last.
+  rewrite /of_ptransf => {}x y /=; rewrite !ffunE ppvalE /= => Heq.
+  apply: (pperm_inj (allSome x) (allSome y)).
+  by case: (f x) (f y) (allSome x) (allSome y) Heq => [fx | //] [fy | //] _ _ ->.
+rewrite /of_ptransf !ffunE ppvalE /=.
+by case: (f x) (allSome x).
+Qed.
+
 End PermToPPerm.
-*)
+
 
 (* Monoid structure on the type of binary relations on a finType *)
 Module Relation.
