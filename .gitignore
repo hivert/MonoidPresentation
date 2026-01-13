@@ -34,3 +34,8 @@ Makefile.coq.conf
 TAGS
 CoqMakefile.conf
 _CoqProject
+blueprint/print/
+blueprint/web/
+blueprint/src/web.paux
+blueprint/src/web.bbl
+blueprint/rocq_decls

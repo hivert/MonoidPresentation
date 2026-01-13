@@ -1,0 +1,37 @@
+% In this file you should put all LaTeX macros and settings to be used both by
+% the pdf version and the web version.
+% This should be most of your macros.
+
+% The theorem-like environments defined below are those that appear by default
+% in the dependency graph. See the README of rocqblueprint if you need help to
+% customize this. 
+% The configuration below use the theorem counter for all those environments
+% (this is what the [theorem] arguments mean) and never resets it.
+% If you want for instance to number them within chapters then you can add
+% [chapter] at the end of the next line.
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+% Order
+
+\newcommand{\lex}{\leq_\textrm{lex}}
+\newcommand{\lenlex}{\leq_\textrm{lenlex}}
+
+% Presentation macros
+
+\newcommand{\Pres}{\mathcal{P}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+
+\newcommand{\Inv}{\mathrm{Inv}}
+\newcommand{\Semi}{\mathrm{Semi}}
+\newcommand{\Gp}{\mathrm{Gp}}
+\newcommand{\Mon}{\mathrm{Mon}}
+
+\newcommand{\set}[2]{\ensuremath{\left\{\: #1 \: \middle|\: #2 \:\right\}}}
+\newcommand{\presset}[2]{\left\langle\, #1 \,\middle|\, #2 \,\right\rangle}
