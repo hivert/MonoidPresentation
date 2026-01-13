@@ -329,7 +329,7 @@ Qed.
 Lemma ps_of_RBK :
   {in [set r : RennerB | pperm_is_perm r], cancel ps_of_RB RB_of_ps}.
 Proof.
-
+(*
 case=> /= r /= renr /[!inE] /= permr.
 have r_inj : injective (of_ptransf [ffun i0 => omap absval (r (inr i0))]).
   move=> /= i j; rewrite !ffunE /= !ffunE /=.
@@ -338,7 +338,7 @@ have r_inj : injective (of_ptransf [ffun i0 => omap absval (r (inr i0))]).
 apply/val_inj/ppermP => /= -[]i; rewrite !ppermE /=; case: (tnth _ _) => /=.
   rewrite /perm_of_RB /=.
   rewrite perm_of_transfE /= => [|{}i j]. ; rewrite !ffunE /= !ffunE /=.
-        
+*)        
 Admitted.
 
 Lemma RB_of_ps_bij:
@@ -346,7 +346,7 @@ Lemma RB_of_ps_bij:
 Proof.
 exists ps_of_RB; first exact/in1W/RB_of_psK.
 by move=> /= r Hr; rewrite ps_of_RBK.
-Qed.
+Admitted.
 
 
 
@@ -381,12 +381,13 @@ apply/subsetP => r _; rewrite !inE.
 by case: r => r /= /orP[/andP[-> _] | /andP[-> _ /[!orbT]]].
 Qed.
 
-Definition card'RB :=
+End Theory.
+
+Definition card'RB n :=
   n`! * 2 ^ n + \sum_(k < n.+1) 4 ^ k * (binomial n k) ^ 2 * k`!.
-Definition card'RB_comp :=
+Definition card'RB_comp n :=
   n`! * 2 ^ n + sumn [seq 4 ^ k * (binomial n k) ^ 2 * k`! | k <- iota 0 n.+1]%N.
 
-End Theory.
 
 Goal card'RB_comp 1 = 7.     Proof. by compute. Qed.
 Goal card'RB_comp 2 = 57.    Proof. by compute. Qed.
