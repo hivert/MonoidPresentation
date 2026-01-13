@@ -321,6 +321,7 @@ rewrite /ar_eval; case/lastP: r => //= r rn.
 by rewrite foldl_rcons length_make_array.
 Qed.
 
+(** generalize and move to infrastructure *)
 Lemma univmor_elemtr (r : seq int) :
   all (<%O^~ (N - 1)) r -> perm_to_array (univmor elemtr r) = ar_eval r.
 Proof.
@@ -363,6 +364,7 @@ Qed.
 
 Lemma all_permarray_from_nf_uniq : uniq all_permarray_from_nf.
 Proof. by vm_compute; unlock. Qed.
+(** generalize and move to infrastructure *)
 Lemma all_perm_from_nf_uniq : uniq all_perm_from_nf.
 Proof.
 rewrite -(map_inj_uniq perm_to_array_inj).
@@ -377,6 +379,7 @@ Qed.
 
 Lemma size_nf_S4_rws : size (enum_normal_trie S4_rws bound).1 = 24%N.
 Proof. by vm_compute. Qed.
+(** generalize and move to infrastructure assuming cardinality equality *)
 Lemma all_perm_from_nfE : perm_eq all_perm_from_nf (enum 'S_Nnat).
 Proof.
 apply: uniq_perm.
@@ -386,13 +389,16 @@ have /(_ (enum 'S_Nnat))[] // := (uniq_min_size all_perm_from_nf_uniq).
 - by move=> x _; rewrite mem_enum inE.
 - by rewrite -cardT card_Sn !size_map size_nf_S4_rws /=.
 Qed.
+(** generalize and move to infrastructure *)
 Lemma in_enum_univmor_inj :
   {in (enum_normal_trie S4_rws bound).1 &, injective (univmor elemtr)}.
 Proof. exact: (uniq_map_in_inj all_perm_from_nf_uniq). Qed.
 
+(** generalize and move to infrastructure *)
 Lemma mem_all_perm_from_nf p : p \in all_perm_from_nf.
 Proof. by have /perm_mem -> := all_perm_from_nfE; rewrite mem_enum inE. Qed.
 
+(** generalize and move to infrastructure *)
 Theorem S4_rwsP : S4_rws \present 'S_4.
 Proof.
 apply: (Presentation (mgen := elemtr)) => [p /= | u v uin vin].
@@ -425,3 +431,4 @@ Proof. exact: (isopresent S4_rwsP isopres_S4). Qed.
 
 End TestPerm.
 End TestPerm.
+
