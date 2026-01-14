@@ -114,6 +114,9 @@ Qed.
 Record RennerB : predArgType :=
   mkRennerB {renval :> {pperm 'SI_n}; _ : isRennerB renval}.
 
+Lemma RennerP (r : RennerB) : isRennerB r.
+Proof. by case: r. Qed.
+
 HB.instance Definition _ := [isSub for renval].
 HB.instance Definition _ := [Finite of RennerB by <:].
 
@@ -189,6 +192,41 @@ Qed.
 HB.instance Definition _ :=
   SubChoice_isSubMonoid.Build {pperm 'SI_n} isRennerB RennerB RennerB_closed.
 
+End Defs.
+
+Notation "''RB_' n" := (RennerB n)
+  (at level 8, n at level 2, format "''RB_' n").
+
+
+Section Theory.
+
+Lemma RB0E : all_equal_to (1 : 'RB_0).
+Proof. by move=> /= r; apply/val_inj/ppermP => -[][i]. Qed.
+
+Lemma permVhalf n : n != 0 -> forall r : 'RB_n, pperm_is_perm r (+) halfpperm r.
+Proof.
+case: n => // n _; case=> r /=; rewrite /isRennerB.
+case: (boolP (pperm_is_perm r)) => /= [ /pperm_is_permP alls _ |_  /andP[->] //].
+apply/negP => /halfppermP halfs.
+by have /halfs := alls (inr ord0); rewrite alls.
+Qed.
+
+Lemma Renner_perm_anti n (r : 'RB_n) : pperm_is_perm r -> antisymm r.
+Proof.
+case: n r => [|n] r.
+  by rewrite {r}RB0E => _; apply/antisymmP => /= -[][].
+move=> rperm; have:= RennerP r; rewrite /isRennerB.
+have:= permVhalf (n := n.+1) is_true_true r.
+by rewrite rperm => /= /negbTE->; rewrite orbF.
+Qed.
+
+End Theory.
+
+
+Section Generators.
+
+Variable (n : nat).
+
 Definition pi_pos_fun (i : 'SI_n) : option 'SI_n :=
   if i is inr j then Some (inr j) else None.
 Lemma pi_pos_fun_inj : {on isSome &, injective pi_pos_fun}.
@@ -238,13 +276,13 @@ by rewrite ppermE /sB_fun (negbTE ineq0) pperm1E.
 Qed.
 
 
-Implicit Type (p q : {perm 'I_n}) (r s t : RennerB).
+Implicit Type (p q : {perm 'I_n}) (r s t : 'RB_n).
 
-Definition perm2B_fun p (i : 'SI_n) : option 'SI_n :=
-  match i with
-  | inl i => Some (inl (p i))
-  | inr i => Some (inr (p i))
-  end.
+Definition perm2B_fun p :=
+  [fun i : 'SI_n => match i with
+                    | inl i => Some (inl (p i))
+                    | inr i => Some (inr (p i))
+                    end].
 Lemma perm2B_funM p q :
   perm2B_fun (p * q) =1 obind (perm2B_fun q) \o (perm2B_fun p).
 Proof. by case=> i /=; rewrite permM. Qed.
@@ -268,16 +306,15 @@ Definition perm2B p := mkRennerB (perm2B_subproof p).
 Lemma perm2B_monoid_morphism : monoid_morphism perm2B.
 Proof.
 by split => [| /= f g]; apply/val_inj/ppermP => -[]i;
-  rewrite ?ppermE ?pperm1E ?ppermME /= !(perm1, permM) //=
-    !ppermE /perm2B_fun /= ppermE.
+  rewrite ?ppermE ?pperm1E ?ppermME /= !(perm1, permM) //= ppermE /= ppermE.
 Qed.
 HB.instance Definition _ :=
-  isUMagmaMorphism.Build {perm 'I_n} RennerB perm2B perm2B_monoid_morphism.
+  isUMagmaMorphism.Build {perm 'I_n} 'RB_n perm2B perm2B_monoid_morphism.
 Lemma perm2B_inj : injective perm2B.
 Proof.
 move=> p q eqpq; apply/permP => i.
 move/(congr1 (fun r => renval r (inl i))) : eqpq.
-by rewrite /= !ppermE /perm2B_fun /= => -[].
+by rewrite /= !ppermE /= => -[].
 Qed.
 
 Section PermSign.
@@ -285,23 +322,22 @@ Section PermSign.
 Variables (p : {perm 'I_n}) (sgn : n.-tuple bool).
 
 Definition RB_of_perm_sign_fun :=
-  [fun i => match i with
-            | inl i => if tnth sgn i then Some (inl (p i)) else Some (inr (p i))
-            | inr i => if tnth sgn i then Some (inr (p i)) else Some (inl (p i))
-            end].
+  [fun i => if tnth sgn (absval i)
+            then (perm2B p i)
+            else omap swapsign (perm2B p i)].
 Lemma RB_of_perm_sign_inj : {on isSome &, injective RB_of_perm_sign_fun}.
 Proof.
 apply on2W.
-by case=> [] i [] j /=;
+by case=> [] i [] j; rewrite /= !ppermE /=;
    case ti: (tnth _ _); case tj: (tnth sgn j) => -[] // /perm_inj // eqij;
    move: ti; rewrite eqij // tj.
 Qed.
 Lemma RB_of_perm_sign_subproof : isRennerB (pperm RB_of_perm_sign_inj).
 Proof.
 apply/orP; left; apply/andP; split.
-  apply/pperm_is_permP => /= i; rewrite ppermE /=.
+  apply/pperm_is_permP => /= i; rewrite !ppermE /= ppermE /=.
   by case: i => i; case: (tnth sgn _).
-by apply/antisymmP => -[]i /=; rewrite !ppermE /=; case: (tnth _ _).
+by apply/antisymmP => -[]i /=; rewrite !ppermE /= !ppermE /=; case: (tnth _ _).
 Qed.
 Definition RB_of_perm_sign := mkRennerB RB_of_perm_sign_subproof.
 
@@ -309,62 +345,83 @@ End PermSign.
 
 Definition perm_of_RB r : {perm 'I_n} :=
   perm_of_transf (of_ptransf [ffun i : 'I_n => omap absval (r (inr i))]).
-Definition sign_of_RB r : n.-tuple bool :=
+Definition signs_of_RB r : n.-tuple bool :=
   [tuple if (r (inr i)) is Some (inr _) then true else false  | i < n].
 
 Definition RB_of_ps ps := RB_of_perm_sign ps.1 ps.2.
-Definition ps_of_RB r := (perm_of_RB r, sign_of_RB r).
+Definition ps_of_RB r := (perm_of_RB r, signs_of_RB r).
 
 Lemma RB_of_psK : cancel RB_of_ps ps_of_RB.
 Proof.
 rewrite /RB_of_ps /ps_of_RB => -[p s] /=; congr (_, _).
   apply/permP => i; rewrite /perm_of_RB /=.
-  rewrite perm_of_transfE => [|{}i j]; rewrite !ffunE /= !ffunE !ppermE /=.
+  rewrite perm_of_transfE => [|{}i j];
+                             rewrite !ffunE /= !ffunE /= !ppermE /= !ppermE /=.
     by case: (tnth s i).
   by case: (tnth s i) (tnth s j) => -[] /= /perm_inj.
 apply: eq_from_tnth => i.
-by rewrite tnth_mktuple /= ppermE /=; case: (tnth s i).
+by rewrite tnth_mktuple /= !ppermE /= ppermE /=; case: (tnth s i).
 Qed.
 
 Lemma ps_of_RBK :
-  {in [set r : RennerB | pperm_is_perm r], cancel ps_of_RB RB_of_ps}.
+  {in [pred r : 'RB_n | pperm_is_perm r], cancel ps_of_RB RB_of_ps}.
 Proof.
-(*
-case=> /= r /= renr /[!inE] /= permr.
+move=> r; rewrite inE => rperm.
+have /antisymmP ranti := Renner_perm_anti rperm.
+move/pperm_is_permP in rperm.
 have r_inj : injective (of_ptransf [ffun i0 => omap absval (r (inr i0))]).
   move=> /= i j; rewrite !ffunE /= !ffunE /=.
-  case: (r (inr i)) (allr (inr i)) => ri /= _.
-  
-apply/val_inj/ppermP => /= -[]i; rewrite !ppermE /=; case: (tnth _ _) => /=.
-  rewrite /perm_of_RB /=.
-  rewrite perm_of_transfE /= => [|{}i j]. ; rewrite !ffunE /= !ffunE /=.
-*)        
-Admitted.
+  have:= @omap_absvalE _ (r (inr i)) (r (inr j)).
+  case Hri : (r (inr i)) (rperm (inr i)) => [ri|//] /= _.
+  case Hrj : (r (inr j)) (rperm (inr j)) => [rj|//] /= _ eqabs eqr.
+  case: (eqabs (congr1 Some eqr)) => -[] {eqabs}eqr.
+    by move: Hri; rewrite {}eqr -{}Hrj => /(pperm_inj (rperm _) (rperm _)) [].
+  have := congr1 (fun x => omap swapsign (Some x)) eqr.
+  rewrite -Hri [LHS]ranti /= swapsignK -Hrj.
+  by move/(pperm_inj (rperm _) (rperm _)).
+have req (i : 'I_n) : omap absval (r (inr i)) = Some (perm_of_RB r i).
+  rewrite /perm_of_RB /= (perm_of_transfE r_inj) /= ffunE /= ffunE /=.
+  by case: (r (inr i)) (rperm (inr i)).
+apply/val_inj/ppermP => /= i; rewrite !ppermE /= !ppermE /=.
+case: i => i /=; rewrite tnth_mktuple.
+- case H : (r (inr i)) (rperm (inr i)) => [ri|//] /= _.
+  have /= <- := ranti (inr i).
+  have:= req i; rewrite {}H /= => -[] <-.
+  by case: ri.
+- case H : (r (inr i)) (rperm (inr i)) => [ri|//] /= _.
+  have:= req i; rewrite {}H /= => -[] <-.
+  by case: ri.
+Qed.
 
-Lemma RB_of_ps_bij:
-  {on [set r : RennerB | pperm_is_perm r], bijective RB_of_ps}.
+Lemma RB_of_ps_bij: {on [pred r : 'RB_n | pperm_is_perm r], bijective RB_of_ps}.
 Proof.
-exists ps_of_RB; first exact/in1W/RB_of_psK.
+exists ps_of_RB; first by apply: in1W; exact: RB_of_psK.
 by move=> /= r Hr; rewrite ps_of_RBK.
-Admitted.
+Qed.
+Corollary card_pperm_is_perm :
+  #|[pred r : 'RB_n | pperm_is_perm r]| = (n`! * 2 ^ n)%N.
+Proof.
+rewrite -(on_card_preimset RB_of_ps_bij).
+transitivity #|[set: {perm 'I_n} * n.-tuple bool]|.
+  congr #|pred_of_set _|; apply/eqP; rewrite -subTset /=.
+  apply/subsetP => /= p _; rewrite !inE.
+  apply/pperm_is_permP => i; rewrite /= ppermE /= ppermE /=.
+  by case: (tnth _ _); case: i.
+by rewrite cardsT card_prod /= card_tuple /= card_bool card_Sn.
+Qed.
+
+End Generators.
 
 
 
-
-End Defs.
-
-Notation "''RB_' n" := (RennerB n)
-  (at level 8, n at level 2, format "''RB_' n").
-
-
-Section Theory.
+Section Cardinality.
 
 Variable n0 : nat.
 Notation n := (n0.+1).
 Implicit Types (r s t : 'RB_n) (i j : 'SI_n).
 
-Lemma permVhalf :
-  [disjoint [set r : 'RB_n | pperm_is_perm r] & [set r : 'RB_n | halfpperm r]].
+Lemma disjjoint_perm_half :
+  [disjoint [pred r : 'RB_n | pperm_is_perm r] & [pred r : 'RB_n | halfpperm r]].
 Proof.
 rewrite disjoint_subset; apply/subsetP => /= r.
 rewrite !inE => /pperm_is_permP alls; apply/negP => /halfppermP halfs.
@@ -372,25 +429,29 @@ by have /halfs := alls (inr ord0); rewrite alls.
 Qed.
 
 Lemma cardRB_permVhalf :
-  #|[set: 'RB_n]|
-  = #|[set r : 'RB_n | pperm_is_perm r]| + #|[set r : 'RB_n | halfpperm r]|.
+  #|{: 'RB_n}|
+  = #|[pred r : 'RB_n | pperm_is_perm r]| + #|[pred r : 'RB_n | halfpperm r]|.
 Proof.
-rewrite -cardsUI (disjoint_setI0 permVhalf) cards0 addn0.
-congr #|pred_of_set _|; apply/esym/eqP; rewrite -subTset.
-apply/subsetP => r _; rewrite !inE.
+rewrite -cardUI (eqP disjjoint_perm_half) addn0.
+apply: eq_card => /= r; rewrite !inE.
 by case: r => r /= /orP[/andP[-> _] | /andP[-> _ /[!orbT]]].
 Qed.
 
-End Theory.
+End Cardinality.
 
-Definition card'RB n :=
+Definition cardRB n :=
   n`! * 2 ^ n + \sum_(k < n.+1) 4 ^ k * (binomial n k) ^ 2 * k`!.
-Definition card'RB_comp n :=
+Definition cardRB_comp n :=
   n`! * 2 ^ n + sumn [seq 4 ^ k * (binomial n k) ^ 2 * k`! | k <- iota 0 n.+1]%N.
+Lemma cardRBE n : cardRB n = cardRB_comp n.
+Proof.
+congr (_ + _); rewrite sumnE big_map big_mknat /index_iota subn0 !big_seq.
+apply: eq_bigr => i; rewrite mem_iota /= add0n => lti.
+by rewrite inordK.
+Qed.
 
-
-Goal card'RB_comp 1 = 7.     Proof. by compute. Qed.
-Goal card'RB_comp 2 = 57.    Proof. by compute. Qed.
-Goal card'RB_comp 3 = 757.   Proof. by compute. Qed.
+Goal cardRB_comp 1 = 7.     Proof. by compute. Qed.
+Goal cardRB_comp 2 = 57.    Proof. by compute. Qed.
+Goal cardRB_comp 3 = 757.   Proof. by compute. Qed.
 #[warning="-abstract-large-number"]
-Goal card'RB_comp 4 = 13889. Proof. by compute. Qed.
+Goal cardRB_comp 4 = 13889. Proof. by compute. Qed.
