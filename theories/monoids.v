@@ -543,8 +543,7 @@ by exists (of_pptriple tr).
 Qed.
 
 
-Theorem card_pperm :
-  #|{pperm T}| = \sum_(k < #|T|.+1) (binomial #|T| k) ^ 2 * k`!.
+Theorem card_pperm : #|{pperm T}| = \sum_(k < #|T|.+1) 'C(#|T|, k) ^ 2 * k`!.
 Proof.
 rewrite -[LHS]cardsT -(card_imset _ (can_inj to_pptripleK)) imset_to_pptriple.
 rewrite -sum1dep_card.
