@@ -176,15 +176,10 @@ move/omap_absvalE: eqij => [//|] eqts; congr (obind t (s _)); move: eqts.
 case eqsi: (s i) tsi => [si|] //= tsi.
 case eqsj: (s j) tsj => [sj|] //= tsj eqts1.
 have {t spt halft tsi tsj eqts1}eqs : si = sj.
-  apply: spt => /=.
-    by case: (t si) tsi.
-    by case: (t sj) tsj.
+  apply: spt => /=; [ by case: (t si) tsi| by case: (t sj) tsj |].
   rewrite eqts1 /= -[LHS]omap_comp.
   exact/eq_omap/absval_swapsign.
-apply: sps; rewrite /=.
-  by rewrite eqsi.
-  by rewrite eqsj.
-by rewrite eqsi eqsj eqs.
+by apply: sps => /=; rewrite ?eqsi ?eqsj // eqs.
 Qed.
 HB.instance Definition _ :=
   SubChoice_isSubMonoid.Build {pperm 'SI_n} isRennerB RennerB RennerB_closed.
@@ -215,6 +210,15 @@ case: n r => [|n] r.
 move=> rperm; have:= RennerP r; rewrite /isRennerB.
 have:= permVhalf (n := n.+1) is_true_true r.
 by rewrite rperm => /= /negbTE->; rewrite orbF.
+Qed.
+
+Lemma Renner_half_signed n (r : 'RB_n) : halfpperm r -> signed_pperm r.
+Proof.
+case: n r => [|n] r.
+  rewrite {r}RB0E => _; apply/signed_ppermP => /= -[/= b []] //.
+move=> hperm; have:= RennerP r; rewrite /isRennerB.
+have:= permVhalf (n := n.+1) is_true_true r.
+by rewrite hperm addbT => /negbTE ->.
 Qed.
 
 End Theory.
@@ -270,6 +274,11 @@ case: (altP (\val (absval i) =P 0)) => /= [ieq0 | ineq0].
 by rewrite ppermE /sB_fun (negbTE ineq0) pperm1E.
 Qed.
 
+End Generators.
+
+Section FromPermutations.
+
+Variable (n : nat).
 
 Implicit Type (p q : {perm 'I_n}) (r s t : 'RB_n).
 
@@ -337,7 +346,7 @@ End PermSign.
 Definition perm_of_RB r : {perm 'I_n} :=
   perm_of_transf (of_ptransf [ffun i : 'I_n => omap absval (r (true, i))]).
 Definition signs_of_RB r : n.-tuple bool :=
-  [tuple if (r (true, i)) is Some (b, _) then b else false  | i < n].
+  [tuple if (r (true, i)) is Some (b, _) then b else false | i < n].
 
 Definition RB_of_ps ps := RB_of_perm_sign ps.1 ps.2.
 Definition ps_of_RB r := (perm_of_RB r, signs_of_RB r).
@@ -347,7 +356,7 @@ Proof.
 rewrite /RB_of_ps /ps_of_RB => -[p s] /=; congr (_, _).
   apply/permP => i; rewrite /perm_of_RB /=.
   rewrite perm_of_transfE => [|{}i j];
-                             rewrite !ffunE /= !ffunE /= !ppermE /= !ppermE /=.
+    rewrite !ffunE /= !ffunE /= !ppermE /= !ppermE /=.
     by case: (tnth s i).
   by case: (tnth s i) (tnth s j) => -[] /= /perm_inj.
 apply: eq_from_tnth => i.
@@ -401,7 +410,8 @@ transitivity #|[set: {perm 'I_n} * n.-tuple bool]|.
 by rewrite cardsT card_prod /= card_tuple /= card_bool card_Sn.
 Qed.
 
-End Generators.
+End FromPermutations.
+
 
 
 
