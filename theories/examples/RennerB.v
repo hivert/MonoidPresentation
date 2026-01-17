@@ -28,40 +28,76 @@ Require Import monoids.
 
 Local Open Scope group_scope.
 
+Hint Resolve Some_inj : core.
+
 Lemma isSome_omapK (T1 T2 T3 : Type) (f : T1 -> option T2) (g : T2 -> T3) i :
   omap g (f i) -> f i.
 Proof. by case: (f i). Qed.
 
 
-Notation "''SI_' n" := (bool * 'I_n)%type
-  (at level 0, n at level 2, format "''SI_' n").
+Notation "''BI_' n" := (bool * 'I_n)%type
+  (at level 0, n at level 2, format "''BI_' n").
 
 Section SignedInts.
 
 Context {n : nat}.
+Implicit Types (bi : 'BI_n) (S T : {set 'BI_n}).
 
-Definition absval (i : 'SI_n) := i.2.
-Definition swapsign (i : 'SI_n) : 'SI_n := (~~ i.1, i.2).
+Definition absval bi := bi.2.
+Definition swapsign bi : 'BI_n := (~~ bi.1, bi.2).
 
-Lemma absval_swapsign i : absval (swapsign i) = absval i.
+Lemma absval_swapsign bi : absval (swapsign bi) = absval bi.
 Proof. by []. Qed.
 Lemma swapsignK : involutive swapsign.
 Proof. by rewrite /swapsign => -[i j]; rewrite negbK. Qed.
 
-Lemma omap_absvalE i j :
-  omap absval i = omap absval j -> i = j \/ i = omap swapsign j.
+Lemma omap_absvalE obi obj :
+  omap absval obi = omap absval obj -> obi = obj \/ obi = omap swapsign obj.
 Proof.
-case: i j => [[b0 i0]|]/= [[b1 i1]|]//=; last by move=> _; left.
+case: obi obj => [[b0 i0]|]/= [[b1 i1]|]//=; last by move=> _; left.
 by move=> [->]; case: b0 b1 => [] [] /=; [left|right|right|left].
 Qed.
 
 Lemma enum_bool : enum {: bool} = [:: true; false].
 Proof. by rewrite enumT /= unlock /=. Qed.
 
+
 Lemma enum_SInE :
-  enum {: 'SI_n} =
+  enum {: 'BI_n} =
     [seq (true, i) | i <- enum 'I_n] ++ [seq (false, i) | i <- enum 'I_n].
 Proof. by rewrite enumT /= unlock /= /prod_enum /= enum_bool /= cats0. Qed.
+
+Lemma mem_swapsetE bi S :
+  (bi \in [set swapsign x | x in S]) = (swapsign bi \in S).
+Proof.
+case: bi => [b i].
+by rewrite -{1}(swapsignK (b, i)) mem_imset //; apply: (can_inj swapsignK).
+Qed.
+
+Definition halfset S := S :&: swapsign @: S == set0.
+Lemma halfsetPtf S :
+  reflect (forall i : 'I_n, ~~ (((true, i) \in S) && ((false, i) \in S)))
+          (halfset S).
+Proof.
+apply (iffP idP) => [halfS i | ntfinS].
+  by have /setP/(_ (true, i))/= := eqP halfS; rewrite !inE mem_swapsetE /= => ->.
+apply/eqP/setP => /= -[b i]; rewrite !inE mem_swapsetE.
+by have:= ntfinS i; apply: contraNF => /andP[]; case: b => /= []-> ->.
+Qed.
+Lemma halfsetP S :
+  reflect (forall bi : 'BI_n, ~~ ((bi \in S) && (swapsign bi \in S)))
+          (halfset S).
+Proof.
+apply (iffP (halfsetPtf S)) => [H [[]i] | H i]; try exact: H.
+by rewrite andbC; apply: H.
+Qed.
+Lemma subhalfset S T : S \subset T -> halfset T -> halfset S.
+Proof.
+move/subsetP => SsubT /halfsetPtf hS; apply/halfsetPtf => i.
+by apply/contra: (hS i) => /andP[/SsubT -> /SsubT ->].
+Qed.
+Lemma halfset_pos : halfset [set bi | bi.1].
+Proof. by apply/halfsetPtf => i; rewrite !inE. Qed.
 
 End SignedInts.
 
@@ -69,47 +105,50 @@ End SignedInts.
 Section Defs.
 
 Variable n : nat.
-Implicit Type (f g : {pperm 'SI_n}).
+Implicit Types (f g : {pperm 'BI_n}) (S T : {set 'BI_n}).
 
-(** From monoid.v: pperm_perm f := [forall x : T, isSome (f x)]. *)
+(** From monoid.v: pperm_is_perm f := [forall x : T, isSome (f x)]. *)
 Definition antisymm f :=
-  [forall i : 'SI_n, omap swapsign (f i) == f (swapsign i)].
-Definition halfpperm f := [forall i : 'I_n, ~~ (f (true, i) && f (false, i))].
-Definition signed_pperm f := dinjectiveb (omap absval \o f) (isSome \o f).
-Definition isRennerB f :=
-  pperm_is_perm f && antisymm f || halfpperm f && signed_pperm f.
+  [forall i : 'BI_n, omap swapsign (f i) == f (swapsign i)].
 
 Lemma antisymmP f :
-  reflect (omap swapsign \o f =1 f \o swapsign) (antisymm f).
+  reflect (forall bi, omap swapsign (f bi) = f (swapsign bi)) (antisymm f).
 Proof.
 apply (iffP idP) => /= [/forallP/= Heq i | Heq]; first by apply/eqP => /=.
 by apply/forallP => /= i; have /= -> := Heq i.
 Qed.
-Lemma halfppermP f :
-  reflect (forall i : 'SI_n, isSome (f i) -> ~ isSome (f (swapsign i)))
-          (halfpperm f).
+
+Lemma antisymm_comp f g : antisymm f -> antisymm g -> antisymm (f * g).
 Proof.
-apply (iffP forallP) => /= H.
-  by case=> [[] i] /=; rewrite /swapsign /=;
-     case: (f (true, i)) (f (false, i)) (H i) => [ffi|][fti|].
-move=> i /=; rewrite /swapsign /=.
-case: (f (true, i)) (f (false, i)) (H (true, i)) (H (false, i)) => [ffi|][fti|]//=.
-by move=> _ /= /(_ is_true_true).
+move=> /antisymmP fanti /antisymmP ganti; apply/antisymmP => bi.
+by rewrite !ppermM /= -fanti; case: (f bi).
 Qed.
 
-Lemma signed_ppermP f :
-  reflect {on isSome &, injective ((omap absval) \o f)} (signed_pperm f).
+Lemma imset_halfset f S :
+  antisymm f -> halfset S -> halfset (Some @^-1: (f @: S)).
 Proof.
-apply (iffP (dinjectiveP _ _)) => inj /= x y /=; rewrite !unfold_in.
-- move=> Hx Hy; apply: inj => //; rewrite unfold_in.
-  + by case: (f x) Hx.
-  + by case: (f y) Hy.
-- have:= inj x y; rewrite !unfold_in /=.
-  by case: (f x) (f y) => [px | //][py | //].
+move=> /antisymmP fanti /halfsetP Shalf; apply/halfsetP => bi.
+rewrite !inE; apply/negP=> /andP[/imsetP[bj bjS eqfbi]].
+case/imsetP => [bk bkS] /(congr1 (omap swapsign)) /=.
+rewrite swapsignK fanti eqfbi => /pperm_inj1.
+rewrite -eqfbi => /(_ is_true_true) eqbj.
+by have:= Shalf bk; rewrite bkS -eqbj bjS.
 Qed.
+
+Lemma preimset_halfset f S :
+  antisymm f -> halfset S -> halfset (f @^-1: (Some @: S)).
+Proof.
+move=> /antisymmP fanti /halfsetP Shalf; apply/halfsetP => bi.
+rewrite !inE; apply/negP=> /andP[/imsetP[bj bjS eqfbi]].
+rewrite -(fanti bi) eqfbi /= (mem_imset _ _ Some_inj) => sbjS.
+by have:= Shalf bj; rewrite bjS sbjS.
+Qed.
+
+Definition isRennerB f :=
+  pperm_is_perm f && antisymm f || halfset (pdom f) && halfset (pcodom f).
 
 Record RennerB : predArgType :=
-  mkRennerB {renval :> {pperm 'SI_n}; _ : isRennerB renval}.
+  mkRennerB {renval :> {pperm 'BI_n}; _ : isRennerB renval}.
 
 Lemma RennerP (r : RennerB) : isRennerB r.
 Proof. by case: r. Qed.
@@ -121,68 +160,26 @@ Lemma RennerB_closed : monoid_closed isRennerB.
 Proof.
 split => [|/= s t]; rewrite !unfold_in.
   apply/orP; left; apply/andP; split.
-    by apply/pperm_is_permP => i; rewrite pperm1E.
-  by apply/antisymmP => i /=; rewrite !pperm1E.
-case/orP=> [/andP[/pperm_is_permP alls /antisymmP santi]|].
-  case/orP=> [/andP[/pperm_is_permP allt /antisymmP tanti]|].
+    by apply/is_Some_permP => i; rewrite pperm1.
+  by apply/antisymmP => i /=; rewrite !pperm1.
+case/orP=> [/andP[/pperm_is_permP [ps eqps] santi]|].
+  case/orP=> [/andP[/pperm_is_permP [pt eqpt] tanti]|].
     apply/orP; left; apply/andP; split.
-      apply/pperm_is_permP => i; rewrite /= !ppermME.
-      by case: (s i) (alls i) => // si _ /=.
-    apply/antisymmP => i; rewrite /= !ppermME.
-    have /= <- := santi i; case: (s i) => [si|] //=.
-    exact: (tanti si).
-  case/andP=> /halfppermP halft /signed_ppermP spt.
-  apply/orP; right; apply/andP; split.
-    apply/halfppermP => i; rewrite !ppermME.
-    move/(_ i): santi => /= <-; case: (s i) => //= {}i _ /halft.
-  apply/signed_ppermP => i j.
-  rewrite !unfold_in -!/(isSome _) /= !ppermME /= => tsi tsj eqij.
-  have siSome := alls i; have sjSome := alls j => {alls}.
-  apply: (pperm_inj siSome sjSome).
-  case: (s i) (s j) siSome sjSome tsi tsj eqij => [{}i|//][{}j|//] _ _ /=.
-  by move=> /spt/[apply]/[apply] ->.
-case/andP=> /halfppermP halfs /signed_ppermP sps.
-case/orP=> [/andP[_ /antisymmP tanti]|].
-  apply/orP; right; apply/andP; split.
-    apply/halfppermP => i; rewrite !ppermME.
-    move/(_ i): halfs; case: (s i) => [si|]//= /(_ is_true_true).
-    by case: (s _).
-  apply/signed_ppermP=> i j.
-  rewrite !unfold_in -!/(isSome _) /= => tsi tsj eqij.
-  have {}tsi := isSome_omapK tsi; have {}tsj := isSome_omapK tsj.
-  apply: (pperm_inj tsi tsj).
-  rewrite !ppermME in tsi, tsj, eqij; rewrite !ppermME.
-  move/omap_absvalE: eqij => [//|] eqts; congr (obind t (s _)); move: eqts.
-  case eqsi: (s i) tsi => [si|] // tsi /=.
-  case eqsj: (s j) tsj => [sj|] // tsj /=.
-  have {tanti} /= -> := tanti sj => /[dup]eqts /pperm_inj.
-  rewrite -eqts => /(_ tsi tsi) {t tsi tsj eqts} eqs.
-  have := halfs i; rewrite eqsi => /(_ is_true_true).
-  have:= congr1 absval eqs; rewrite absval_swapsign => eqabs nonssi.
-  have {eqabs} : (omap absval \o s) i = (omap absval \o s) j.
-    by rewrite /= eqsi eqsj /= eqabs.
-  by apply: sps; rewrite !unfold_in /= ?eqsi ?eqsj.
-case/andP=> /halfppermP halft /signed_ppermP spt.
+      by rewrite -eqps -eqpt -gmulfM perm_to_ppermP.
+    exact: antisymm_comp.
+  case/andP=> domt codomt.
+  apply/orP; right; rewrite pdomM preimset_halfset //=.
+  exact/(subhalfset _ codomt)/pcodomM_subset.
+case/andP=> doms codoms; case/orP=> [/andP[_ santi]|].
+  apply/orP; right; rewrite pcodomM imset_halfset // andbT.
+  exact/(subhalfset _ doms)/pdomM_subset.
+case/andP=> domt codomt.
 apply/orP; right; apply/andP; split.
-  apply/halfppermP => i; rewrite !ppermME.
-  move/(_ i): halfs; case: (s i) => [si|]//= /(_ is_true_true).
-  by case: (s _).
-apply/signed_ppermP=> i j.
-rewrite !unfold_in -!/(isSome _) /= => tsi tsj eqij.
-have {}tsi := isSome_omapK tsi; have {}tsj := isSome_omapK tsj.
-apply: (pperm_inj tsi tsj).
-rewrite !ppermME in tsi, tsj, eqij; rewrite !ppermME.
-move/omap_absvalE: eqij => [//|] eqts; congr (obind t (s _)); move: eqts.
-case eqsi: (s i) tsi => [si|] //= tsi.
-case eqsj: (s j) tsj => [sj|] //= tsj eqts1.
-have {t spt halft tsi tsj eqts1}eqs : si = sj.
-  apply: spt => /=; [ by case: (t si) tsi| by case: (t sj) tsj |].
-  rewrite eqts1 /= -[LHS]omap_comp.
-  exact/eq_omap/absval_swapsign.
-by apply: sps => /=; rewrite ?eqsi ?eqsj // eqs.
+  exact/(subhalfset _ doms)/pdomM_subset.
+exact/(subhalfset _ codomt)/pcodomM_subset.
 Qed.
 HB.instance Definition _ :=
-  SubChoice_isSubMonoid.Build {pperm 'SI_n} isRennerB RennerB RennerB_closed.
+  SubChoice_isSubMonoid.Build {pperm 'BI_n} isRennerB RennerB RennerB_closed.
 
 End Defs.
 
@@ -195,12 +192,13 @@ Section Theory.
 Lemma RB0E : all_equal_to (1 : 'RB_0).
 Proof. by move=> /= r; apply/val_inj/ppermP => -[/= b []]. Qed.
 
-Lemma permVhalf n : n != 0 -> forall r : 'RB_n, pperm_is_perm r (+) halfpperm r.
+Lemma permVhalf n :
+  n != 0 -> forall r : 'RB_n, pperm_is_perm r (+) halfset (pdom r).
 Proof.
 case: n => // n _; case=> r /=; rewrite /isRennerB.
-case: (boolP (pperm_is_perm r)) => /= [ /pperm_is_permP alls _ |_  /andP[->] //].
-apply/negP => /halfppermP halfs.
-by have /halfs := alls (true, ord0); rewrite alls.
+case: (boolP (pperm_is_perm r)) => /= [+ _ |_  /andP[->] //].
+rewrite pperm_is_perm_domE => /eqP->.
+by apply/negP =>/halfsetPtf/(_ ord0); rewrite !inE.
 Qed.
 
 Lemma Renner_perm_anti n (r : 'RB_n) : pperm_is_perm r -> antisymm r.
@@ -212,13 +210,13 @@ have:= permVhalf (n := n.+1) is_true_true r.
 by rewrite rperm => /= /negbTE->; rewrite orbF.
 Qed.
 
-Lemma Renner_half_signed n (r : 'RB_n) : halfpperm r -> signed_pperm r.
+Lemma Renner_half_pcodom n (r : 'RB_n) : halfset (pdom r) -> halfset (pcodom r).
 Proof.
 case: n r => [|n] r.
-  rewrite {r}RB0E => _; apply/signed_ppermP => /= -[/= b []] //.
-move=> hperm; have:= RennerP r; rewrite /isRennerB.
+  by rewrite {r}RB0E => _; rewrite pcodom1; apply/halfsetP => -[b[]].
+move=> halfdom; have:= RennerP r; rewrite /isRennerB.
 have:= permVhalf (n := n.+1) is_true_true r.
-by rewrite hperm addbT => /negbTE ->.
+by rewrite halfdom addbT => /negbTE-> /=.
 Qed.
 
 End Theory.
@@ -228,23 +226,30 @@ Section Generators.
 
 Variable (n : nat).
 
-Definition pi_pos_fun (i : 'SI_n) : option 'SI_n := if i.1 then Some i else None.
+Definition pi_pos_fun (i : 'BI_n) : option 'BI_n := if i.1 then Some i else None.
+Local Lemma pdom_pi_pos_fun : pdom pi_pos_fun = [set bi | bi.1].
+Proof. by apply/setP=> /= -[[]i]; rewrite mem_pdom inE. Qed.
+Local Lemma pcodom_pi_pos_fun : pcodom pi_pos_fun = [set bi | bi.1].
+Proof.
+apply/setP=> /= -[[]i]; rewrite [RHS]inE /=.
+  by apply/pcodomP; exists (true, i).
+by apply/negP => /pcodomP[/=-[[]]].
+Qed.
 Lemma pi_pos_fun_inj : {on isSome &, injective pi_pos_fun}.
 Proof. by case=> [[]i][[]j] //= _ _ [->]. Qed.
 Lemma pi_pos_subproof : isRennerB (pperm pi_pos_fun_inj).
 Proof.
-apply/orP; right; apply/andP; split.
-  by apply/halfppermP => -[[] i] /=; rewrite !ppermE.
-by apply/signed_ppermP => /= -[[]i] [[]j] //=; rewrite !ppermE //= => _ _ [] ->.
+apply/orP; right; rewrite (eq_pdom (ppermE _)) (eq_pcodom (ppermE _)).
+by rewrite pdom_pi_pos_fun pcodom_pi_pos_fun halfset_pos.
 Qed.
 Definition pi_pos := mkRennerB pi_pos_subproof.
 Lemma pi_pos_idemp : pi_pos * pi_pos = pi_pos.
 Proof.
-apply: val_inj => /=; apply/ppermP => /= -[[]i]; rewrite ppermME !ppermE //=.
-by rewrite ppermE /=.
+by apply: val_inj => /=; apply/ppermP => /= -[[]i];
+  rewrite ppermM /= !ppermE //= ppermE.
 Qed.
 
-Definition sB_fun (i : 'SI_n) : option 'SI_n :=
+Definition sB_fun (i : 'BI_n) : option 'BI_n :=
   if \val (absval i) == 0 then Some (swapsign i) else Some i.
 Lemma sB_fun_inj : {on isSome &, injective sB_fun}.
 Proof.
@@ -268,10 +273,11 @@ Qed.
 Definition sB := mkRennerB sB_subproof.
 Lemma sBK : sB * sB = 1.
 Proof.
-apply: val_inj => /=; apply/ppermP => /= i; rewrite ppermME !ppermE /sB_fun.
+apply: val_inj => /=; apply/ppermP => /= i.
+rewrite ppermM /= !ppermE /sB_fun.
 case: (altP (\val (absval i) =P 0)) => /= [ieq0 | ineq0].
-  by rewrite ppermE /sB_fun absval_swapsign ieq0 eqxx swapsignK pperm1E.
-by rewrite ppermE /sB_fun (negbTE ineq0) pperm1E.
+  by rewrite ppermE /sB_fun absval_swapsign ieq0 eqxx swapsignK pperm1.
+by rewrite ppermE /sB_fun (negbTE ineq0) pperm1.
 Qed.
 
 End Generators.
@@ -282,7 +288,7 @@ Variable (n : nat).
 
 Implicit Type (p q : {perm 'I_n}) (r s t : 'RB_n).
 
-Definition perm2B_fun p := [fun i : 'SI_n => Some (i.1, p i.2)].
+Definition perm2B_fun p := [fun i : 'BI_n => Some (i.1, p i.2)].
 Lemma perm2B_funM p q :
   perm2B_fun (p * q) =1 obind (perm2B_fun q) \o (perm2B_fun p).
 Proof. by case=> [[]i]/=; rewrite permM. Qed.
@@ -306,7 +312,7 @@ Definition perm2B p := mkRennerB (perm2B_subproof p).
 Lemma perm2B_monoid_morphism : monoid_morphism perm2B.
 Proof.
 by split => [| /= f g]; apply/val_inj/ppermP => -[[]i];
-  rewrite ?ppermE ?pperm1E ?ppermME /= !(perm1, permM) //= ppermE /= ppermE.
+  rewrite ?ppermE ?pperm1 ?ppermM /= !(perm1, permM) //= ppermE /= ppermE.
 Qed.
 HB.instance Definition _ :=
   isUMagmaMorphism.Build {perm 'I_n} 'RB_n perm2B perm2B_monoid_morphism.
@@ -335,7 +341,7 @@ Qed.
 Lemma RB_of_perm_sign_subproof : isRennerB (pperm RB_of_perm_sign_inj).
 Proof.
 apply/orP; left; apply/andP; split.
-  apply/pperm_is_permP => /= i; rewrite !ppermE /= ppermE /=.
+  apply/is_Some_permP => /= i; rewrite !ppermE /= ppermE /=.
   by case: i => [[]i]; case: (tnth sgn _).
 by apply/antisymmP => -[[]i] /=; rewrite !ppermE /= !ppermE /=; case: (tnth _ _).
 Qed.
@@ -368,7 +374,7 @@ Lemma ps_of_RBK :
 Proof.
 move=> r; rewrite inE => rperm.
 have /antisymmP ranti := Renner_perm_anti rperm.
-move/pperm_is_permP in rperm.
+move/is_Some_permP in rperm.
 have r_inj : injective (of_ptransf [ffun i0 => omap absval (r (true, i0))]).
   move=> /= i j; rewrite !ffunE /= !ffunE /=.
   have:= @omap_absvalE _ (r (true, i)) (r (true, j)).
@@ -405,7 +411,7 @@ rewrite -(on_card_preimset RB_of_ps_bij).
 transitivity #|[set: {perm 'I_n} * n.-tuple bool]|.
   congr #|pred_of_set _|; apply/eqP; rewrite -subTset /=.
   apply/subsetP => /= p _; rewrite !inE.
-  apply/pperm_is_permP => i; rewrite /= ppermE /= ppermE /=.
+  apply/is_Some_permP => i; rewrite /= ppermE /= ppermE /=.
   by case: (tnth _ _); case: i.
 by rewrite cardsT card_prod /= card_tuple /= card_bool card_Sn.
 Qed.
@@ -419,19 +425,19 @@ Section Cardinality.
 
 Variable n0 : nat.
 Notation n := (n0.+1).
-Implicit Types (r s t : 'RB_n) (i j : 'SI_n).
+Implicit Types (r s t : 'RB_n) (i j : 'BI_n).
 
 Lemma disjjoint_perm_half :
-  [disjoint [pred r : 'RB_n | pperm_is_perm r] & [pred r : 'RB_n | halfpperm r]].
+  [disjoint
+     [pred r : 'RB_n | pperm_is_perm r] & [pred r : 'RB_n | halfset (pdom r)]].
 Proof.
 rewrite disjoint_subset; apply/subsetP => /= r.
-rewrite !inE => /pperm_is_permP alls; apply/negP => /halfppermP halfs.
-by have /halfs := alls (true, ord0); rewrite alls.
+by rewrite !inE; have /(_ is_true_true) := permVhalf _ r => /[swap] ->.
 Qed.
 
 Lemma cardRB_permVhalf :
   #|{: 'RB_n}|
-  = #|[pred r : 'RB_n | pperm_is_perm r]| + #|[pred r : 'RB_n | halfpperm r]|.
+  = #|[pred r : 'RB_n | pperm_is_perm r]| + #|[pred r : 'RB_n | halfset (pdom r)]|.
 Proof.
 rewrite -cardUI (eqP disjjoint_perm_half) addn0.
 apply: eq_card => /= r; rewrite !inE.

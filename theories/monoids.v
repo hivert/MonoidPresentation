@@ -254,63 +254,102 @@ Proof. by split=> [| -> //] eq_st; apply/ffunP. Qed.
 
 Section PartialFunctionTheory.
 
-Variable (T : finType).
-Implicit Type (s : T -> option T).
+Variable (aT rT : finType).
+Implicit Type (f g : aT -> option rT).
 
-Definition pcodom s := pmap s (enum T).
-Definition pdom s := enum (isSome \o s).
+Definition pdom f := [set x | f x].
+Definition pcodom f := [set y in pmap f (enum aT)].
 
-Lemma card_pcodom s : #|pcodom s| = #|image s (isSome \o s)|.
+Lemma mem_pdom f x : x \in pdom f = f x.
+Proof. by rewrite inE. Qed.
+Lemma pcodomP f y : reflect (exists x, f x = Some y) (y \in pcodom f).
+Proof.
+rewrite inE mem_pmap; apply (iffP idP) => [/mapP[x _ ->]|]; first by exists x.
+by case=> x <-; apply map_f; rewrite mem_enum.
+Qed.
+
+Lemma eq_pdom f g : f =1 g -> pdom f = pdom g.
+Proof. by move=> eqfg; apply: eq_finset => x; rewrite eqfg. Qed.
+Lemma eq_pcodom f g : f =1 g -> pcodom f = pcodom g.
+Proof. by rewrite /pcodom => /eq_pmap ->. Qed.
+
+Lemma card_pcodom f : #|pcodom f| = #|image f (isSome \o f)|.
 Proof.
 rewrite -[LHS](card_image Some_inj).
-apply: eq_card => /= -[x|]; first last.
-  transitivity false.
-    by apply/negP => /imageP[].
-  by apply/esym/negP => /imageP[x] ; rewrite unfold_in; case: (s x).
-apply/mapP/mapP=> -[y /[!mem_enum]].
-  rewrite mem_pmap => /mapP[z _ {y}->] eqsz; exists z => //.
-  by rewrite mem_enum unfold_in -eqsz.
-move=> _ eqsy; exists x => //.
-rewrite mem_enum mem_pmap; apply/mapP; exists y => //.
-by rewrite mem_enum inE.
+apply: eq_card => /= y; apply/mapP/mapP => -[]x; rewrite mem_enum.
+  case/pcodomP=> z /[dup] eqz <- {y}->.
+  by exists z; rewrite //= mem_enum unfold_in eqz.
+rewrite unfold_in; case eqsx : (f x) => [sx|//] _ {y}->.
+by exists sx => //; rewrite mem_enum; apply/pcodomP; exists x.
 Qed.
 
-Lemma card_pcomdom_le_dom s : #|pcodom s| <= #|pdom s|.
+Lemma card_pcodom_le_dom f : #|pcodom f| <= #|pdom f|.
 Proof.
-rewrite card_pcodom (eq_card (mem_enum _)); apply: (leq_trans (card_size _)).
-by rewrite size_map -cardE.
+apply: (leq_trans _ (leq_imset_card f _)).
+rewrite -(card_imset _ Some_inj); apply/subset_leq_card/subsetP => /= o.
+case/imsetP=> y /pcodomP[x /[dup] eqx <-] {o}->; apply: imset_f.
+by rewrite mem_pdom eqx.
 Qed.
 
-Lemma isSome_pperm_enum_val s (i : 'I_#|pdom s|) : s (enum_val i).
-Proof. by have:= enum_valP i; rewrite /pdom mem_enum unfold_in. Qed.
+Lemma isSome_pperm_enum_val f (i : 'I_#|pdom f|) : f (enum_val i).
+Proof. by rewrite -mem_pdom enum_valP. Qed.
 
-Definition psurj_fun s :=
-  [fun i : 'I_#|pdom s| => index (s (enum_val i)) [seq Some x | x in pcodom s]].
-Lemma psurj_subproof s i : psurj_fun s i < #|pcodom s|.
+Definition psurj_fun f :=
+  [fun i : 'I_#|pdom f| => index (f (enum_val i)) [seq Some x | x in pcodom f]].
+Lemma psurj_subproof f i : psurj_fun f i < #|pcodom f|.
 Proof.
 rewrite /= cardE -(size_map Some) /= index_mem; apply/mapP.
-case eqx : (s (enum_val i)) (isSome_pperm_enum_val i) => [x | //] _.
-exists x => //; rewrite mem_enum mem_pmap -eqx; apply: map_f.
-by rewrite mem_enum.
+case eqx : (f (enum_val i)) (isSome_pperm_enum_val i) => [x | //] _.
+by exists x => //; rewrite mem_enum; apply/pcodomP; exists (enum_val i).
 Qed.
-Definition psurj s (i : 'I_#|pdom s|) := Ordinal (psurj_subproof (s := s) i).
-Lemma enum_val_psurj s (i : 'I_#|pdom s|) :
-  s (enum_val i) = Some (enum_val (psurj (s := s) i)).
+Definition psurj f (i : 'I_#|pdom f|) := Ordinal (psurj_subproof (f := f) i).
+Lemma enum_val_psurj f (i : 'I_#|pdom f|) :
+  f (enum_val i) = Some (enum_val (psurj (f := f) i)).
 Proof.
-case eqr : (s (enum_val i)) (isSome_pperm_enum_val i) => [r |//] _; congr Some.
+case eqr : (f (enum_val i)) (isSome_pperm_enum_val i) => [r |//] _; congr Some.
 rewrite (enum_val_nth r) /= eqr (index_map Some_inj) nth_index //.
-by rewrite mem_enum mem_pmap -eqr map_f // mem_enum.
+by rewrite mem_enum; apply/pcodomP; exists (enum_val i).
 Qed.
 
 End PartialFunctionTheory.
 
+Section PartialFunctionComposition.
+
+Variables (aT bT cT: finType).
+Variables (f : aT -> option bT) (g : bT -> option cT).
+
+Lemma pdom_comp : pdom (obind g \o f) = f @^-1: (Some @: pdom g).
+Proof.
+apply/setP => x; rewrite mem_pdom /= inE.
+case: (f x) => [fx |] //=; first by rewrite (mem_imset _ _ Some_inj) mem_pdom.
+by apply/esym/negP => /imsetP[].
+Qed.
+Lemma pcodom_comp : pcodom (obind g \o f) = Some @^-1: (g @: pcodom f).
+Proof.
+apply/setP => z; rewrite !inE mem_pmap.
+apply/mapP/imsetP => [[x _] /= | [y /pcodomP[x eqy eqz]]].
+  case eqfx : (f x) => [fx|//] eqz; exists fx => //.
+  by apply/pcodomP; exists x.
+exists x; first by rewrite mem_enum.
+by rewrite /= eqy /=.
+Qed.
+
+Lemma pdom_comp_subset : pdom (obind g \o f) \subset pdom f.
+Proof. by apply/subsetP => x /[!mem_pdom] /=; case: (f x). Qed.
+Lemma pcodom_comp_subset : pcodom (obind g \o f) \subset pcodom g.
+Proof.
+apply/subsetP => z /pcodomP[/= x].
+by case: (f x) => //= y eqz; apply/pcodomP; exists y.
+Qed.
+
+End PartialFunctionComposition.
 
 Lemma pfun_dinjectiveP (T1 : finType) (T2 : eqType) (f : T1 -> option T2) :
   reflect {on isSome &, injective f} (dinjectiveb f (isSome \o f)).
 Proof. by apply (iffP (dinjectiveP f _)) => inj /= x y; apply: inj. Qed.
 
 (* Monoid structure on partial permutations               *)
-(* i.e. injective partically defined finite endofunctions *)
+(* i.e. injective partialy defined finite endofunctions *)
 Section PartialPermutationDef.
 
 Variable (T : finType).
@@ -363,6 +402,12 @@ HB.lock Definition fun_of_pperm T (u : {pperm T}) : T -> option T := val u.
 Canonical fun_of_pperm_unlock := Unlockable fun_of_pperm.unlock.
 Coercion fun_of_pperm : pperm_type >-> Funclass.
 
+
+Lemma inj_on1 (aT rT : Type) (f : aT -> rT) (D : {pred rT}) :
+  {on D &, injective f} -> {on D, injective f}.
+Proof. by move=> inj x fxD y /[dup] eqfxy; apply: inj; rewrite // -eqfxy. Qed.
+
+
 Section PPermTheory.
 
 Variable T : finType.
@@ -377,36 +422,57 @@ Proof. by rewrite [@fun_of_pperm]unlock. Qed.
 Lemma ppermE f f_inj : @pperm T f f_inj =1 f.
 Proof. by move=> x; rewrite -ppvalE [@pperm]unlock ffunE. Qed.
 
-Lemma pperm1E x : (1 : {pperm T}) x = Some x.
+Lemma pperm1 x : (1 : {pperm T}) x = Some x.
 Proof. by rewrite -ppvalE /= ffunE. Qed.
 
-Lemma ppermME s t x : (s * t) x = obind t (s x).
-Proof. by rewrite -ppvalE /= ffunE /= !ppvalE. Qed.
+Lemma ppermM s t : (s * t) =1 obind t \o s.
+Proof. by move=> x; rewrite -ppvalE /= ffunE /= !ppvalE. Qed.
 
 Lemma pperm_inj {s} : {on isSome &, injective s}.
-Proof. by rewrite -!ppvalE; apply/pfun_dinjectiveP/(valP s). Qed.
-Hint Resolve pperm_inj : core.
+-Proof. by rewrite -!ppvalE; apply/pfun_dinjectiveP/(valP s). Qed.
 
-Lemma card_pcomdomE s : #|pcodom s| = #|pdom s|.
+Lemma pperm_inj1 {s} : {on isSome, injective s}.
+Proof. exact/inj_on1/pperm_inj. Qed.
+Hint Resolve pperm_inj pperm_inj1 : core.
+
+Lemma pdom1 : pdom (1 : {pperm T}) = setT.
+Proof. by apply/setP=> x; rewrite !inE pperm1. Qed.
+Lemma pcodom1 : pcodom (1 : {pperm T}) = setT.
 Proof.
-rewrite card_pcodom (eq_card (mem_enum _)).
-suff /card_uniqP -> : uniq [seq s x | x in isSome \o s] by rewrite size_map cardE.
-rewrite map_inj_in_uniq ?enum_uniq // => i j.
-by rewrite !mem_enum; apply: pperm_inj.
+by apply/setP => x; rewrite !in_setT; apply/pcodomP; exists x; rewrite pperm1.
+Qed.
+Lemma pdomM s t : pdom (s * t) = s @^-1: (Some @: pdom t).
+Proof. by rewrite -pdom_comp; apply/eq_pdom/ppermM. Qed.
+Lemma pcodomM s t : pcodom (s * t) = Some @^-1: (t @: pcodom s).
+Proof. by rewrite -pcodom_comp; apply/eq_pcodom/ppermM. Qed.
+Lemma pdomM_subset s t : pdom (s * t) \subset pdom s.
+Proof. by rewrite (eq_pdom (@ppermM s t)); apply: pdom_comp_subset. Qed.
+Lemma pcodomM_subset s t : pcodom (s * t) \subset pcodom t.
+Proof. by rewrite (eq_pcodom (@ppermM s t)); apply: pcodom_comp_subset. Qed.
+
+Lemma card_pcodomE s : #|pcodom s| = #|pdom s|.
+Proof.
+rewrite -[RHS](card_in_imset (f := s)); first last.
+  by move=> i j; rewrite !mem_pdom => /pperm_inj/[apply]; apply.
+rewrite -[LHS](card_imset _ Some_inj); apply eq_card => /= z.
+apply/imsetP/imsetP=> [[y /pcodomP[x /[dup] eqsx <- {z}->]] | [x]].
+  by exists x => //; rewrite mem_pdom eqsx.
+rewrite mem_pdom; case eqsx : (s x) => [sx|//] _ {z}->.
+by exists sx => //; apply/pcodomP; exists x.
 Qed.
 
 Lemma ppsurj_subproof s :
-  injective [fun i => cast_ord (card_pcomdomE s) (psurj (s := s) i)].
+  injective [fun i => cast_ord (card_pcodomE s) (psurj (f := s) i)].
 Proof.
 move=> i j /= /cast_ord_inj /(congr1 (Some \o enum_val)) /= H.
 apply: enum_val_inj; move: H; rewrite /= -!enum_val_psurj.
-by apply: pperm_inj; apply: isSome_pperm_enum_val.
+by apply: pperm_inj1; apply: isSome_pperm_enum_val.
 Qed.
 Definition perm_pdom s : 'S_#|pdom s| := perm (ppsurj_subproof (s := s)).
 
 Lemma enum_val_perm_dom s (i : 'I_#|pdom s|) :
   s (enum_val i) =
-    Some (enum_val (cast_ord (esym (card_pcomdomE s)) (perm_pdom s i))).
+    Some (enum_val (cast_ord (esym (card_pcodomE s)) (perm_pdom s i))).
 Proof.
 rewrite enum_val_psurj; congr (Some (enum_val _)); apply val_inj => /=.
 by rewrite permE.
@@ -414,22 +480,20 @@ Qed.
 
 Section DomPermDef.
 
-Lemma eq_enums (p : pred T) : enum [set x0 in p] = enum p.
-Proof. by apply: eq_enum => y; rewrite inE. Qed.
-
-Lemma obindnthP (s : seq T) n :
+Lemma obind_onthP (s : seq T) n :
   obind (onth s) n -> exists2 i : nat, n = Some i & i < size s.
 Proof. by case: n => [n|//] /= /[!onthTE] ltn; exists n. Qed.
 
 Context (doms : {set T}) (p : 'S_#|doms|) (codoms : {set T}).
-Lemma of_domperm_subproof :
+
+Lemma of_doms_perm_subproof :
   {on isSome &, injective
      [ffun x : T =>
         obind (onth (enum codoms) \o \val \o p) (insub (index x (enum doms)))]}.
 Proof.
 move=> x y; rewrite !ffunE /= -compA !obindEapp !oapp_comp /= -!obindEapp /=.
-move=> /obindnthP[pi eqpi]; rewrite -cardE => ltpi.
-move=> /obindnthP[pj eqpj]; rewrite -cardE => ltpj.
+case/obind_onthP => pi eqpi; rewrite -cardE => ltpi.
+case/obind_onthP => pj eqpj; rewrite -cardE => ltpj.
 rewrite eqpi eqpj /= => eqpij.
 have {}eqpij : pi = pj.
   move/onth_inj: eqpij; apply; first exact: enum_uniq.
@@ -442,15 +506,15 @@ have /inj_omap/[apply] /= : injective (nat_of_ord (n := #|doms|) \o p).
 rewrite insubT.
 case: (boolP (index y (enum doms) < #|doms|)) => indy; last by rewrite insubN.
 rewrite insubT => -[].
-by apply: (index_inj x (s := (enum doms))); rewrite // -index_mem -cardE.
+by apply: index_inj; rewrite // -index_mem -cardE.
 Qed.
-Definition of_domperm : {pperm T} := pperm of_domperm_subproof.
+Definition of_doms_perm : {pperm T} := pperm of_doms_perm_subproof.
 
 Hypothesis eqdoms : #|doms| = #|codoms|.
 
-Lemma pdoms_of_domperm : [set x in pdom of_domperm] = doms.
+Lemma pdom_of_doms_perm : pdom of_doms_perm = doms.
 Proof.
-apply/setP=> x; rewrite inE !mem_enum ![LHS]unfold_in /= ppermE ffunE.
+apply/setP=> x; rewrite mem_pdom ppermE ffunE.
 case: (boolP (x \in doms)) => [xin | xnotin]; first last.
   by rewrite insubN // cardE index_mem mem_enum.
 have ltind : index x (enum doms) < #|doms|.
@@ -458,68 +522,60 @@ have ltind : index x (enum doms) < #|doms|.
 by rewrite insubT /= onthTE -cardE -eqdoms ltn_ord.
 Qed.
 
-Lemma pcodoms_of_domperm : [set x in pcodom of_domperm] = codoms.
+Lemma pcodom_of_doms_perm : pcodom of_doms_perm = codoms.
 Proof.
-apply/eqP; rewrite eqEcard -eqdoms cardsE card_pcomdomE.
-rewrite -(cardsE (mem (pdom _))) /= pdoms_of_domperm leqnn andbT.
-apply/subsetP=> x; rewrite inE mem_pmap => /mapP[y _].
-rewrite ppermE => /esym/[dup]/(congr1 isSome)/=.
+apply/eqP; rewrite eqEcard card_pcodomE pdom_of_doms_perm eqdoms leqnn andbT.
+apply/subsetP=> x /pcodomP[y].
+rewrite ppermE => /esym/[dup]/(congr1 isSome)/esym/=.
 rewrite !ffunE /= -compA !obindEapp !oapp_comp /= -!obindEapp /=.
-case/obindnthP => n -> ltn /=.
-by rewrite onthE (nth_map x) // -mem_enum => -[<-]; apply: mem_nth.
+case/obind_onthP => n -> ltn /=.
+by rewrite onthE (nth_map x) // -mem_enum => /Some_inj->; apply: mem_nth.
 Qed.
 
-Lemma perm_of_domperm :
-  cast_perm (esym (cardsE _)) (perm_pdom of_domperm) =
-    cast_perm (esym (congr1 (fun s : {set T} => #|s|) pdoms_of_domperm)) p.
+Lemma perm_of_doms_perm :
+  perm_pdom of_doms_perm =
+    cast_perm (esym (congr1 (fun s : {set T} => #|s|) pdom_of_doms_perm)) p.
 Proof.
-apply: (@cast_perm_inj _ _ (cardsE (mem (pdom of_domperm)))) => /=.
-rewrite cast_permKV; apply/permP => /= i; rewrite permE /=.
+apply/permP => /= i; rewrite permE /=.
 rewrite !cast_permE esymK; apply: val_inj; rewrite /= ppermE ffunE /=.
-have -> /= : [seq Some x | x in pcodom of_domperm] = [seq Some x | x in codoms].
-  by congr map; apply: eq_enum => x; rewrite -pcodoms_of_domperm inE.
+rewrite pcodom_of_doms_perm.
 rewrite /= -compA !obindEapp !oapp_comp /= -!obindEapp /=.
 set x := (X in p X); set y := (X in omap _ X); suff -> : y = Some x.
   rewrite /= onthE index_uniq //; first last.
     by rewrite (map_inj_uniq Some_inj) enum_uniq.
   by rewrite size_map -cardE -eqdoms ltn_ord.
-rewrite {}/x {}/y insubT.
-  by rewrite cardE index_mem mem_enum -pdoms_of_domperm inE enum_valP.
-move=> Hind; congr Some; apply: val_inj => /=.
-rewrite (enum_val_nth (enum_val i)) -eq_enums pdoms_of_domperm.
+rewrite {}/x {}/y insubT => [| Hind].
+  by rewrite cardE index_mem mem_enum -pdom_of_doms_perm enum_valP.
+congr Some; apply: val_inj => /=.
+rewrite (enum_val_nth (enum_val i)) {2}pdom_of_doms_perm.
 apply: (index_uniq _ _ (enum_uniq _)).
-by have := ltn_ord i; rewrite -{2}cardsE pdoms_of_domperm -cardE.
+by rewrite -cardE -pdom_of_doms_perm.
 Qed.
 
 End DomPermDef.
 
-Lemma perm_pdomK s :
-  s = @of_domperm [set x in pdom s]
-        (cast_perm (esym (cardsE _)) (perm_pdom s)) [set x in pcodom s].
+Lemma perm_pdomK s : s = @of_doms_perm (pdom s) (perm_pdom s) (pcodom s).
 Proof.
 apply/ppermP => x /=; rewrite ppermE ffunE /=.
-rewrite !eq_enums; case eqsx : (s x) => [sx|]/=; first last.
-  rewrite insubN //= cardsE.
+case eqsx : (s x) => [sx|]/=; first last.
+  rewrite insubN //= cardE.
   suff /memNindex -> : x \notin enum (pdom s) by rewrite -cardE ltnn.
-  by rewrite !mem_enum unfold_in eqsx.
-have /[dup] xin : x \in enum (pdom s) by rewrite !mem_enum unfold_in eqsx.
-rewrite -index_mem -cardE -{1}cardsE => indx; rewrite insubT /=.
-have /= := enum_val_perm_dom (cast_ord (cardsE (mem (pdom s))) (Ordinal indx)).
-have -> : enum_val (cast_ord (cardsE (mem (pdom s))) (Ordinal indx)) = x.
-  by rewrite (enum_val_nth x) /= nth_index.
-rewrite -eqsx => ->; rewrite cast_permE /=.
-rewrite (enum_val_nth x) onthE (nth_map x) /=; first last.
-  by rewrite -cardE card_pcomdomE.
+  by rewrite !mem_enum mem_pdom eqsx.
+have /[dup] xin : x \in enum (pdom s) by rewrite !mem_enum mem_pdom eqsx.
+rewrite -index_mem -cardE => indx; rewrite insubT /=.
+have := enum_val_perm_dom (Ordinal indx).
+rewrite !(enum_val_nth x) /= nth_index // -eqsx => ->.
+rewrite onthE (nth_map x) /=; first last.
+  by rewrite -cardE card_pcodomE.
 by congr (Some (nth _ _ (perm_pdom _ _))); apply: val_inj.
 Qed.
 
-Definition pptriple := ({x : {set T} & 'S_#|x|} * {set T})%type.
+Local Notation SP := {x : {set T} & 'S_#|x|}.
+Definition pptriple := (SP * {set T})%type.
 Definition to_pptriple s : pptriple :=
-  (existT (fun x : {set T} => 'S_#|x|)
-     [set x in pdom s] (cast_perm (esym (cardsE _)) (perm_pdom s)),
-    [set x in pcodom s]).
+  (existT (fun x : {set T} => 'S_#|x|) (pdom s) (perm_pdom s), pcodom s).
 Definition of_pptriple (tr : pptriple) :=
-  let: (existT doms p, codoms) := tr in @of_domperm doms p codoms.
+  let: (existT doms p, codoms) := tr in @of_doms_perm doms p codoms.
 
 Lemma to_pptripleK : cancel to_pptriple of_pptriple.
 Proof. by move=> s; rewrite -[LHS](perm_pdomK s). Qed.
@@ -527,10 +583,10 @@ Lemma of_pptripleK (tr : pptriple) :
   #|tag tr.1| = #|tr.2| -> to_pptriple (of_pptriple tr) = tr.
 Proof.
 case: tr => [[doms p] codoms] /= eqdoms.
-congr (_, _); last by rewrite pcodoms_of_domperm.
-rewrite perm_of_domperm.
-move: [set x in pdom (of_domperm _ _)] (pdoms_of_domperm _ _) => d eqd.
-by subst d.
+congr (_, _); last by rewrite pcodom_of_doms_perm.
+rewrite perm_of_doms_perm.
+move: (of_doms_perm _ _) (pdom_of_doms_perm _ _) => d eqd.
+by subst doms.
 Qed.
 
 Lemma imset_to_pptriple :
@@ -538,10 +594,20 @@ Lemma imset_to_pptriple :
 Proof.
 apply/setP => /= tr; rewrite !inE.
 apply/imsetP/eqP => [[/= pp _ ->] /= | /of_pptripleK <-].
-  by rewrite !cardsE card_pcomdomE.
+  by rewrite card_pcodomE.
 by exists (of_pptriple tr).
 Qed.
 
+Definition set_perm_of_card k (pr : SP) := let (doms, p) := pr in
+  (doms, if altP (#|doms| =P k) is AltTrue pf then cast_perm pf p else 1).
+Lemma set_perm_of_card_inj {k : nat} :
+  {in [set p : SP | #|tag p| == k] &, injective (set_perm_of_card k)}.
+Proof.
+move=> /= [d1 p1][d2 p2].
+rewrite !inE /= => /eqP cd1 /eqP cd2 [eqd]; subst d2.
+case (altP (#|d1| =P k)) => [{}cd1|]; last by rewrite cd1 eqxx.
+by move/cast_perm_inj ->.
+Qed.
 
 Theorem card_pperm : #|{pperm T}| = \sum_(k < #|T|.+1) 'C(#|T|, k) ^ 2 * k`!.
 Proof.
@@ -553,28 +619,21 @@ pose cdom tr := Ordinal (cdom_subproof tr).
 rewrite [LHS](partition_big_idem _ _ (p := cdom) (Q := xpredT)) //=.
 apply: eq_bigr => k _; rewrite sum1dep_card.
 transitivity
-  #|setX [set pdoms : {x : {set T} & 'S_#|x|} | #|tag pdoms| == k]
-    [set codoms : {set T} | #|codoms| == k]|.
+  #|setX [set pdoms : SP | #|tag pdoms| == k]
+         [set codoms : {set T} | #|codoms| == k]|.
   rewrite !cardsE /=; apply: eq_card => /= -[[doms p codoms]] /=.
   rewrite unfold_in [RHS]unfold_in !in_set /= -(inj_eq val_inj) /= andbC.
   by case: eqP => //= ->; rewrite eq_sym.
 rewrite {cdom_subproof cdom} cardsX card_draws.
 rewrite -mulnn -mulnA [RHS]mulnC; congr (_ * _)%N.
-pose ofcard (pr : {x : {set T} & 'S_#|x|}) := let (doms, p) := pr in
-  (doms, if altP (#|doms| =P k) is AltTrue pf then cast_perm pf p else 1).
-rewrite -(card_in_imset (f := ofcard)); first last.
-  move=> /= [d1 p1][d2 p2].
-  rewrite !inE /= => /eqP cd1 /eqP cd2 [eqd]; subst d2.
-  case (altP (#|d1| =P k)) => [{}cd1|]; last by rewrite cd1 eqxx.
-  by move/cast_perm_inj ->.
+rewrite -(card_in_imset set_perm_of_card_inj).
 transitivity #|setX [set pdoms : {set T} | #|pdoms| == k] [set: 'S_k]|; first last.
   by rewrite cardsX card_draws cardsE card_Sn.
 congr #|pred_of_set _|; apply/setP => /= -[s p].
 rewrite !inE /= andbT; apply/imsetP/eqP => /= [[[s1 p1]] | cs].
   by rewrite inE /= => /eqP cs1 [->].
 exists (existT _ s (cast_perm (esym cs) p)); first by rewrite inE /= cs.
-rewrite /ofcard; congr (_, _).
-case (altP (#|s| =P k)) => [cds|]; last by rewrite cs eqxx.
+congr (_, _); case (altP (#|s| =P k)) => [cds|]; last by rewrite cs eqxx.
 by rewrite cast_perm_comp cast_perm_id.
 Qed.
 
@@ -695,9 +754,9 @@ Proof. by rewrite ppermE. Qed.
 Lemma perm_to_pperm_is_monoid_morphism : monoid_morphism perm_to_pperm.
 Proof.
 split=> [| /= f g].
-- by apply/ppermP=> x; rewrite perm_to_ppermE permE pperm1E.
+- by apply/ppermP=> x; rewrite perm_to_ppermE permE pperm1.
 - apply/ppermP=> x; rewrite perm_to_ppermE.
-  by rewrite permE /= ppermME /= !perm_to_ppermE /= perm_to_ppermE.
+  by rewrite permE /= ppermM /= !perm_to_ppermE /= perm_to_ppermE.
 Qed.
 HB.instance Definition _ :=
   isUMagmaMorphism.Build {perm T} {pperm T}
@@ -712,20 +771,36 @@ by rewrite !ffunE perm_to_transfE ppvalE /= ppermE.
 Qed.
 
 Definition pperm_is_perm f := [forall x : T, isSome (f x)].
-Lemma pperm_is_permP f :
+Lemma is_Some_permP f :
   reflect (forall x : T, isSome (f x)) (pperm_is_perm f).
 Proof. exact: forallP. Qed.
-Lemma perm_to_pperm_is_perm p : pperm_is_perm (perm_to_pperm p).
-Proof. by apply/pperm_is_permP=> x; rewrite perm_to_ppermE. Qed.
+Lemma pperm_is_perm_domE f : (pperm_is_perm f) = (pdom f == setT).
+Proof.
+apply/is_Some_permP/eqP => [allSome|].
+  by apply/setP => x; rewrite !inE allSome.
+by move/setP => /[swap] x /(_ x) /[!inE] ->.
+Qed.
+Lemma pperm_is_perm_codomE f : (pperm_is_perm f) = (pcodom f == setT).
+Proof. by rewrite pperm_is_perm_domE -!subset_leqif_cards // card_pcodomE. Qed.
+
+Lemma perm_to_ppermP p : pperm_is_perm (perm_to_pperm p).
+Proof. by apply/is_Some_permP=> x; rewrite perm_to_ppermE. Qed.
 Lemma perm_of_ppermK : {in pperm_is_perm, cancel perm_of_pperm perm_to_pperm}.
 Proof.
-move=> f /pperm_is_permP allSome; apply/ppermP => x.
+move=> f /is_Some_permP allSome; apply/ppermP => x.
 rewrite perm_to_ppermE /perm_of_pperm perm_of_transfE; first last.
   rewrite /of_ptransf => {}x y /=; rewrite !ffunE ppvalE /= => Heq.
-  apply: (pperm_inj (allSome x) (allSome y)).
+  apply: (pperm_inj1 (allSome x)).
   by case: (f x) (f y) (allSome x) (allSome y) Heq => [fx | //] [fy | //] _ _ ->.
 rewrite /of_ptransf !ffunE ppvalE /=.
 by case: (f x) (allSome x).
+Qed.
+Lemma pperm_is_permP f :
+  reflect (exists p : {perm T}, perm_to_pperm p = f) (pperm_is_perm f).
+Proof.
+apply (iffP idP) => [/perm_of_ppermK <- | [x <-]].
+   by exists (perm_of_pperm f).
+exact: perm_to_ppermP.
 Qed.
 
 End PermToPPerm.
