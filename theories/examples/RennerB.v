@@ -91,6 +91,13 @@ Proof.
 apply (iffP (halfsetPtf S)) => [H [[]i] | H i]; try exact: H.
 by rewrite andbC; apply: H.
 Qed.
+Lemma halfset_absvalP S : reflect {in S &, injective absval} (halfset S).
+Proof.
+apply (iffP (halfsetPtf S)) => [H | inj i].
+  by move=> [[]i] [[]j] iS jS /= eqij; subst i => //; have:= H j; rewrite iS jS.
+apply/negP => /andP[tS fS].
+by have /= /(_ (erefl i)) [] := inj _ _ tS fS.
+Qed.
 Lemma subhalfset S T : S \subset T -> halfset T -> halfset S.
 Proof.
 move/subsetP => SsubT /halfsetPtf hS; apply/halfsetPtf => i.
@@ -98,6 +105,64 @@ by apply/contra: (hS i) => /andP[/SsubT -> /SsubT ->].
 Qed.
 Lemma halfset_pos : halfset [set bi | bi.1].
 Proof. by apply/halfsetPtf => i; rewrite !inE. Qed.
+
+Lemma card_halfset_le S : halfset S -> #|S| <= n.
+Proof.
+move=> /halfset_absvalP/card_in_imset <-.
+by rewrite -[X in _ <= X](card_ord n) subset_leq_card // subset_predT.
+Qed.
+
+Lemma card_halfset (k : nat) :
+  #|[set S : {set 'BI_n} | #|S| == k & halfset S]| = (2 ^ k * 'C(n, k))%N.
+Proof.
+rewrite -sum1dep_card.
+rewrite [LHS](partition_big_idem _ _ (p := fun S : {set 'BI_n} => absval @: S)
+                (Q := fun S : {set 'I_n} => #|S| == k)) => //=; first last.
+  by move=> S /andP[cS /halfset_absvalP/card_in_imset ->].
+transitivity (\sum_(S  : {set 'I_n} | #|S| == k) 2 ^ k); first last.
+  rewrite sum_nat_const /= mulnC; congr(_ * _)%N.
+  rewrite -[in RHS](card_ord n) -card_draws.
+  by apply: eq_card => S; rewrite inE unfold_in.
+apply: eq_bigr => /= S /eqP CS.
+rewrite sum1dep_card -[in RHS]CS -card_powerset.
+rewrite -(card_in_imset
+            (f := fun S => [set i : 'I_n | (true, i) \in S])); first last.
+  have mem_setabs T (i : 'I_n) : halfset T ->
+      (i \in [set absval x | x in T]) = ((true, i) \in T) (+) ((false, i) \in T).
+    move=> /halfsetPtf/(_ i) H.
+    apply/imsetP/idP => /= [[[[]j] /[swap] /= <-] |].
+    * by move: H=> /[swap] ->.
+    * by move: H=> /[swap] ->; rewrite andbT addbT.
+    case: (boolP (_ \in T)) H => /= [tinT _ _| _ _ finT].
+    * by exists (true, i).
+    * by exists (false, i).
+  move=> /= T1 T2 /[!inE].
+  case/andP => /andP[_ /mem_setabs hT1] /eqP <-.
+  case/andP => /andP[_ {}/mem_setabs hT2] /eqP /setP eqabsT /setP eqT.
+  apply/setP => [[[]/= i]]; first by have:= eqT i; rewrite !inE.
+  move/(_ i): hT1; move/(_ i): hT2; move/(_ i): eqabsT; move/(_ i): eqT.
+  rewrite !inE.
+  by case: (i \in absval @: _); case: (i \in absval @: _) => //= -> _;
+    repeat case: (_ \in _) => //=.
+apply eq_card => /= T; rewrite inE.
+apply/imsetP/idP => /= [[U /[swap]] {T}-> | /subsetP TsubS].
+  rewrite inE => /andP[_ /eqP<-{S CS}].
+  by apply/subsetP => i /[!inE] iU; apply/imsetP; exists (true, i).
+pose A : {set 'BI_n} := [set bi | (bi.2 \in S) && (bi.1 == (bi.2 \in T))].
+exists A; first last.
+  rewrite {}/A; apply/setP => i; rewrite !inE /= andbC.
+  by case: (boolP (i \in T)) => // /TsubS ->.
+have absA : [set absval x | x in A] = S.
+  rewrite {}/A /=; apply/setP => i.
+  apply/imsetP/idP => /= [[bi /[!inE]/andP[biS _ {i}->] //] | iS].
+  by exists (i \in T, i) => //; rewrite inE /= iS /=.
+rewrite inE absA eqxx andbT andbC.
+have : halfset A.
+  rewrite {absA}/A; apply/halfsetPtf => i; rewrite !inE /=.
+  by case: (boolP (i \in T)) => [/TsubS -> |] //=; rewrite andbF.
+move=> /[dup]/halfset_absvalP/card_in_imset <- -> /=.
+by rewrite -CS absA.
+Qed.
 
 End SignedInts.
 
@@ -189,8 +254,11 @@ Notation "''RB_' n" := (RennerB n)
 
 Section Theory.
 
-Lemma RB0E : all_equal_to (1 : 'RB_0).
+Lemma RennerB0E : all_equal_to (1 : 'RB_0).
 Proof. by move=> /= r; apply/val_inj/ppermP => -[/= b []]. Qed.
+
+Lemma card_card_RennerB0 : #|'RB_0| = 1%N.
+Proof. by apply/eqP/fintype1P; exists 1; exact RennerB0E. Qed.
 
 Lemma permVhalf n :
   n != 0 -> forall r : 'RB_n, pperm_is_perm r (+) halfset (pdom r).
@@ -204,7 +272,7 @@ Qed.
 Lemma Renner_perm_anti n (r : 'RB_n) : pperm_is_perm r -> antisymm r.
 Proof.
 case: n r => [|n] r.
-  rewrite {r}RB0E => _; apply/antisymmP => /= -[/= b []] //.
+  rewrite {r}RennerB0E => _; apply/antisymmP => /= -[/= b []] //.
 move=> rperm; have:= RennerP r; rewrite /isRennerB.
 have:= permVhalf (n := n.+1) is_true_true r.
 by rewrite rperm => /= /negbTE->; rewrite orbF.
@@ -213,7 +281,7 @@ Qed.
 Lemma Renner_half_pcodom n (r : 'RB_n) : halfset (pdom r) -> halfset (pcodom r).
 Proof.
 case: n r => [|n] r.
-  by rewrite {r}RB0E => _; rewrite pcodom1; apply/halfsetP => -[b[]].
+  by rewrite {r}RennerB0E => _; rewrite pcodom1; apply/halfsetP => -[b[]].
 move=> halfdom; have:= RennerP r; rewrite /isRennerB.
 have:= permVhalf (n := n.+1) is_true_true r.
 by rewrite halfdom addbT => /negbTE-> /=.
@@ -370,7 +438,7 @@ by rewrite tnth_mktuple /= !ppermE /= ppermE /=; case: (tnth s i).
 Qed.
 
 Lemma ps_of_RBK :
-  {in [pred r : 'RB_n | pperm_is_perm r], cancel ps_of_RB RB_of_ps}.
+  {in [set r : 'RB_n | pperm_is_perm r], cancel ps_of_RB RB_of_ps}.
 Proof.
 move=> r; rewrite inE => rperm.
 have /antisymmP ranti := Renner_perm_anti rperm.
@@ -399,13 +467,13 @@ case: i => [[]i] /=; rewrite tnth_mktuple.
   by have:= req i; rewrite H /= => -[] <-.
 Qed.
 
-Lemma RB_of_ps_bij: {on [pred r : 'RB_n | pperm_is_perm r], bijective RB_of_ps}.
+Lemma RB_of_ps_bij: {on [set r : 'RB_n | pperm_is_perm r], bijective RB_of_ps}.
 Proof.
 exists ps_of_RB; first by apply: in1W; exact: RB_of_psK.
 by move=> /= r Hr; rewrite ps_of_RBK.
 Qed.
 Corollary card_pperm_is_perm :
-  #|[pred r : 'RB_n | pperm_is_perm r]| = (n`! * 2 ^ n)%N.
+  #|[set r : 'RB_n | pperm_is_perm r]| = (n`! * 2 ^ n)%N.
 Proof.
 rewrite -(on_card_preimset RB_of_ps_bij).
 transitivity #|[set: {perm 'I_n} * n.-tuple bool]|.
@@ -418,7 +486,66 @@ Qed.
 
 End FromPermutations.
 
+From Stdlib Require Import Ring.
 
+
+Section HalfPerm.
+
+Variable n : nat.
+Implicit Types (r s t : 'RB_n) (i j : 'BI_n).
+
+Theorem card_halfRennerB :
+  #|[set r : 'RB_n | halfset (pdom r)]| =
+     \sum_(k < n.+1) 4 ^ k * 'C(n, k) ^ 2 * k`!.
+Proof.
+transitivity #|[set tr : pptriple 'BI_n |
+                 [&& #|tag tr.1| == #|tr.2|, halfset (tag tr.1) & halfset tr.2]]|.
+  rewrite -(card_imset _ (inj_comp (can_inj (@to_pptripleK _)) val_inj)).
+  apply eq_card => /= tr; rewrite !inE.
+  apply/imsetP/idP => /= => [[x /[!inE] hdomx] {tr}-> /= | Htr].
+    by rewrite card_pcodomE eqxx Renner_half_pcodom hdomx.
+  case eqtr : tr Htr => [[doms p] codoms] /= /and3P[/eqP eqtag hdom hcodom].
+  have rRB : isRennerB (of_pptriple tr).
+    apply/orP; right.
+    by rewrite eqtr pdom_of_doms_perm ?pcodom_of_doms_perm // hdom hcodom.
+  exists (mkRennerB rRB); last by rewrite of_pptripleK eqtr.
+  by rewrite inE /= /of_pptriple eqtr /= pdom_of_doms_perm.
+rewrite -sum1dep_card.
+have cdom_subproof (tr : pptriple 'BI_n) :
+  (if #|tag tr.1| <= n then #|tag tr.1| else 0) < n.+1.
+  by rewrite ltnS; case: (leqP #|_| _).
+pose cdom tr := Ordinal (cdom_subproof tr).
+rewrite [LHS](partition_big_idem _ _ (p := cdom) (Q := xpredT)) //=.
+apply: eq_bigr => k _; rewrite sum1dep_card.
+transitivity ((2 ^ k * 'C(n, k)  * k`!) * (2 ^ k * 'C(n, k)))%N; first last.
+  rewrite -!mulnn mulnC !mulnA; congr (_ * _ * _)%N.
+  by rewrite mulnC mulnA -expnMn.
+transitivity
+  #|setX [set pdoms : {x : {set 'BI_n} & 'S_#|x|} |
+           (#|tag pdoms| == k) && (halfset (tag pdoms))]
+         [set codoms : {set 'BI_n} | (#|codoms| == k) && (halfset codoms)]|.
+  rewrite !cardsE /=; apply: eq_card => /= -[[doms p codoms]] /=.
+  rewrite unfold_in [RHS]unfold_in !in_set /= -(inj_eq val_inj) /=.
+  case: (boolP (halfset doms)) => /= hdoms; last by rewrite !andbF.
+  case: (boolP (halfset codoms)) => /= _; last by rewrite !andbF.
+  rewrite !andbT andbC (card_halfset_le hdoms).
+  by case: eqP => //= ->; rewrite eq_sym.
+rewrite {cdom_subproof cdom} cardsX card_halfset; congr (_ * _)%N.
+rewrite -(card_in_imset (f := set_perm_of_card k)); first last.
+  move=> /= S T /[!inE] => /andP[cS _]/andP[cT _].
+  by apply: set_perm_of_card_inj; rewrite inE.
+transitivity #|setX [set pdoms : {set 'BI_n} | (#|pdoms| == k) && (halfset pdoms)]
+                    [set: 'S_k]|; first last.
+  by rewrite cardsX card_halfset cardsE card_Sn.
+apply eq_card => -[/= S p].
+rewrite !inE /= andbT; apply/imsetP/andP => /= [[[T q]] | [/eqP cs hS]].
+  by rewrite inE /= => /andP[cs1 hT] [{S}-> _].
+exists (existT _ S (cast_perm (esym cs) p)); first by rewrite inE /= cs eqxx hS.
+congr (_, _); case (altP (#|S| =P k)) => [cds|]; last by rewrite cs eqxx.
+by rewrite cast_perm_comp cast_perm_id.
+Qed.
+
+End HalfPerm.
 
 
 Section Cardinality.
@@ -429,38 +556,41 @@ Implicit Types (r s t : 'RB_n) (i j : 'BI_n).
 
 Lemma disjjoint_perm_half :
   [disjoint
-     [pred r : 'RB_n | pperm_is_perm r] & [pred r : 'RB_n | halfset (pdom r)]].
+     [set r : 'RB_n | pperm_is_perm r] & [set r : 'RB_n | halfset (pdom r)]].
 Proof.
 rewrite disjoint_subset; apply/subsetP => /= r.
 by rewrite !inE; have /(_ is_true_true) := permVhalf _ r => /[swap] ->.
 Qed.
 
 Lemma cardRB_permVhalf :
-  #|{: 'RB_n}|
-  = #|[pred r : 'RB_n | pperm_is_perm r]| + #|[pred r : 'RB_n | halfset (pdom r)]|.
+  #|'RB_n| = #|[set r : 'RB_n | pperm_is_perm r]|
+           + #|[set r : 'RB_n | halfset (pdom r)]|.
 Proof.
 rewrite -cardUI (eqP disjjoint_perm_half) addn0.
 apply: eq_card => /= r; rewrite !inE.
 by case: r => r /= /orP[/andP[-> _] | /andP[-> _ /[!orbT]]].
 Qed.
 
+Theorem card_RennerB :
+  #|'RB_n| =   n`! * 2 ^ n + \sum_(k < n.+1) 4 ^ k * 'C(n, k) ^ 2 * k`!.
+Proof. by rewrite cardRB_permVhalf card_pperm_is_perm card_halfRennerB. Qed.
+
 End Cardinality.
 
-Definition cardRB n :=
-  n`! * 2 ^ n + \sum_(k < n.+1) 4 ^ k * 'C(n, k) ^ 2 * k`!.
-Definition cardRB_comp n :=
+Definition cardRB_nat n :=
   n`! * 2 ^ n + sumn [seq 4 ^ k * 'C(n, k) ^ 2 * k`! | k <- iota 0 n.+1]%N.
-Lemma cardRBE n :
-  cardRB n =
-    n`! * 2 ^ n + sumn [seq 4 ^ k * 'C(n, k) ^ 2 * k`! | k <- iota 0 n.+1]%N.
+
+Lemma cardRB_natE n : #|'RB_n.+1| = cardRB_nat n.+1.
 Proof.
+rewrite card_RennerB.
 congr (_ + _); rewrite sumnE big_map big_mknat /index_iota subn0 !big_seq.
 apply: eq_bigr => i; rewrite mem_iota /= add0n => lti.
 by rewrite inordK.
 Qed.
 
-Goal cardRB 1 = 7.     Proof. by rewrite cardRBE; compute. Qed.
-Goal cardRB 2 = 57.    Proof. by rewrite cardRBE; compute. Qed.
-Goal cardRB 3 = 757.   Proof. by rewrite cardRBE; compute. Qed.
+(* [1, 7, 57, 757, 13889, 322021, 8962225, 289928549] *)
+Goal #|'RB_1| = 7.     Proof. by rewrite cardRB_natE; compute. Qed.
+Goal #|'RB_2| = 57.    Proof. by rewrite cardRB_natE; compute. Qed.
+Goal #|'RB_3| = 757.   Proof. by rewrite cardRB_natE; compute. Qed.
 #[warning="-abstract-large-number"]
-Goal cardRB 4 = 13889. Proof. by rewrite cardRBE; compute. Qed.
+Goal #|'RB_4| = 13889. Proof. by rewrite cardRB_natE; compute. Qed.

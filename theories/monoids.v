@@ -410,7 +410,7 @@ Proof. by move=> inj x fxD y /[dup] eqfxy; apply: inj; rewrite // -eqfxy. Qed.
 
 Section PPermTheory.
 
-Variable T : finType.
+Variable (T : finType).
 Implicit Types (x y : T) (s t : {pperm T}).
 
 Lemma ppermP s t : s =1 t <-> s = t.
@@ -629,7 +629,7 @@ rewrite -mulnn -mulnA [RHS]mulnC; congr (_ * _)%N.
 rewrite -(card_in_imset set_perm_of_card_inj).
 transitivity #|setX [set pdoms : {set T} | #|pdoms| == k] [set: 'S_k]|; first last.
   by rewrite cardsX card_draws cardsE card_Sn.
-congr #|pred_of_set _|; apply/setP => /= -[s p].
+apply: eq_card => /= -[s p].
 rewrite !inE /= andbT; apply/imsetP/eqP => /= [[[s1 p1]] | cs].
   by rewrite inE /= => /eqP cs1 [->].
 exists (existT _ s (cast_perm (esym cs) p)); first by rewrite inE /= cs.
