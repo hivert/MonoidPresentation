@@ -1,6 +1,8 @@
 Certifying the decidability of the word problem in monoids at large
 ===================================================================
 
+[![Nix CI for bundle rocq-9.0-mc2.5.0](https://github.com/hivert/MonoidPresentation/actions/workflows/nix-action-rocq-9.0-mc2.5.0.yml/badge.svg)](https://github.com/hivert/MonoidPresentation/actions/workflows/nix-action-rocq-9.0-mc2.5.0.yml) [![Nix CI for bundle rocq-9.1-mc2.5.0](https://github.com/hivert/MonoidPresentation/actions/workflows/nix-action-rocq-9.1-mc2.5.0.yml/badge.svg)](https://github.com/hivert/MonoidPresentation/actions/workflows/nix-action-rocq-9.1-mc2.5.0.yml) [![Nix CI for bundle rocq-9.1-mcmaster](https://github.com/hivert/MonoidPresentation/actions/workflows/nix-action-rocq-9.1-mcmaster.yml/badge.svg)](https://github.com/hivert/MonoidPresentation/actions/workflows/nix-action-rocq-9.1-mcmaster.yml)
+
 R. Cirpons, F. Hivert, A. Mahboubi, G. Melquiond, J. Mitchell, F. Smith
 
 Work presented at CPP-2026, Sun 11 - Sat 17 January 2026, Rennes, France.
