@@ -19,6 +19,8 @@ From Stdlib Require Import Znat BinIntDef Uint63 Ring Ring63.
 From Stdlib Require Import -(notations) PArray.
 From mathcomp Require Import all_boot all_order ssralg.
 
+Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
+
 (* Workaround for MathComp / PArray notation incompatibilities *)
 Notation "t .[ i ]" := (get t i).
 Notation "t .[ i <- a ]" := (set t i a)
