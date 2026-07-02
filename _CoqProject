@@ -30,3 +30,4 @@ theories/examples/RennerB51.v
 theories/examples/RennerD41.v
 theories/examples/RennerD51.v
 theories/examples/freecom.v
+theories/examples/RennerB.v
