@@ -17,6 +17,8 @@ From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat seq eqtype
   choice path bigop monoid.
 
+Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
+
 Require Import factor monoids present monpres.
 
 Set Implicit Arguments.

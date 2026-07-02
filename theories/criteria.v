@@ -18,6 +18,8 @@ From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype choice ssrnat
   seq order monoid.
 
+Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
+
 Require Import well_founded monoids present factor rewcert sizelexi.
 
 Set Implicit Arguments.

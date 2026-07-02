@@ -18,6 +18,7 @@ From Stdlib Require Import Uint63.
 From mathcomp Require Import all_boot all_order.
 Require Import int_seq sizelexi monoids present.
 
+Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
 
 Set Implicit Arguments.
 Unset Strict Implicit.
