@@ -17,6 +17,8 @@ From HB Require Import structures.
 From Stdlib Require Import Znat BinIntDef Uint63.
 From mathcomp Require Import all_boot all_order.
 
+Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
+
 Require Import well_founded.
 
 Set Implicit Arguments.

@@ -18,6 +18,8 @@ From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq path.
 From mathcomp Require Import choice bigop fintype finfun finset ssralg tuple.
 From mathcomp Require Import order monoid.
 
+Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
+
 Require Import monoids present enumnf monpres sizelexi.
 
 Set Implicit Arguments.
