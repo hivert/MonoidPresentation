@@ -18,6 +18,7 @@ From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq tuple.
 From mathcomp Require Import choice bigop fintype finfun finset ssralg monoid.
 From mathcomp Require Import fingroup perm binomial.
 
+Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -507,9 +508,9 @@ transitivity #|[set tr : pptriple 'BI_n |
   case eqtr : tr Htr => [[doms p] codoms] /= /and3P[/eqP eqtag hdom hcodom].
   have rRB : isRennerB (of_pptriple tr).
     apply/orP; right.
-    by rewrite eqtr pdom_of_doms_perm ?pcodom_of_doms_perm // hdom hcodom.
+    by rewrite eqtr pdom_of_pdoms_perm ?pcodom_of_pdoms_perm // hdom hcodom.
   exists (mkRennerB rRB); last by rewrite of_pptripleK eqtr.
-  by rewrite inE /= /of_pptriple eqtr /= pdom_of_doms_perm.
+  by rewrite inE /= /of_pptriple eqtr /= pdom_of_pdoms_perm.
 rewrite -sum1dep_card.
 have cdom_subproof (tr : pptriple 'BI_n) :
   (if #|tag tr.1| <= n then #|tag tr.1| else 0) < n.+1.

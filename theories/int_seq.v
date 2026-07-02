@@ -18,7 +18,6 @@ From Stdlib Require Import Znat BinIntDef Uint63 Ring Ring63.
 From mathcomp Require Import all_boot all_order.
 From mathcomp Require Import nmodule ssralg zmodp countalg finalg.
 
-
 Set SsrOldRewriteGoalsOrder.  (* change to Unset and remove the line when requiring MathComp >= 2.6 *)
 
 Require Import well_founded.
