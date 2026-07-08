@@ -52,6 +52,7 @@
         coq.override.version = "9.0";
         mathcomp.override.version = "2.5.0";
       };
+      push-branches = [ "main" ];
     };
     "rocq-9.1-mc2.5.0" = {
       rocqPackages = {
@@ -63,6 +64,7 @@
         coq.override.version = "9.1";
         mathcomp.override.version = "2.5.0";
       };
+      push-branches = [ "main" ];
     };
     "rocq-9.1-mcmaster" = {
       rocqPackages = {
@@ -74,6 +76,7 @@
         coq.override.version = "9.1";
         mathcomp.override.version = "master";
       };
+      push-branches = [ "main" ];
     };
 
     ## You can override Coq and other Coq coqPackages
